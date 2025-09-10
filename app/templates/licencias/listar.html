@@ -1,5 +1,6 @@
-<!doctype html>
-<title>Solicitudes de licencia</title>
+{% extends 'base.html' %}
+{% block title %}Solicitudes de licencia{% endblock %}
+{% block content %}
 <h1>Solicitudes de licencia</h1>
 <ul>
 {% for s in solicitudes %}
@@ -12,3 +13,4 @@
     <li>No hay solicitudes</li>
 {% endfor %}
 </ul>
+{% endblock %}
