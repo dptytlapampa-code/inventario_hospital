@@ -1,0 +1,11 @@
+<!doctype html>
+<title>Solicitar licencia</title>
+<h1>Solicitar licencia</h1>
+<form method="post">
+    {{ form.hidden_tag() }}
+    <p>{{ form.empleado.label }} {{ form.empleado() }}</p>
+    <p>{{ form.fecha_inicio.label }} {{ form.fecha_inicio() }}</p>
+    <p>{{ form.fecha_fin.label }} {{ form.fecha_fin() }}</p>
+    <p>{{ form.motivo.label }} {{ form.motivo() }}</p>
+    <p>{{ form.submit() }}</p>
+</form>

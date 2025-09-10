@@ -1,0 +1,14 @@
+<!doctype html>
+<title>Solicitudes de licencia</title>
+<h1>Solicitudes de licencia</h1>
+<ul>
+{% for s in solicitudes %}
+    <li>
+        {{ s.id }} - {{ s.empleado }} - {{ s.estado }}
+        [<a href="{{ url_for('licencias.detalle', licencia_id=s.id) }}">Detalle</a>]
+        [<a href="{{ url_for('licencias.aprobar_rechazar', licencia_id=s.id) }}">Aprobar/Rechazar</a>]
+    </li>
+{% else %}
+    <li>No hay solicitudes</li>
+{% endfor %}
+</ul>
