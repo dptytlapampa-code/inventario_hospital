@@ -1,0 +1,10 @@
+<!doctype html>
+<title>Aprobar o Rechazar</title>
+<h1>Aprobar o Rechazar</h1>
+<p>Solicitud de {{ solicitud.empleado }} ({{ solicitud.fecha_inicio }} - {{ solicitud.fecha_fin }})</p>
+<form method="post">
+    {{ form.hidden_tag() }}
+    <p>{{ form.accion.label }} {{ form.accion() }}</p>
+    <p>{{ form.comentario.label }} {{ form.comentario() }}</p>
+    <p>{{ form.submit() }}</p>
+</form>

@@ -1,0 +1,10 @@
+<!doctype html>
+<title>Calendario de licencias</title>
+<h1>Calendario de licencias</h1>
+<ul>
+{% for s in solicitudes %}
+    <li>{{ s.empleado }}: {{ s.fecha_inicio }} - {{ s.fecha_fin }} ({{ s.estado }})</li>
+{% else %}
+    <li>No hay solicitudes</li>
+{% endfor %}
+</ul>
