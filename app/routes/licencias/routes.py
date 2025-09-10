@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_required
 
 from app.forms.licencia import LicenciaForm, AprobarRechazarForm
 
@@ -18,6 +19,7 @@ def _get_solicitud(licencia_id: int):
 
 
 @licencias_bp.route("/solicitar", methods=["GET", "POST"])
+@login_required
 def solicitar():
     form = LicenciaForm()
     if form.validate_on_submit():
@@ -36,11 +38,13 @@ def solicitar():
 
 
 @licencias_bp.route("/listar")
+@login_required
 def listar():
     return render_template("licencias/listar.html", solicitudes=SOLICITUDES)
 
 
 @licencias_bp.route("/<int:licencia_id>/aprobar_rechazar", methods=["GET", "POST"])
+@login_required
 def aprobar_rechazar(licencia_id: int):
     solicitud = _get_solicitud(licencia_id)
     if not solicitud:
@@ -57,11 +61,13 @@ def aprobar_rechazar(licencia_id: int):
 
 
 @licencias_bp.route("/calendario")
+@login_required
 def calendario():
     return render_template("licencias/calendario.html", solicitudes=SOLICITUDES)
 
 
 @licencias_bp.route("/<int:licencia_id>/detalle")
+@login_required
 def detalle(licencia_id: int):
     solicitud = _get_solicitud(licencia_id)
     if not solicitud:

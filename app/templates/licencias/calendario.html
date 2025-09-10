@@ -1,5 +1,6 @@
-<!doctype html>
-<title>Calendario de licencias</title>
+{% extends 'base.html' %}
+{% block title %}Calendario de licencias{% endblock %}
+{% block content %}
 <h1>Calendario de licencias</h1>
 <ul>
 {% for s in solicitudes %}
@@ -8,3 +9,4 @@
     <li>No hay solicitudes</li>
 {% endfor %}
 </ul>
+{% endblock %}

@@ -1,5 +1,6 @@
-<!doctype html>
-<title>Aprobar o Rechazar</title>
+{% extends 'base.html' %}
+{% block title %}Aprobar o Rechazar{% endblock %}
+{% block content %}
 <h1>Aprobar o Rechazar</h1>
 <p>Solicitud de {{ solicitud.empleado }} ({{ solicitud.fecha_inicio }} - {{ solicitud.fecha_fin }})</p>
 <form method="post">
@@ -8,3 +9,4 @@
     <p>{{ form.comentario.label }} {{ form.comentario() }}</p>
     <p>{{ form.submit() }}</p>
 </form>
+{% endblock %}

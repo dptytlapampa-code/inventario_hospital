@@ -1,5 +1,6 @@
-<!doctype html>
-<title>Solicitar licencia</title>
+{% extends 'base.html' %}
+{% block title %}Solicitar licencia{% endblock %}
+{% block content %}
 <h1>Solicitar licencia</h1>
 <form method="post">
     {{ form.hidden_tag() }}
@@ -9,3 +10,4 @@
     <p>{{ form.motivo.label }} {{ form.motivo() }}</p>
     <p>{{ form.submit() }}</p>
 </form>
+{% endblock %}

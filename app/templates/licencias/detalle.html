@@ -1,8 +1,10 @@
-<!doctype html>
-<title>Detalle de licencia</title>
+{% extends 'base.html' %}
+{% block title %}Detalle de licencia{% endblock %}
+{% block content %}
 <h1>Detalle de licencia</h1>
 <p>Empleado: {{ solicitud.empleado }}</p>
 <p>Inicio: {{ solicitud.fecha_inicio }}</p>
 <p>Fin: {{ solicitud.fecha_fin }}</p>
 <p>Motivo: {{ solicitud.motivo }}</p>
 <p>Estado: {{ solicitud.estado }}</p>
+{% endblock %}
