@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Actas</h1>
+  <ul>
+    {% for acta_id, acta in actas %}
+      <li>
+        Acta {{ acta_id }} - {{ acta.tipo.value }} -
+        <a href="{{ url_for('actas.descargar', acta_id=acta_id) }}">Descargar</a>
+      </li>
+    {% else %}
+      <li>No hay actas</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Generar Acta</h1>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <p>
+      {{ form.tipo.label }}<br>
+      {{ form.tipo() }}
+    </p>
+    <p>
+      {{ form.equipos.label }}<br>
+      {{ form.equipos() }}
+    </p>
+    <p>{{ form.submit() }}</p>
+  </form>
+{% endblock %}
