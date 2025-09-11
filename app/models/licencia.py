@@ -1,76 +1,24 @@
-from __future__ import annotations
+"""Database model for leave requests."""
 
-from datetime import datetime
-from enum import Enum
+from datetime import date
 
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    Enum as SAEnum,
-    ForeignKey,
-    Index,
-    Integer,
-    func,
-)
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from app.models import db
 
 
-class Base(DeclarativeBase):
-    """Base class for SQLAlchemy models."""
-
-
-class TipoLicencia(str, Enum):
-    """Tipos válidos de licencias."""
-
-    TEMPORAL = "temporal"
-    PERMANENTE = "permanente"
-
-
-class EstadoLicencia(str, Enum):
-    """Estados válidos de una licencia."""
-
-    ACTIVA = "activa"
-    INACTIVA = "inactiva"
-    EXPIRADA = "expirada"
-    REVOCADA = "revocada"
-
-
-class Licencia(Base):
-    """Modelo de licencia."""
+class Licencia(db.Model):
+    """Licencia solicitada por un empleado."""
 
     __tablename__ = "licencias"
-    __table_args__ = (
-        Index("ix_licencias_estado_tipo", "estado", "tipo"),
-    )
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), index=True)
-    hospital_id: Mapped[int | None] = mapped_column(
-        ForeignKey("hospitales.id"), index=True, nullable=True
-    )
-    tipo: Mapped[TipoLicencia] = mapped_column(
-        SAEnum(TipoLicencia, name="tipo_licencia"), nullable=False
-    )
-    estado: Mapped[EstadoLicencia] = mapped_column(
-        SAEnum(EstadoLicencia, name="estado_licencia"), nullable=False
-    )
-    requires_replacement: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
-    )
+    id = db.Column(db.Integer, primary_key=True)
+    empleado = db.Column(db.String(100), nullable=False)
+    fecha_inicio = db.Column(db.Date, nullable=False)
+    fecha_fin = db.Column(db.Date, nullable=False)
+    motivo = db.Column(db.String(255), nullable=False)
+    estado = db.Column(db.String(20), nullable=False, default="pendiente")
 
-    usuario = relationship("Usuario", back_populates="licencias")
-    hospital = relationship("Hospital", back_populates="licencias")
+    def __repr__(self) -> str:  # pragma: no cover - debug helper
+        return f"<Licencia {self.empleado} {self.fecha_inicio} - {self.fecha_fin}>"
 
 
-__all__ = [
-    "Base",
-    "TipoLicencia",
-    "EstadoLicencia",
-    "Licencia",
-]
+__all__ = ["Licencia"]
