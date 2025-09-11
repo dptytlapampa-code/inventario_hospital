@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.ext.associationproxy import association_proxy
 
 from .base import Base
 
@@ -40,6 +41,7 @@ class Permiso(Base):
 
     rol: Mapped["Rol"] = relationship("Rol", back_populates="permisos")
     hospital: Mapped["Hospital"] = relationship("Hospital")
+    usuarios = association_proxy("rol", "usuarios")
 
 
 __all__ = ["Modulo", "Permiso"]

@@ -10,6 +10,7 @@ try:  # pragma: no cover - fallbacks for environments without Flask
         current_app,
     )
     from flask_login import login_required
+    from app.security import permissions_required
 except ModuleNotFoundError:  # pragma: no cover - simple stubs for testing
     class Blueprint:  # type: ignore
         def __init__(self, *args, **kwargs) -> None:
@@ -36,6 +37,12 @@ except ModuleNotFoundError:  # pragma: no cover - simple stubs for testing
     def login_required(func):  # type: ignore
         return func
 
+    def permissions_required(*_args, **_kwargs):  # type: ignore
+        def decorator(func):
+            return func
+
+        return decorator
+
     current_app = None  # type: ignore
 
 try:
@@ -59,6 +66,7 @@ def _get_solicitud(licencia_id: int) -> Optional[Licencia]:
 
 @licencias_bp.route("/solicitar", methods=["GET", "POST"])
 @login_required
+@permissions_required("licencias:write")
 def solicitar():
     form = LicenciaForm()
     if form.validate_on_submit():
@@ -103,12 +111,14 @@ def solicitar():
 
 @licencias_bp.route("/listar")
 @login_required
+@permissions_required("licencias:read")
 def listar():
     return render_template("licencias/listar.html", solicitudes=list(SOLICITUDES.values()))
 
 
 @licencias_bp.route("/<int:licencia_id>/aprobar_rechazar", methods=["GET", "POST"])
 @login_required
+@permissions_required("licencias:write")
 def aprobar_rechazar(licencia_id: int):
     solicitud = _get_solicitud(licencia_id)
     if not solicitud:
@@ -131,12 +141,14 @@ def aprobar_rechazar(licencia_id: int):
 
 @licencias_bp.route("/calendario")
 @login_required
+@permissions_required("licencias:read")
 def calendario():
     return render_template("licencias/calendario.html", solicitudes=list(SOLICITUDES.values()))
 
 
 @licencias_bp.route("/<int:licencia_id>/detalle")
 @login_required
+@permissions_required("licencias:read")
 def detalle(licencia_id: int):
     solicitud = _get_solicitud(licencia_id)
     if not solicitud:

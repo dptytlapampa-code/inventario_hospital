@@ -5,8 +5,9 @@ that package is not available in the execution environment. For testing
 purposes we implement minimal hashing helpers using :mod:`hashlib`.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
+from typing import Set
 
 
 def generate_password_hash(password: str) -> str:
@@ -33,6 +34,8 @@ class User:
     id: int
     username: str
     password_hash: str
+    roles: Set[str] = field(default_factory=set)
+    permissions: Set[str] = field(default_factory=set)
 
     @staticmethod
     def _hash_password(password: str) -> str:
@@ -41,10 +44,23 @@ class User:
         return generate_password_hash(password)
 
     @classmethod
-    def create(cls, id: int, username: str, password: str) -> "User":
+    def create(
+        cls,
+        id: int,
+        username: str,
+        password: str,
+        roles: Set[str] | None = None,
+        permissions: Set[str] | None = None,
+    ) -> "User":
         """Factory method to create users with a hashed password."""
 
-        return cls(id=id, username=username, password_hash=cls._hash_password(password))
+        return cls(
+            id=id,
+            username=username,
+            password_hash=cls._hash_password(password),
+            roles=roles or set(),
+            permissions=permissions or set(),
+        )
 
     def check_password(self, password: str) -> bool:
         """Verify a plaintext password against the stored hash."""
@@ -54,7 +70,13 @@ class User:
 
 # In-memory user store
 USERS = {
-    1: User.create(id=1, username="admin", password="admin"),
+    1: User.create(
+        id=1,
+        username="admin",
+        password="admin",
+        roles={"admin"},
+        permissions={"licencias:read", "licencias:write"},
+    ),
 }
 USERNAME_TABLE = {u.username: u for u in USERS.values()}
 
