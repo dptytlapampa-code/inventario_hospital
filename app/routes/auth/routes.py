@@ -7,7 +7,7 @@ from flask_login import (
 )
 
 from app.forms.login import LoginForm
-from app.models.user import USERNAME_TABLE
+from app.models.usuario import USERNAME_TABLE
 from licencias import usuario_con_licencia_activa
 
 
