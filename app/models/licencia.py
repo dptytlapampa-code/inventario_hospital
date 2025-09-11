@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -13,6 +14,10 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:  # pragma: no cover - only for type checking
+    from .hospital import Hospital
+    from .usuario import Usuario
 
 
 class Base(DeclarativeBase):
@@ -64,8 +69,12 @@ class Licencia(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    usuario = relationship("Usuario", back_populates="licencias")
-    hospital = relationship("Hospital", back_populates="licencias")
+    usuario: Mapped["Usuario"] = relationship(
+        "Usuario", back_populates="licencias"
+    )
+    hospital: Mapped["Hospital"] = relationship(
+        "Hospital", back_populates="licencias"
+    )
 
 
 __all__ = [
