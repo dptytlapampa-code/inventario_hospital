@@ -1,4 +1,4 @@
-"""Very small user model used for authentication tests.
+"""Minimal user model for authentication tests.
 
 The original project relied on ``werkzeug.security`` for password hashing, but
 that package is not available in the execution environment. For testing
