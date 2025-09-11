@@ -23,6 +23,18 @@ class TraslapeError(Exception):
 LICENCIAS_APROBADAS: Dict[int, List[Tuple[date, date]]] = {}
 
 
+def usuario_con_licencia_activa(
+    usuario_id: int, fecha: Optional[date] = None
+) -> bool:
+    """Verifica si el usuario tiene una licencia aprobada vigente."""
+
+    fecha = fecha or date.today()
+    for inicio, fin in LICENCIAS_APROBADAS.get(usuario_id, []):
+        if inicio <= fecha <= fin:
+            return True
+    return False
+
+
 def _rango_superpuesto(inicio1: date, fin1: date, inicio2: date, fin2: date) -> bool:
     """Determina si dos rangos de fechas se superponen."""
     return max(inicio1, inicio2) <= min(fin1, fin2)
