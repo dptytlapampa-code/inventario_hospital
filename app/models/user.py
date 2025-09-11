@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from werkzeug.security import check_password_hash, generate_password_hash
+import hashlib
+import hmac
 
 
 @dataclass
@@ -17,6 +18,16 @@ class User:
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+
+
+def generate_password_hash(password: str) -> str:
+    """Minimal password hashing using SHA-256."""
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def check_password_hash(pwhash: str, password: str) -> bool:
+    """Constant-time comparison of password hashes."""
+    return hmac.compare_digest(pwhash, generate_password_hash(password))
 
 
 # In-memory user store
