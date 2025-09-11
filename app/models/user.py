@@ -9,7 +9,8 @@ except Exception:  # pragma: no cover - executed when Werkzeug isn't installed
         return hashlib.sha256(password.encode()).hexdigest()
 
     def check_password_hash(pwhash: str, password: str) -> bool:
-        return pwhash == hashlib.sha256(password.encode()).hexdigest()
+        """Validate a password against its hash using the fallback hasher."""
+        return pwhash == generate_password_hash(password)
 
 
 @dataclass
