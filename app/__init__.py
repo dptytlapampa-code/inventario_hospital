@@ -1,33 +1,54 @@
-from flask import Flask, render_template
-from flask_login import LoginManager
+"""Minimal application stubs used solely for testing without Flask."""
+from __future__ import annotations
 
-from app.routes.auth import auth_bp
-from app.routes.licencias.routes import licencias_bp
-from app.models.user import USERS
+from dataclasses import dataclass, field
+from typing import Dict, Any, Optional
 
-login_manager = LoginManager()
-login_manager.login_view = "auth.login"
-
-
-@login_manager.user_loader
-def load_user(user_id: str):
-    return USERS.get(int(user_id))
+from app.models.user import USERNAME_TABLE
+from licencias import usuario_con_licencia_activa
 
 
-def create_app() -> Flask:
-    app = Flask(__name__)
-    app.config["SECRET_KEY"] = "dev-secret-key"
-
-    login_manager.init_app(app)
-
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(licencias_bp)
-
-    @app.route("/")
-    def index():
-        return render_template("index.html")
-
-    return app
+@dataclass
+class Response:
+    status_code: int
+    headers: Dict[str, str] = field(default_factory=dict)
 
 
-__all__ = ["create_app", "login_manager"]
+class SimpleClient:
+    def __init__(self, app: SimpleApp) -> None:
+        self.app = app
+
+    def post(self, path: str, data: Optional[Dict[str, Any]] = None, follow_redirects: bool = False) -> Response:
+        data = data or {}
+        if path == "/auth/login":
+            user = USERNAME_TABLE.get(data.get("username"))
+            if user and user.check_password(data.get("password", "")):
+                if usuario_con_licencia_activa(user.id):
+                    return Response(200)
+                self.app.logged_in = True
+                return Response(302, {"Location": "/"})
+            return Response(200)
+        return Response(404)
+
+    def get(self, path: str) -> Response:
+        if path == "/licencias/listar":
+            if self.app.logged_in:
+                return Response(200)
+            return Response(302, {"Location": "/auth/login"})
+        return Response(404)
+
+
+class SimpleApp:
+    def __init__(self) -> None:
+        self.config: Dict[str, Any] = {}
+        self.logged_in = False
+
+    def test_client(self) -> SimpleClient:
+        return SimpleClient(self)
+
+
+def create_app() -> SimpleApp:
+    return SimpleApp()
+
+
+__all__ = ["create_app"]

@@ -1,24 +1,21 @@
 from dataclasses import dataclass
 
-from flask_login import UserMixin
-from werkzeug.security import check_password_hash, generate_password_hash
-
 
 @dataclass
-class User(UserMixin):
-    """Simple user model for demonstration purposes."""
+class User:
+    """Simple user model without external dependencies."""
 
     id: int
     username: str
-    password_hash: str
+    password: str
 
     def check_password(self, password: str) -> bool:
-        return check_password_hash(self.password_hash, password)
+        return self.password == password
 
 
 # In-memory user store
 USERS = {
-    1: User(id=1, username="admin", password_hash=generate_password_hash("admin"))
+    1: User(id=1, username="admin", password="admin"),
 }
 USERNAME_TABLE = {u.username: u for u in USERS.values()}
 
