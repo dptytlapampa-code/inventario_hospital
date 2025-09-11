@@ -1,12 +1,31 @@
 {% extends 'base.html' %}
 {% block title %}Calendario de licencias{% endblock %}
 {% block content %}
-<h1>Calendario de licencias</h1>
-<ul>
-{% for s in solicitudes %}
-    <li>{{ s.empleado }}: {{ s.fecha_inicio }} - {{ s.fecha_fin }} ({{ s.estado }}) - {{ s.dias_habiles }} días</li>
+<h1 class="mb-4">Calendario de licencias</h1>
+{% if solicitudes %}
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Empleado</th>
+      <th>Inicio</th>
+      <th>Fin</th>
+      <th>Estado</th>
+      <th>Días hábiles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in solicitudes %}
+    <tr>
+      <td>{{ s.empleado }}</td>
+      <td>{{ s.fecha_inicio }}</td>
+      <td>{{ s.fecha_fin }}</td>
+      <td>{{ s.estado }}</td>
+      <td>{{ s.dias_habiles }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% else %}
-    <li>No hay solicitudes</li>
-{% endfor %}
-</ul>
+<p>No hay solicitudes</p>
+{% endif %}
 {% endblock %}

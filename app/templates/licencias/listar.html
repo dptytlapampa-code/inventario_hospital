@@ -1,17 +1,40 @@
 {% extends 'base.html' %}
 {% block title %}Solicitudes de licencia{% endblock %}
 {% block content %}
-<h1>Solicitudes de licencia</h1>
-<ul>
-{% for s in solicitudes %}
-    <li>
-        {{ s.id }} - {{ s.empleado }} - {{ s.estado }} - {{ s.dias_habiles }} días
-        {% if s.requiere_reemplazo %} (Reemplazo: {{ s.reemplazo_id }}){% endif %}
-        [<a href="{{ url_for('licencias.detalle', licencia_id=s.id) }}">Detalle</a>]
-        [<a href="{{ url_for('licencias.aprobar_rechazar', licencia_id=s.id) }}">Aprobar/Rechazar</a>]
-    </li>
+<h1 class="mb-4">Solicitudes de licencia</h1>
+{% if solicitudes %}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Empleado</th>
+      <th>Estado</th>
+      <th>Días hábiles</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in solicitudes %}
+    <tr>
+      <td>{{ s.id }}</td>
+      <td>{{ s.empleado }}</td>
+      <td>{{ s.estado }}</td>
+      <td>{{ s.dias_habiles }}</td>
+      <td>
+        <a
+          href="{{ url_for('licencias.detalle', licencia_id=s.id) }}"
+          class="btn btn-sm btn-info"
+        >Detalle</a>
+        <a
+          href="{{ url_for('licencias.aprobar_rechazar', licencia_id=s.id) }}"
+          class="btn btn-sm btn-warning"
+        >Aprobar/Rechazar</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% else %}
-    <li>No hay solicitudes</li>
-{% endfor %}
-</ul>
+<p>No hay solicitudes</p>
+{% endif %}
 {% endblock %}

@@ -1,15 +1,37 @@
 {% extends 'base.html' %}
 {% block title %}Solicitar licencia{% endblock %}
 {% block content %}
-<h1>Solicitar licencia</h1>
-<form method="post">
-    {{ form.hidden_tag() }}
-    <p>{{ form.empleado.label }} {{ form.empleado() }}</p>
-    <p>{{ form.fecha_inicio.label }} {{ form.fecha_inicio() }}</p>
-    <p>{{ form.fecha_fin.label }} {{ form.fecha_fin() }}</p>
-    <p>{{ form.motivo.label }} {{ form.motivo() }}</p>
-    <p>{{ form.requiere_reemplazo.label }} {{ form.requiere_reemplazo() }}</p>
-    <p>{{ form.reemplazo_id.label }} {{ form.reemplazo_id() }}</p>
-    <p>{{ form.submit() }}</p>
+<h1 class="mb-4">Solicitar licencia</h1>
+<form method="post" class="row g-3">
+  {{ form.hidden_tag() }}
+  <div class="col-md-6">
+    {{ form.empleado.label(class="form-label") }}
+    {{ form.empleado(class="form-control") }}
+  </div>
+  <div class="col-md-6">
+    {{ form.reemplazo_id.label(class="form-label") }}
+    {{ form.reemplazo_id(class="form-control") }}
+  </div>
+  <div class="col-md-6">
+    {{ form.fecha_inicio.label(class="form-label") }}
+    {{ form.fecha_inicio(class="form-control") }}
+  </div>
+  <div class="col-md-6">
+    {{ form.fecha_fin.label(class="form-label") }}
+    {{ form.fecha_fin(class="form-control") }}
+  </div>
+  <div class="col-12">
+    {{ form.motivo.label(class="form-label") }}
+    {{ form.motivo(class="form-control") }}
+  </div>
+  <div class="col-12">
+    <div class="form-check">
+      {{ form.requiere_reemplazo(class="form-check-input") }}
+      {{ form.requiere_reemplazo.label(class="form-check-label") }}
+    </div>
+  </div>
+  <div class="col-12">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
 </form>
 {% endblock %}
