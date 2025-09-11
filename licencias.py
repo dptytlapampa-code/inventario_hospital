@@ -2,17 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from enum import Enum
 from typing import Dict, List, Tuple, Optional
 
-
-class EstadoLicencia(Enum):
-    """Posibles estados de una licencia."""
-
-    BORRADOR = "borrador"
-    PENDIENTE = "pendiente"
-    APROBADA = "aprobada"
-    RECHAZADA = "rechazada"
+from app.models.base_enums import EstadoLicencia
 
 
 class TraslapeError(Exception):
