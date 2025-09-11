@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Descargar Acta {{ acta_id }}</h1>
+  <p><a href="{{ url_for('actas.pdf', acta_id=acta_id) }}">Descargar PDF</a></p>
+{% endblock %}
