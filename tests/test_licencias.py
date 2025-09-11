@@ -1,6 +1,8 @@
 import datetime as dt
 import pytest
 
+from app import create_app
+
 # Import the licencias module if available; otherwise, skip these tests.
 licencias = pytest.importorskip("licencias")
 
@@ -8,6 +10,31 @@ licencias = pytest.importorskip("licencias")
 def crear_licencia(**kwargs):
     """Helper to create a license instance using the target implementation."""
     return licencias.Licencia(**kwargs)
+
+
+@pytest.fixture(autouse=True)
+def limpiar_licencias():
+    licencias.LICENCIAS_APROBADAS.clear()
+
+
+@pytest.fixture()
+def app():
+    app = create_app()
+    app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
+    return app
+
+
+@pytest.fixture()
+def client(app):
+    return app.test_client()
+
+
+def login(client, username="admin", password="admin"):
+    return client.post(
+        "/auth/login",
+        data={"username": username, "password": password},
+        follow_redirects=False,
+    )
 
 
 def test_state_transitions():
@@ -40,9 +67,59 @@ def test_overlap_detection():
     lic.aprobar()
     with pytest.raises(licencias.TraslapeError):
         crear_licencia(usuario_id=1, fecha_inicio=dt.date(2024, 4, 5), fecha_fin=dt.date(2024, 4, 15))
+    
 
-
-@pytest.mark.skip(reason="Authentication system not implemented yet")
-def test_users_on_approved_license_restricted():
+def test_users_on_approved_license_restricted(client):
     """Users with approved licenses should be denied login or module access."""
-    assert False, "To be implemented once auth system is available"
+
+    hoy = dt.date.today()
+    lic = crear_licencia(
+        usuario_id=1,
+        fecha_inicio=hoy - dt.timedelta(days=1),
+        fecha_fin=hoy + dt.timedelta(days=1),
+    )
+    lic.aprobar()
+
+    resp = login(client)
+    assert resp.status_code == 200
+
+    protegido = client.get("/licencias/listar")
+    assert protegido.status_code == 302
+    assert "/auth/login" in protegido.headers["Location"]
+
+
+def test_users_with_future_approved_license_can_login(client):
+    """Approved licenses in the future should not restrict login."""
+
+    hoy = dt.date.today()
+    lic = crear_licencia(
+        usuario_id=1,
+        fecha_inicio=hoy + dt.timedelta(days=1),
+        fecha_fin=hoy + dt.timedelta(days=2),
+    )
+    lic.aprobar()
+
+    resp = login(client)
+    assert resp.status_code == 302
+
+    protegido = client.get("/licencias/listar")
+    assert protegido.status_code == 200
+
+
+def test_users_with_rejected_license_can_login(client):
+    """Rejected licenses should not restrict user access."""
+
+    hoy = dt.date.today()
+    lic = crear_licencia(
+        usuario_id=1,
+        fecha_inicio=hoy - dt.timedelta(days=1),
+        fecha_fin=hoy + dt.timedelta(days=1),
+    )
+    lic.enviar_pendiente()
+    lic.rechazar()
+
+    resp = login(client)
+    assert resp.status_code == 302
+
+    protegido = client.get("/licencias/listar")
+    assert protegido.status_code == 200
