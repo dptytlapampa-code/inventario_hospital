@@ -61,6 +61,29 @@ def test_replacement_assignment():
     assert lic.reemplazo_id == 2
 
 
+def test_business_days_excludes_weekends():
+    """Business day calculation should skip weekends."""
+    lic = crear_licencia(
+        usuario_id=1, fecha_inicio=dt.date(2024, 1, 1), fecha_fin=dt.date(2024, 1, 7)
+    )
+    assert lic.dias_habiles == 5
+
+
+def test_requires_replacement_before_approval():
+    """Licenses that require replacement must assign one before approval."""
+    lic = crear_licencia(
+        usuario_id=1,
+        fecha_inicio=dt.date(2024, 5, 1),
+        fecha_fin=dt.date(2024, 5, 5),
+        requires_replacement=True,
+    )
+    with pytest.raises(ValueError):
+        lic.aprobar()
+    lic.asignar_reemplazo(2)
+    lic.aprobar()
+    assert lic.estado == licencias.EstadoLicencia.APROBADA
+
+
 def test_overlap_detection():
     """Overlapping licenses for the same user should be detected."""
     lic = crear_licencia(usuario_id=1, fecha_inicio=dt.date(2024, 4, 1), fecha_fin=dt.date(2024, 4, 10))
