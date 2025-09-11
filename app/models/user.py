@@ -1,5 +1,15 @@
 from dataclasses import dataclass
-from werkzeug.security import check_password_hash, generate_password_hash
+
+try:
+    from werkzeug.security import check_password_hash, generate_password_hash
+except Exception:  # pragma: no cover - executed when Werkzeug isn't installed
+    import hashlib
+
+    def generate_password_hash(password: str) -> str:
+        return hashlib.sha256(password.encode()).hexdigest()
+
+    def check_password_hash(pwhash: str, password: str) -> bool:
+        return pwhash == hashlib.sha256(password.encode()).hexdigest()
 
 
 @dataclass
