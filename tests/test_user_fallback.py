@@ -14,6 +14,7 @@ def test_hashlib_fallback():
         hashed = user_module.generate_password_hash("secret")
         assert hashed == hashlib.sha256(b"secret").hexdigest()
         assert user_module.check_password_hash(hashed, "secret")
+        assert not user_module.check_password_hash(hashed, "wrong")
     finally:
         # Restore original module and reload user module to normal state
         if original is not None:

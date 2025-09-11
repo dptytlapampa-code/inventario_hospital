@@ -4,13 +4,15 @@ try:
     from werkzeug.security import check_password_hash, generate_password_hash
 except Exception:  # pragma: no cover - executed when Werkzeug isn't installed
     import hashlib
+    import hmac
 
     def generate_password_hash(password: str) -> str:
         return hashlib.sha256(password.encode()).hexdigest()
 
     def check_password_hash(pwhash: str, password: str) -> bool:
         """Validate a password against its hash using the fallback hasher."""
-        return pwhash == generate_password_hash(password)
+        expected = generate_password_hash(password)
+        return hmac.compare_digest(pwhash, expected)
 
 
 @dataclass
