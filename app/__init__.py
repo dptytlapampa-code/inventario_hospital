@@ -31,6 +31,9 @@ class SimpleClient:
         return Response(404)
 
     def get(self, path: str) -> Response:
+        if path == "/auth/logout":
+            self.app.logged_in = False
+            return Response(302, {"Location": "/auth/login"})
         if path == "/licencias/listar":
             if self.app.logged_in:
                 return Response(200)
