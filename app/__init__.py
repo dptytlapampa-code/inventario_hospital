@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 
-from app.models.user import USERNAME_TABLE
+from app.models.usuario import USERNAME_TABLE
 from licencias import usuario_con_licencia_activa
 
 
