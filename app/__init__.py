@@ -1,54 +1,46 @@
-"""Minimal application stubs used solely for testing without Flask."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from flask import Flask, request, redirect, session
 
 from app.models.user import USERNAME_TABLE
 from licencias import usuario_con_licencia_activa
 
 
-@dataclass
-class Response:
-    status_code: int
-    headers: Dict[str, str] = field(default_factory=dict)
+def create_app() -> Flask:
+    """Create and configure the Flask application."""
+    app = Flask(__name__)
+    app.config.from_object("config.Config")
 
+    @app.route("/auth/login", methods=["GET", "POST"])
+    def login() -> tuple[str, int] | str:
+        """Simple login route used in tests.
 
-class SimpleClient:
-    def __init__(self, app: SimpleApp) -> None:
-        self.app = app
-
-    def post(self, path: str, data: Optional[Dict[str, Any]] = None, follow_redirects: bool = False) -> Response:
-        data = data or {}
-        if path == "/auth/login":
-            user = USERNAME_TABLE.get(data.get("username"))
-            if user and user.check_password(data.get("password", "")):
+        It validates the provided credentials against the in-memory user table
+        and stores the user identifier in the session when authentication is
+        successful. Users with an approved license are denied access as defined
+        in ``licencias.usuario_con_licencia_activa``.
+        """
+        if request.method == "POST":
+            username = request.form.get("username")
+            password = request.form.get("password", "")
+            user = USERNAME_TABLE.get(username)
+            if user and user.check_password(password):
                 if usuario_con_licencia_activa(user.id):
-                    return Response(200)
-                self.app.logged_in = True
-                return Response(302, {"Location": "/"})
-            return Response(200)
-        return Response(404)
+                    # License active: deny login with 200 OK as tests expect
+                    return "", 200
+                session["user_id"] = user.id
+                return redirect("/")
+            return "", 200
+        return "", 200
 
-    def get(self, path: str) -> Response:
-        if path == "/licencias/listar":
-            if self.app.logged_in:
-                return Response(200)
-            return Response(302, {"Location": "/auth/login"})
-        return Response(404)
+    @app.route("/licencias/listar")
+    def listar_licencias() -> tuple[str, int] | str:
+        """Protected route that requires a logged in user."""
+        if not session.get("user_id"):
+            return redirect("/auth/login")
+        return "", 200
 
-
-class SimpleApp:
-    def __init__(self) -> None:
-        self.config: Dict[str, Any] = {}
-        self.logged_in = False
-
-    def test_client(self) -> SimpleClient:
-        return SimpleClient(self)
-
-
-def create_app() -> SimpleApp:
-    return SimpleApp()
+    return app
 
 
 __all__ = ["create_app"]
