@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import login_required
 
-from app.forms.licencia import LicenciaForm, AprobarRechazarForm
+from app.forms.licencia import AprobarRechazarForm, LicenciaForm
+from licencias import calcular_dias_habiles
 
 
 licencias_bp = Blueprint("licencias", __name__, url_prefix="/licencias")
@@ -29,6 +30,11 @@ def solicitar():
             "fecha_inicio": form.fecha_inicio.data,
             "fecha_fin": form.fecha_fin.data,
             "motivo": form.motivo.data,
+            "requiere_reemplazo": form.requiere_reemplazo.data,
+            "reemplazo_id": form.reemplazo_id.data,
+            "dias_habiles": calcular_dias_habiles(
+                form.fecha_inicio.data, form.fecha_fin.data
+            ),
             "estado": "pendiente",
         }
         SOLICITUDES.append(solicitud)

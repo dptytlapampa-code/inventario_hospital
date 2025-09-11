@@ -5,7 +5,8 @@
 <ul>
 {% for s in solicitudes %}
     <li>
-        {{ s.id }} - {{ s.empleado }} - {{ s.estado }}
+        {{ s.id }} - {{ s.empleado }} - {{ s.estado }} - {{ s.dias_habiles }} días
+        {% if s.requiere_reemplazo %} (Reemplazo: {{ s.reemplazo_id }}){% endif %}
         [<a href="{{ url_for('licencias.detalle', licencia_id=s.id) }}">Detalle</a>]
         [<a href="{{ url_for('licencias.aprobar_rechazar', licencia_id=s.id) }}">Aprobar/Rechazar</a>]
     </li>

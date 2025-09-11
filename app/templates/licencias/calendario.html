@@ -4,7 +4,7 @@
 <h1>Calendario de licencias</h1>
 <ul>
 {% for s in solicitudes %}
-    <li>{{ s.empleado }}: {{ s.fecha_inicio }} - {{ s.fecha_fin }} ({{ s.estado }})</li>
+    <li>{{ s.empleado }}: {{ s.fecha_inicio }} - {{ s.fecha_fin }} ({{ s.estado }}) - {{ s.dias_habiles }} días</li>
 {% else %}
     <li>No hay solicitudes</li>
 {% endfor %}
