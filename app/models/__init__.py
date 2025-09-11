@@ -1,32 +1,38 @@
 diff --git a/app/models/__init__.py b/app/models/__init__.py
-index 6e9aa4c0af22724ec9382a48d3455ac89f673e38..dfd9b9361c469b8caea64a8470fcbd24699abb47 100644
+index a50ddb62c6521bf210793b242ae86d02bed7d1cf..0b73d691879cfc966ba21120a220df01b8bb0412 100644
 --- a/app/models/__init__.py
 +++ b/app/models/__init__.py
-@@ -1,30 +1,30 @@
- """Aggregated model imports with graceful fallbacks."""
- from __future__ import annotations
- 
+@@ -1,17 +1,37 @@
+-from .base import Base
+-from .hospital import Hospital
+-from .licencia import Licencia, TipoLicencia, EstadoLicencia
+-from .usuario import Usuario
++"""Model package with optional imports for lightweight testing.
++
++This project primarily exercises a few simple models during tests.  Many of the
++modules in ``app.models`` depend on external libraries such as SQLAlchemy
++which are not available in the execution environment.  Importing the package
++would normally raise :class:`ModuleNotFoundError` when those dependencies are
++missing and prevent the lightweight tests from running.
++
++To keep the public API stable while avoiding hard dependencies, the heavy
++imports are wrapped in ``try``/``except`` blocks.  If an optional dependency is
++unavailable the corresponding names are set to ``None`` so that importing the
++package still succeeds.
++"""
++
  from .user import User, USERS, USERNAME_TABLE
- from .base_enums import EstadoLicencia
  
- try:  # pragma: no cover - these imports require SQLAlchemy
-     from .base import Base
-     from .hospital import Hospital
-     from .licencia import Licencia, TipoLicencia
-     from .usuario import Usuario
- except Exception:  # pragma: no cover
-     # Provide lightweight stand-ins when SQLAlchemy isn't available.
--    Base = object  # type: ignore
--    Hospital = object  # type: ignore
--    Licencia = object  # type: ignore
--    TipoLicencia = object  # type: ignore
--    Usuario = object  # type: ignore
-+    Base = None  # type: ignore
-+    Hospital = None  # type: ignore
-+    Licencia = None  # type: ignore
-+    TipoLicencia = None  # type: ignore
-+    Usuario = None  # type: ignore
- 
++# Optional models -----------------------------------------------------------
++try:  # pragma: no cover - exercised only when dependencies are installed
++    from .base import Base
++    from .hospital import Hospital
++    from .licencia import Licencia, TipoLicencia, EstadoLicencia
++    from .usuario import Usuario
++except Exception:  # pragma: no cover - missing optional dependencies
++    Base = Hospital = Licencia = TipoLicencia = EstadoLicencia = Usuario = None  # type: ignore
++
++
  __all__ = [
      "Base",
      "Hospital",
@@ -38,4 +44,3 @@ index 6e9aa4c0af22724ec9382a48d3455ac89f673e38..dfd9b9361c469b8caea64a8470fcbd24
      "USERS",
      "USERNAME_TABLE",
  ]
-

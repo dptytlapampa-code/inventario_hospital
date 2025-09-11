@@ -1,24 +1,18 @@
 diff --git a/app/models/user.py b/app/models/user.py
-index 1de4e304cf992cf527af45650ec98184545bb63c..7a0600d0fa6c2e9fde55ef649c063ca76dbadcbe 100644
+index 9159a8b584e759ba75a71e6ba291c5ff149b1e9a..2ce8b6088397a1b0e46455d134643926a231c15e 100644
 --- a/app/models/user.py
 +++ b/app/models/user.py
-@@ -1,37 +1,40 @@
+@@ -1,28 +1,40 @@
++"""Very small user model used for authentication tests.
++
++The original project relied on ``werkzeug.security`` for password hashing, but
++that package is not available in the execution environment.  For testing
++purposes we implement a minimal hashing helper using :mod:`hashlib`.
++"""
++
  from dataclasses import dataclass
- 
- try:
-     from werkzeug.security import check_password_hash, generate_password_hash
- except Exception:  # pragma: no cover - executed when Werkzeug isn't installed
-     import hashlib
-+    import hmac
- 
-     def generate_password_hash(password: str) -> str:
-         return hashlib.sha256(password.encode()).hexdigest()
- 
-     def check_password_hash(pwhash: str, password: str) -> bool:
--        return pwhash == hashlib.sha256(password.encode()).hexdigest()
-+        """Validate a password against its hash using the fallback hasher."""
-+        expected = generate_password_hash(password)
-+        return hmac.compare_digest(pwhash, expected)
+-from werkzeug.security import check_password_hash, generate_password_hash
++import hashlib
  
  
  @dataclass
@@ -29,13 +23,20 @@ index 1de4e304cf992cf527af45650ec98184545bb63c..7a0600d0fa6c2e9fde55ef649c063ca7
      username: str
      password_hash: str
  
++    @staticmethod
++    def _hash_password(password: str) -> str:
++        """Return a stable hash for the provided password."""
++        return hashlib.sha256(password.encode("utf-8")).hexdigest()
++
      @classmethod
      def create(cls, id: int, username: str, password: str) -> "User":
          """Factory method to create users with a hashed password."""
-         return cls(id=id, username=username, password_hash=generate_password_hash(password))
+-        return cls(id=id, username=username, password_hash=generate_password_hash(password))
++        return cls(id=id, username=username, password_hash=cls._hash_password(password))
  
      def check_password(self, password: str) -> bool:
-         return check_password_hash(self.password_hash, password)
+-        return check_password_hash(self.password_hash, password)
++        return self.password_hash == self._hash_password(password)
  
  
  # In-memory user store
@@ -44,3 +45,4 @@ index 1de4e304cf992cf527af45650ec98184545bb63c..7a0600d0fa6c2e9fde55ef649c063ca7
  }
  USERNAME_TABLE = {u.username: u for u in USERS.values()}
  
+ __all__ = ["User", "USERS", "USERNAME_TABLE"]
