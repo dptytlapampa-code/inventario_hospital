@@ -29,13 +29,7 @@ class TipoLicencia(str, Enum):
     PERMANENTE = "permanente"
 
 
-class EstadoLicencia(str, Enum):
-    """Estados válidos de una licencia."""
-
-    ACTIVA = "activa"
-    INACTIVA = "inactiva"
-    EXPIRADA = "expirada"
-    REVOCADA = "revocada"
+from .base_enums import EstadoLicencia
 
 
 class Licencia(Base):

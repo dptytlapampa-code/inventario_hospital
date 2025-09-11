@@ -5,6 +5,7 @@ from app import create_app
 
 # Import the licencias module if available; otherwise, skip these tests.
 licencias = pytest.importorskip("licencias")
+from app.models.base_enums import EstadoLicencia
 
 
 def crear_licencia(**kwargs):
@@ -40,18 +41,18 @@ def login(client, username="admin", password="admin"):
 def test_state_transitions():
     """License should progress Borrador -> Pendiente -> Aprobada/Rechazada."""
     lic = crear_licencia(usuario_id=1, fecha_inicio=dt.date(2024, 1, 1), fecha_fin=dt.date(2024, 1, 10))
-    assert lic.estado == licencias.EstadoLicencia.BORRADOR
+    assert lic.estado == EstadoLicencia.BORRADOR
 
     lic.enviar_pendiente()
-    assert lic.estado == licencias.EstadoLicencia.PENDIENTE
+    assert lic.estado == EstadoLicencia.PENDIENTE
 
     lic.aprobar()
-    assert lic.estado == licencias.EstadoLicencia.APROBADA
+    assert lic.estado == EstadoLicencia.APROBADA
 
     lic2 = crear_licencia(usuario_id=2, fecha_inicio=dt.date(2024, 2, 1), fecha_fin=dt.date(2024, 2, 10))
     lic2.enviar_pendiente()
     lic2.rechazar()
-    assert lic2.estado == licencias.EstadoLicencia.RECHAZADA
+    assert lic2.estado == EstadoLicencia.RECHAZADA
 
 
 def test_replacement_assignment():
@@ -81,7 +82,7 @@ def test_requires_replacement_before_approval():
         lic.aprobar()
     lic.asignar_reemplazo(2)
     lic.aprobar()
-    assert lic.estado == licencias.EstadoLicencia.APROBADA
+    assert lic.estado == EstadoLicencia.APROBADA
 
 
 def test_overlap_detection():
