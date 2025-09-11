@@ -13,15 +13,13 @@ from sqlalchemy import (
     Integer,
     func,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .base import Base
 
 if TYPE_CHECKING:  # pragma: no cover - only for type checking
     from .hospital import Hospital
     from .usuario import Usuario
-
-
-class Base(DeclarativeBase):
-    """Base class for SQLAlchemy models."""
 
 
 class TipoLicencia(str, Enum):
@@ -78,7 +76,6 @@ class Licencia(Base):
 
 
 __all__ = [
-    "Base",
     "TipoLicencia",
     "EstadoLicencia",
     "Licencia",
