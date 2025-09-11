@@ -1,15 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}Detalle de licencia{% endblock %}
 {% block content %}
-<h1>Detalle de licencia</h1>
-<p>Empleado: {{ solicitud.empleado }}</p>
-<p>Inicio: {{ solicitud.fecha_inicio }}</p>
-<p>Fin: {{ solicitud.fecha_fin }}</p>
-<p>Motivo: {{ solicitud.motivo }}</p>
-<p>Estado: {{ solicitud.estado }}</p>
-<p>Días hábiles: {{ solicitud.dias_habiles }}</p>
-<p>Requiere reemplazo: {{ 'Sí' if solicitud.requiere_reemplazo else 'No' }}</p>
-{% if solicitud.requiere_reemplazo %}
-<p>Reemplazo ID: {{ solicitud.reemplazo_id }}</p>
-{% endif %}
+<h1 class="mb-4">Detalle de licencia</h1>
+<div class="card">
+  <div class="card-body">
+    <p class="card-text"><strong>Empleado:</strong> {{ solicitud.empleado }}</p>
+    <p class="card-text"><strong>Inicio:</strong> {{ solicitud.fecha_inicio }}</p>
+    <p class="card-text"><strong>Fin:</strong> {{ solicitud.fecha_fin }}</p>
+    <p class="card-text"><strong>Motivo:</strong> {{ solicitud.motivo }}</p>
+    <p class="card-text"><strong>Estado:</strong> {{ solicitud.estado }}</p>
+    <p class="card-text"><strong>Días hábiles:</strong> {{ solicitud.dias_habiles }}</p>
+    <p class="card-text"><strong>Requiere reemplazo:</strong> {{ 'Sí' if solicitud.requiere_reemplazo else 'No' }}</p>
+    {% if solicitud.requiere_reemplazo %}
+    <p class="card-text"><strong>Reemplazo ID:</strong> {{ solicitud.reemplazo_id }}</p>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
