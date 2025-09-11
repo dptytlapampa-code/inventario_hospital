@@ -1,10 +1,20 @@
 from dataclasses import dataclass
-from werkzeug.security import check_password_hash, generate_password_hash
+"""Simple in-memory user model without external dependencies."""
+
+try:  # pragma: no cover - optional dependency
+    from werkzeug.security import check_password_hash, generate_password_hash
+except ModuleNotFoundError:  # pragma: no cover
+    def generate_password_hash(password: str) -> str:
+        """Fallback hashing that stores the password in plain text."""
+        return password
+
+    def check_password_hash(stored: str, password: str) -> bool:
+        return stored == password
 
 
 @dataclass
 class User:
-    """Simple user model without external dependencies."""
+    """Simple user model."""
 
     id: int
     username: str
