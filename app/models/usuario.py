@@ -24,5 +24,25 @@ class Usuario(Base):
     licencias = relationship("Licencia", back_populates="usuario")
     rol: Mapped["Rol"] = relationship("Rol", back_populates="usuarios")
 
+    @property
+    def roles(self) -> list[str]:
+        """Return a list with the user's role name for decorator checks."""
+
+        return [self.rol.nombre] if self.rol else []
+
+    @property
+    def permissions(self) -> list[str]:
+        """Aggregate permissions derived from the user's role."""
+
+        if not self.rol:
+            return []
+        perms: list[str] = []
+        for perm in self.rol.permisos:
+            if perm.can_read:
+                perms.append(f"{perm.modulo.value}:read")
+            if perm.can_write:
+                perms.append(f"{perm.modulo.value}:write")
+        return perms
+
 
 __all__ = ["Usuario"]
