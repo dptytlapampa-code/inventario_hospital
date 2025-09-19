@@ -9,7 +9,20 @@ try:  # pragma: no cover - executed when extensions are installed
     from flask_sqlalchemy import SQLAlchemy
 except Exception:  # pragma: no cover - executed in simplified environments
     class SQLAlchemy:  # type: ignore[override]
+        """Minimal stub compatible with :class:`flask_sqlalchemy.SQLAlchemy`."""
+
+        class _Model:
+            """Fallback base class used when SQLAlchemy isn't installed."""
+
+            metadata = None
+
         def __init__(self, *_, **__):
+            # Provide a ``Model`` attribute so modules can subclass it during
+            # lightweight tests where Flask-SQLAlchemy isn't available.
+            self.Model = type("Model", (self._Model,), {})
+            self.metadata = getattr(self.Model, "metadata", None)
+
+        def init_app(self, *_, **__):  # pragma: no cover - stubbed method
             pass
 
 try:  # pragma: no cover - executed when extensions are installed

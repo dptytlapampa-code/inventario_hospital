@@ -68,5 +68,27 @@ def create_app() -> SimpleApp:
     return SimpleApp()
 
 
-__all__ = ["create_app"]
+def create_flask_app():  # pragma: no cover - requires optional dependencies
+    """Create the real Flask application when full dependencies are present."""
+
+    try:
+        from flask import Flask
+    except Exception as exc:  # pragma: no cover - executed when Flask is missing
+        raise RuntimeError("Flask must be installed to create the web app") from exc
+
+    from config import Config
+    from app.extensions import csrf, db, login_manager, migrate
+
+    app = Flask(__name__)
+    app.config.from_object(Config)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    csrf.init_app(app)
+
+    return app
+
+
+__all__ = ["create_app", "create_flask_app"]
 

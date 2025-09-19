@@ -187,6 +187,15 @@ flask db migrate -m "cambio X"
 flask db upgrade
 ```
 
+Una vez configurada la cadena de conexión en `.env`, aplica la migración inicial
+incluida en el repositorio y carga los datos de ejemplo con:
+
+```
+export FLASK_APP=wsgi.py  # Windows: set FLASK_APP=wsgi.py
+flask db upgrade          # crea todas las tablas definidas en migrations/
+python seeds/seed.py      # inserta hospitales, roles, usuarios y demo data
+```
+
 Seeds (`seeds/seed.py`): crea hospitales (Lucio Molas, René Favaloro), servicios/oficinas, usuarios base:
 
 - `admin / 123456` (Superadmin)
