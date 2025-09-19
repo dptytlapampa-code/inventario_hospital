@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Insumos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Insumos</h1>
+  <a class="btn btn-primary" href="{{ url_for('insumos.crear') }}">Nuevo insumo</a>
+</div>
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Stock</th>
+        <th>N° Serie</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for insumo in insumos %}
+      <tr>
+        <td>{{ insumo.id }}</td>
+        <td>{{ insumo.nombre }}</td>
+        <td>{{ insumo.stock }}</td>
+        <td>{{ insumo.numero_serie or '-' }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('insumos.detalle', insumo_id=insumo.id) }}">Ver</a>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('insumos.editar', insumo_id=insumo.id) }}">Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="text-center text-muted">Sin insumos cargados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

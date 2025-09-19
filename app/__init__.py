@@ -57,16 +57,50 @@ class SimpleApp:
     def __init__(self) -> None:
         self.config: Dict[str, Any] = {}
         self.logged_in = False
+        self.blueprints: Dict[str, Any] = {}
 
     def test_client(self) -> SimpleClient:
         return SimpleClient(self)
+
+    def register_blueprint(self, blueprint: Any) -> None:
+        """Store blueprints so tests can introspect registrations."""
+
+        name = getattr(blueprint, "name", repr(blueprint))
+        self.blueprints[name] = blueprint
 
 
 def create_app() -> SimpleApp:
     """Factory returning an instance of :class:`SimpleApp`."""
 
-    return SimpleApp()
+    app = SimpleApp()
+
+    try:  # pragma: no cover - blueprints may rely on optional deps
+        from app.routes.actas import actas_bp
+        from app.routes.adjuntos import adjuntos_bp
+        from app.routes.docscan import docscan_bp
+        from app.routes.equipos import equipos_bp
+        from app.routes.insumos import insumos_bp
+        from app.routes.main import main_bp
+        from app.routes.permisos import permisos_bp
+        from app.routes.search import search_bp
+        from app.routes.ubicaciones import ubicaciones_bp
+    except ModuleNotFoundError:
+        return app
+
+    for blueprint in (
+        main_bp,
+        equipos_bp,
+        insumos_bp,
+        ubicaciones_bp,
+        adjuntos_bp,
+        docscan_bp,
+        permisos_bp,
+        actas_bp,
+        search_bp,
+    ):
+        app.register_blueprint(blueprint)
+
+    return app
 
 
 __all__ = ["create_app"]
-

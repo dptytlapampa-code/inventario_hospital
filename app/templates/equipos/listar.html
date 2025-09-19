@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Equipos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Equipos</h1>
+  <a class="btn btn-primary" href="{{ url_for('equipos.crear') }}">Nuevo equipo</a>
+</div>
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Descripción</th>
+        <th>Tipo</th>
+        <th>Estado</th>
+        <th>N° Serie</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for equipo in equipos %}
+      <tr>
+        <td>{{ equipo.id }}</td>
+        <td>{{ equipo.descripcion }}</td>
+        <td class="text-capitalize">{{ equipo.tipo }}</td>
+        <td class="text-capitalize">{{ equipo.estado }}</td>
+        <td>{{ equipo.numero_serie or '-' }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('equipos.detalle', equipo_id=equipo.id) }}">Ver</a>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.editar', equipo_id=equipo.id) }}">Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="text-center text-muted">Sin equipos cargados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

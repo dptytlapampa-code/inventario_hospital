@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">{{ titulo }}</h1>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">{{ form.equipo_id.label }}</label>
+      {{ form.equipo_id(class='form-select') }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.tipo.label }}</label>
+      {{ form.tipo(class='form-select') }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.filename.label }}</label>
+      {{ form.filename(class='form-control', placeholder='archivo.pdf') }}
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    {{ form.submit(class='btn btn-primary') }}
+    <a class="btn btn-outline-secondary" href="{{ url_for('adjuntos.listar') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

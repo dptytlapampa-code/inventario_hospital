@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Permisos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Permisos</h1>
+  <a class="btn btn-primary" href="{{ url_for('permisos.crear') }}">Nuevo permiso</a>
+</div>
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Rol</th>
+        <th>Módulo</th>
+        <th>Hospital</th>
+        <th>Lectura</th>
+        <th>Escritura</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for permiso in permisos %}
+      <tr>
+        <td>{{ permiso.id }}</td>
+        <td>{{ permiso.rol }}</td>
+        <td class="text-capitalize">{{ permiso.modulo }}</td>
+        <td>{{ permiso.hospital }}</td>
+        <td>{% if permiso.can_read %}Sí{% else %}No{% endif %}</td>
+        <td>{% if permiso.can_write %}Sí{% else %}No{% endif %}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('permisos.editar', permiso_id=permiso.id) }}">Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="text-center text-muted">Sin permisos configurados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

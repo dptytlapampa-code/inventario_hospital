@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">{{ titulo }}</h1>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">{{ form.nombre.label }}</label>
+      {{ form.nombre(class='form-control', placeholder='Nombre del insumo') }}
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">{{ form.stock.label }}</label>
+      {{ form.stock(class='form-control', min='0') }}
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">{{ form.numero_serie.label }}</label>
+      {{ form.numero_serie(class='form-control', placeholder='Serie (opcional)') }}
+    </div>
+    <div class="col-12">
+      <label class="form-label">{{ form.equipos.label }}</label>
+      {{ form.equipos(class='form-select', multiple=true) }}
+      <div class="form-text">Seleccione equipos que utilicen el insumo.</div>
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    {{ form.submit(class='btn btn-primary') }}
+    <a class="btn btn-outline-secondary" href="{{ url_for('insumos.listar') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

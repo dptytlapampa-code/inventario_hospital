@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">{{ titulo }}</h1>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">{{ form.descripcion.label }}</label>
+      {{ form.descripcion(class='form-control', placeholder='Descripción breve') }}
+      {% for error in form.descripcion.errors %}
+      <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">{{ form.tipo.label }}</label>
+      {{ form.tipo(class='form-select') }}
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">{{ form.estado.label }}</label>
+      {{ form.estado(class='form-select') }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.numero_serie.label }}</label>
+      {{ form.numero_serie(class='form-control', placeholder='Serie') }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.hospital_id.label }}</label>
+      {{ form.hospital_id(class='form-select') }}
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    {{ form.submit(class='btn btn-primary') }}
+    <a class="btn btn-outline-secondary" href="{{ url_for('equipos.listar') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
