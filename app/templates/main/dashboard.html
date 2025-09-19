@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="row align-items-center mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0">Dashboard de inventario</h1>
+    <p class="text-muted">Resumen visual de los módulos cargados.</p>
+  </div>
+  <div class="col-auto">
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.index') }}">Volver al inicio</a>
+  </div>
+</div>
+<div class="card">
+  <div class="card-body">
+    <canvas id="inventoryChart" height="120"></canvas>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    window.dashboardData = {{ chart_data|tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

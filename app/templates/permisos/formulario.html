@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">{{ titulo }}</h1>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">{{ form.rol_id.label }}</label>
+      {{ form.rol_id(class='form-select') }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.modulo.label }}</label>
+      {{ form.modulo(class='form-select') }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.hospital_id.label }}</label>
+      {{ form.hospital_id(class='form-select') }}
+    </div>
+    <div class="col-md-6">
+      <div class="form-check mt-4">
+        {{ form.can_read(class='form-check-input', id='permiso-read') }}
+        <label class="form-check-label" for="permiso-read">{{ form.can_read.label.text }}</label>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="form-check mt-4">
+        {{ form.can_write(class='form-check-input', id='permiso-write') }}
+        <label class="form-check-label" for="permiso-write">{{ form.can_write.label.text }}</label>
+      </div>
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    {{ form.submit(class='btn btn-primary') }}
+    <a class="btn btn-outline-secondary" href="{{ url_for('permisos.listar') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Adjuntos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Adjuntos</h1>
+  <a class="btn btn-primary" href="{{ url_for('adjuntos.subir') }}">Subir adjunto</a>
+</div>
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Equipo</th>
+        <th>Archivo</th>
+        <th>Tipo</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for adjunto in adjuntos %}
+      <tr>
+        <td>{{ adjunto.id }}</td>
+        <td>{{ adjunto.equipo_id }}</td>
+        <td>{{ adjunto.filename }}</td>
+        <td class="text-capitalize">{{ adjunto.tipo }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('adjuntos.detalle', adjunto_id=adjunto.id) }}">Ver</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="text-center text-muted">Sin adjuntos cargados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
