@@ -37,6 +37,29 @@ class User:
     roles: Set[str] = field(default_factory=set)
     permissions: Set[str] = field(default_factory=set)
 
+    @property
+    def is_authenticated(self) -> bool:
+        """Users provided by the in-memory table are always authenticated."""
+
+        return True
+
+    @property
+    def is_active(self) -> bool:
+        """All in-memory users are active by definition."""
+
+        return True
+
+    @property
+    def is_anonymous(self) -> bool:
+        """The application never treats these users as anonymous."""
+
+        return False
+
+    def get_id(self) -> str:
+        """Return the unique identifier stored in Flask's session."""
+
+        return self.username
+
     @staticmethod
     def _hash_password(password: str) -> str:
         """Return a stable hash for the provided password."""

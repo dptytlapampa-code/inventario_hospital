@@ -1,93 +1,75 @@
-"""Minimal application setup used in tests."""
-
+"""Application factory for the Inventario Hospital system."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Callable
 
+from flask import Flask
+
+from config import Config
+from app.extensions import csrf, db, login_manager, migrate
 from app.models.user import USERNAME_TABLE
-from licencias import usuario_con_licencia_activa
 
 
-@dataclass
-class Response:
-    """Simplified HTTP response used by the test client."""
+def _init_extension(extension: Any, app: Flask, *args: Any) -> None:
+    """Safely call ``init_app`` on an extension if available."""
 
-    status_code: int
-    headers: Dict[str, str] = field(default_factory=dict)
-
-
-class SimpleClient:
-    """Tiny test client with just the features tests rely on."""
-
-    def __init__(self, app: SimpleApp) -> None:
-        self.app = app
-
-    def post(
-        self,
-        path: str,
-        data: Optional[Dict[str, Any]] = None,
-        follow_redirects: bool = False,
-    ) -> Response:
-        data = data or {}
-        if path == "/auth/login":
-            user = USERNAME_TABLE.get(data.get("username"))
-            if user and user.check_password(data.get("password", "")):
-                if usuario_con_licencia_activa(user.id):
-                    return Response(200)
-                self.app.logged_in = True
-                return Response(302, {"Location": "/"})
-            return Response(200)
-        return Response(404)
-
-    def get(self, path: str) -> Response:
-        if path == "/auth/logout":
-            self.app.logged_in = False
-            return Response(302, {"Location": "/auth/login"})
-        if path == "/licencias/listar":
-            if self.app.logged_in:
-                return Response(200)
-            return Response(302, {"Location": "/auth/login"})
-        return Response(404)
+    init_app: Callable[..., Any] | None = getattr(extension, "init_app", None)
+    if callable(init_app):
+        init_app(app, *args)
 
 
-class SimpleApp:
-    """Very small Flask-like application for unit tests."""
+def create_app(config_class: type[Config] | Config = Config) -> Flask:
+    """Create and configure a fully featured Flask application."""
 
-    def __init__(self) -> None:
-        self.config: Dict[str, Any] = {}
-        self.logged_in = False
-        self.blueprints: Dict[str, Any] = {}
+    app = Flask(__name__)
 
-    def test_client(self) -> SimpleClient:
-        return SimpleClient(self)
+    if isinstance(config_class, type):
+        app.config.from_object(config_class)
+    else:
+        app.config.from_object(config_class)
 
-    def register_blueprint(self, blueprint: Any) -> None:
-        """Store blueprints so tests can introspect registrations."""
+    _init_extension(db, app)
 
-        name = getattr(blueprint, "name", repr(blueprint))
-        self.blueprints[name] = blueprint
+    if hasattr(migrate, "init_app") and callable(getattr(migrate, "init_app")):
+        migrate.init_app(app, db)  # type: ignore[call-arg]
+    else:
+        _init_extension(migrate, app, db)
 
+    _init_extension(login_manager, app)
+    if hasattr(login_manager, "login_view"):
+        login_manager.login_view = "auth.login"
 
-def create_app() -> SimpleApp:
-    """Factory returning an instance of :class:`SimpleApp`."""
+    _init_extension(csrf, app)
 
-    app = SimpleApp()
+    user_loader = getattr(login_manager, "user_loader", None)
+    if callable(user_loader):
 
-    try:  # pragma: no cover - blueprints may rely on optional deps
-        from app.routes.actas import actas_bp
-        from app.routes.adjuntos import adjuntos_bp
-        from app.routes.docscan import docscan_bp
-        from app.routes.equipos import equipos_bp
-        from app.routes.insumos import insumos_bp
-        from app.routes.main import main_bp
-        from app.routes.permisos import permisos_bp
-        from app.routes.search import search_bp
-        from app.routes.ubicaciones import ubicaciones_bp
-    except ModuleNotFoundError:
-        return app
+        @login_manager.user_loader  # type: ignore[misc]
+        def load_user(username: str):  # pragma: no cover - flask-login handles errors
+            return USERNAME_TABLE.get(username)
+
+    else:  # pragma: no cover - fallback for minimal stubs during tests
+
+        def load_user(username: str):
+            return USERNAME_TABLE.get(username)
+
+        setattr(login_manager, "user_callback", load_user)
+        setattr(login_manager, "_user_callback", load_user)
+
+    from app.routes.actas import actas_bp
+    from app.routes.adjuntos import adjuntos_bp
+    from app.routes.auth import auth_bp
+    from app.routes.docscan import docscan_bp
+    from app.routes.equipos import equipos_bp
+    from app.routes.insumos import insumos_bp
+    from app.routes.licencias.routes import licencias_bp
+    from app.routes.main import main_bp
+    from app.routes.permisos import permisos_bp
+    from app.routes.search import search_bp
+    from app.routes.ubicaciones import ubicaciones_bp
 
     for blueprint in (
+        auth_bp,
         main_bp,
         equipos_bp,
         insumos_bp,
@@ -97,8 +79,16 @@ def create_app() -> SimpleApp:
         permisos_bp,
         actas_bp,
         search_bp,
+        licencias_bp,
     ):
         app.register_blueprint(blueprint)
+
+    if "main.index" in app.view_functions:
+        app.add_url_rule(
+            "/",
+            endpoint="index",
+            view_func=app.view_functions["main.index"],
+        )
 
     return app
 
