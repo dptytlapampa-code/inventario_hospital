@@ -144,7 +144,7 @@ flask db init                      # primera vez
 flask db migrate -m "init"
 flask db upgrade
 
-# (Opcional) Seeds
+# (Opcional) Seeds (reinicia datos base)
 python seeds/seed.py
 
 # Ejecutar
@@ -187,11 +187,13 @@ flask db migrate -m "cambio X"
 flask db upgrade
 ```
 
-Seeds (`seeds/seed.py`): crea hospitales (Lucio Molas, René Favaloro), servicios/oficinas, usuarios base:
+El repositorio incluye una migración inicial con todas las tablas declaradas en `app/models`. El comando `flask db upgrade` tomará la URL configurada en `DATABASE_URL` (o el valor por defecto de `config.py`).
+
+Seeds (`seeds/seed.py`): abre una sesión SQLAlchemy sobre `DATABASE_URL`, limpia los datos existentes y vuelve a poblar la base con hospitales (Lucio Molas, René Favaloro), usuarios base, permisos por módulo/hospital, inventario de ejemplo (equipos + insumos) y licencias en distintos estados:
 
 - `admin / 123456` (Superadmin)
 - Admin y Técnico por hospital (con permisos de módulos diferenciados)
-- Equipos/insumos/actas/docscan/licencias de ejemplo
+- Equipos/insumos/actas/adjuntos/licencias de ejemplo
 - Asegura que los permisos por hospital y módulo queden cargados.
 
 ## 7. Roles, permisos y seguridad
