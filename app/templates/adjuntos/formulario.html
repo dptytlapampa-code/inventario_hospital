@@ -1,22 +1,15 @@
 {% extends 'base.html' %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
 {% block title %}{{ titulo }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">{{ titulo }}</h1>
-<form method="post">
+<form method="post" enctype="multipart/form-data" novalidate>
   {{ form.hidden_tag() }}
   <div class="row g-3">
-    <div class="col-md-4">
-      <label class="form-label">{{ form.equipo_id.label }}</label>
-      {{ form.equipo_id(class='form-select') }}
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">{{ form.tipo.label }}</label>
-      {{ form.tipo(class='form-select') }}
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">{{ form.filename.label }}</label>
-      {{ form.filename(class='form-control', placeholder='archivo.pdf') }}
-    </div>
+    {{ render_select(form.equipo_id, form_group_class='col-md-6') }}
+    {{ render_select(form.tipo, form_group_class='col-md-4') }}
+    {{ render_textarea(form.descripcion, form_group_class='col-12', rows=3) }}
+    {{ render_field(form.archivo, form_group_class='col-12', input_class='form-control') }}
   </div>
   <div class="mt-4 d-flex gap-2">
     {{ form.submit(class='btn btn-primary') }}

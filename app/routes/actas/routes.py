@@ -1,100 +1,122 @@
+"""Blueprint for acta creation and download."""
 from __future__ import annotations
 
-from collections import defaultdict
-from typing import Dict, List
+from pathlib import Path
 
-try:  # pragma: no cover - fallbacks for environments without Flask
-    from flask import Blueprint, flash, redirect, render_template, url_for
-    from flask_login import login_required
-except ModuleNotFoundError:  # pragma: no cover - simple stubs for testing
-    class Blueprint:  # type: ignore
-        def __init__(self, *args, **kwargs) -> None:
-            pass
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
+from flask_login import current_user, login_required
 
-        def route(self, *args, **kwargs):
-            def decorator(func):
-                return func
+from sqlalchemy import or_
 
-            return decorator
-
-    def flash(*args, **kwargs):  # type: ignore
-        return None
-
-    def redirect(location):  # type: ignore
-        return location
-
-    def render_template(template_name: str, **context):  # type: ignore
-        return template_name
-
-    def url_for(endpoint: str, **values):  # type: ignore
-        return endpoint
-
-    def login_required(func):  # type: ignore
-        return func
-
+from app.extensions import db
 from app.forms.acta import ActaForm
-from app.models.acta import Acta, ActaItem, TipoActa
-from app.models.adjunto import Adjunto, TipoAdjunto
-from app.services.pdf_service import create_pdf
+from app.models import Acta, ActaItem, Modulo
+from app.security import permissions_required, require_hospital_access
+from app.services.audit_service import log_action
+from app.services.pdf_service import build_acta_pdf
 
 actas_bp = Blueprint("actas", __name__, url_prefix="/actas")
 
-# Simple in-memory storage for demo purposes
-ACTAS: Dict[int, Acta] = {}
-ACTA_PDFS: Dict[int, bytes] = {}
-ADJUNTOS: Dict[int, List[Adjunto]] = defaultdict(list)
+
+def _acta_output_dir() -> Path:
+    uploads = Path(current_app.config.get("UPLOAD_FOLDER", "uploads")) / "actas"
+    uploads.mkdir(parents=True, exist_ok=True)
+    return uploads
+
+
+@actas_bp.route("/")
+@login_required
+@permissions_required("actas:read")
+@require_hospital_access(Modulo.ACTAS)
+def listar():
+    page = request.args.get("page", type=int, default=1)
+    per_page = current_app.config.get("DEFAULT_PAGE_SIZE", 20)
+    buscar = request.args.get("q", "")
+
+    query = Acta.query.order_by(Acta.fecha.desc())
+    allowed = getattr(g, "allowed_hospitals", set())
+    if allowed:
+        query = query.filter(Acta.hospital_id.in_(allowed))
+    elif not current_user.has_role("Superadmin"):
+        query = query.filter(Acta.usuario_id == current_user.id)
+    if buscar:
+        like = f"%{buscar}%"
+        query = query.filter(
+            or_(Acta.observaciones.ilike(like), Acta.numero.ilike(like))
+        )
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    return render_template(
+        "actas/listar.html",
+        actas=pagination.items,
+        pagination=pagination,
+        buscar=buscar,
+    )
 
 
 @actas_bp.route("/crear", methods=["GET", "POST"])
 @login_required
+@permissions_required("actas:write")
+@require_hospital_access(Modulo.ACTAS)
 def crear():
     form = ActaForm()
-    # Choices de equipos de ejemplo
-    if not form.equipos.choices:
-        form.equipos.choices = [(1, "Equipo 1"), (2, "Equipo 2"), (3, "Equipo 3")]
     if form.validate_on_submit():
-        acta_id = max(ACTAS.keys(), default=0) + 1
-        acta = Acta(tipo=TipoActa(form.tipo.data))
-        acta.items = [ActaItem(equipo_id=e) for e in form.equipos.data]
-        ACTAS[acta_id] = acta
-        pdf_bytes = create_pdf(f"Acta {acta_id}")
-        ACTA_PDFS[acta_id] = pdf_bytes
+        acta = Acta(
+            tipo=form.tipo.data,
+            hospital_id=form.hospital_id.data,
+            servicio_id=form.servicio_id.data or None,
+            oficina_id=form.oficina_id.data or None,
+            usuario=current_user,
+            observaciones=form.observaciones.data or None,
+        )
         for equipo_id in form.equipos.data:
-            adjunto = Adjunto(
-                equipo_id=equipo_id,
-                filename=f"acta_{acta_id}.pdf",
-                tipo=TipoAdjunto.ACTA,
-            )
-            ADJUNTOS[equipo_id].append(adjunto)
-        flash("Acta creada", "success")
-        return redirect(url_for("actas.listar"))
+            item = ActaItem(equipo_id=equipo_id)
+            acta.items.append(item)
+        db.session.add(acta)
+        db.session.flush()
+        pdf_path = build_acta_pdf(acta, _acta_output_dir())
+        acta.pdf_path = pdf_path.as_posix()
+        for item in acta.items:
+            if item.equipo:
+                item.equipo.registrar_evento(
+                    current_user,
+                    f"Acta {acta.tipo.value.title()}",
+                    f"Acta #{acta.id}",
+                )
+        db.session.commit()
+        log_action(usuario_id=current_user.id, accion="crear", modulo="actas", tabla="actas", registro_id=acta.id)
+        flash("Acta generada correctamente", "success")
+        return redirect(url_for("actas.detalle", acta_id=acta.id))
     return render_template("actas/crear.html", form=form)
 
 
-@actas_bp.route("/listar")
+@actas_bp.route("/<int:acta_id>")
 @login_required
-def listar():
-    return render_template("actas/listar.html", actas=ACTAS.items())
-
-
-@actas_bp.route("/<int:acta_id>/descargar")
-@login_required
-def descargar(acta_id: int):
-    if acta_id not in ACTAS:
-        flash("Acta no encontrada", "error")
-        return redirect(url_for("actas.listar"))
-    return render_template("actas/descargar.html", acta_id=acta_id)
+@permissions_required("actas:read")
+@require_hospital_access(Modulo.ACTAS)
+def detalle(acta_id: int):
+    acta = Acta.query.get_or_404(acta_id)
+    return render_template("actas/descargar.html", acta=acta)
 
 
 @actas_bp.route("/<int:acta_id>/pdf")
 @login_required
-def pdf(acta_id: int):
-    pdf_bytes = ACTA_PDFS.get(acta_id)
-    if not pdf_bytes:
-        flash("Acta no encontrada", "error")
-        return redirect(url_for("actas.listar"))
-    headers = {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": f"attachment; filename=acta_{acta_id}.pdf",
-    }
-    return pdf_bytes, 200, headers
+@permissions_required("actas:read")
+@require_hospital_access(Modulo.ACTAS)
+def descargar_pdf(acta_id: int):
+    acta = Acta.query.get_or_404(acta_id)
+    if not acta.pdf_path:
+        flash("Acta sin PDF generado", "warning")
+        return redirect(url_for("actas.detalle", acta_id=acta.id))
+    file_path = Path(acta.pdf_path)
+    return send_file(file_path, as_attachment=True, download_name=file_path.name)

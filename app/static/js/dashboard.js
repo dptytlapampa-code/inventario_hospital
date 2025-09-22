@@ -1,35 +1,53 @@
 (function () {
-  function initChart() {
-    var canvas = document.getElementById('inventoryChart');
-    if (!canvas || !window.Chart) {
-      return;
+  function renderCharts() {
+    if (window.Chart) {
+      var inventoryCanvas = document.getElementById('inventoryChart');
+      if (inventoryCanvas) {
+        var payload = window.dashboardData || { labels: [], values: [] };
+        new window.Chart(inventoryCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: payload.labels,
+            datasets: [
+              {
+                label: 'Equipos',
+                data: payload.values,
+                backgroundColor: ['#0d6efd', '#198754', '#6f42c1', '#ffc107'],
+              },
+            ],
+          },
+          options: {
+            plugins: { legend: { position: 'bottom' } },
+          },
+        });
+      }
+      var licenseCanvas = document.getElementById('licenseChart');
+      if (licenseCanvas) {
+        var licensePayload = window.licensesData || { labels: [], values: [] };
+        new window.Chart(licenseCanvas, {
+          type: 'bar',
+          data: {
+            labels: licensePayload.labels,
+            datasets: [
+              {
+                label: 'Licencias aprobadas',
+                data: licensePayload.values,
+                backgroundColor: '#0d6efd',
+              },
+            ],
+          },
+          options: {
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: false } },
+          },
+        });
+      }
     }
-    var payload = window.dashboardData || { labels: [], values: [] };
-    new window.Chart(canvas, {
-      type: 'doughnut',
-      data: {
-        labels: payload.labels,
-        datasets: [
-          {
-            label: 'Registros',
-            data: payload.values,
-            backgroundColor: ['#0d6efd', '#198754', '#6f42c1', '#ffc107'],
-          },
-        ],
-      },
-      options: {
-        plugins: {
-          legend: {
-            position: 'bottom',
-          },
-        },
-      },
-    });
   }
 
   if (document.readyState !== 'loading') {
-    initChart();
+    renderCharts();
   } else {
-    document.addEventListener('DOMContentLoaded', initChart);
+    document.addEventListener('DOMContentLoaded', renderCharts);
   }
 })();

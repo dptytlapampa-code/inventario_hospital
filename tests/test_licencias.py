@@ -1,149 +1,97 @@
-import datetime as dt
+"""License workflow tests."""
+from __future__ import annotations
+
+from datetime import date, timedelta
+
 import pytest
 
-from app import create_app
-
-# Import the licencias module if available; otherwise, skip these tests.
-licencias = pytest.importorskip("licencias")
-from app.models.base_enums import EstadoLicencia
-
-
-def crear_licencia(**kwargs):
-    """Helper to create a license instance using the target implementation."""
-    return licencias.Licencia(**kwargs)
+from app.models import EstadoLicencia, Licencia, TipoLicencia, Usuario, Hospital
+from app.services.licencia_service import (
+    aprobar_licencia,
+    cancelar_licencia,
+    crear_licencia,
+    enviar_licencia,
+    licencias_superpuestas,
+)
 
 
-@pytest.fixture(autouse=True)
-def limpiar_licencias():
-    licencias.LICENCIAS_APROBADAS.clear()
+def test_crear_y_enviar_licencia(app, data):
+    usuario_id = data["admin"].id
+    hospital_id = data["hospital"].id
+
+    with app.app_context():
+        usuario = Usuario.query.get(usuario_id)
+        hospital = Hospital.query.get(hospital_id)
+        assert usuario is not None and hospital is not None
+        licencia = crear_licencia(
+            usuario=usuario,
+            hospital_id=hospital.id,
+            tipo=TipoLicencia.TEMPORAL,
+            fecha_inicio=date.today() + timedelta(days=3),
+            fecha_fin=date.today() + timedelta(days=6),
+            motivo="Trámite",
+            comentario=None,
+            requires_replacement=False,
+            reemplazo_id=None,
+        )
+        enviar_licencia(licencia)
+        assert licencia.estado == EstadoLicencia.PENDIENTE
 
 
-@pytest.fixture()
-def app():
-    app = create_app()
-    app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
-    return app
+def test_aprobar_licencia_valida_superposicion(app, data):
+    usuario_id = data["admin"].id
+    hospital_id = data["hospital"].id
+    superadmin_id = data["superadmin"].id
+
+    with app.app_context():
+        usuario = Usuario.query.get(usuario_id)
+        hospital = Hospital.query.get(hospital_id)
+        superadmin = Usuario.query.get(superadmin_id)
+        assert usuario is not None and hospital is not None and superadmin is not None
+        licencia = crear_licencia(
+            usuario=usuario,
+            hospital_id=hospital.id,
+            tipo=TipoLicencia.TEMPORAL,
+            fecha_inicio=date.today() + timedelta(days=10),
+            fecha_fin=date.today() + timedelta(days=12),
+            motivo="Capacitación",
+            comentario=None,
+            requires_replacement=False,
+            reemplazo_id=None,
+        )
+        enviar_licencia(licencia)
+        aprobar_licencia(licencia, superadmin)
+
+        overlaps = licencias_superpuestas(
+            usuario.id,
+            licencia.fecha_inicio,
+            licencia.fecha_fin,
+        )
+        assert overlaps == [licencia]
+
+        with pytest.raises(ValueError):
+            otra = crear_licencia(
+                usuario=usuario,
+                hospital_id=hospital.id,
+                tipo=TipoLicencia.TEMPORAL,
+                fecha_inicio=licencia.fecha_inicio,
+                fecha_fin=licencia.fecha_fin,
+                motivo="Duplicado",
+                comentario=None,
+                requires_replacement=False,
+                reemplazo_id=None,
+            )
+            enviar_licencia(otra)
+            aprobar_licencia(otra, superadmin)
 
 
-@pytest.fixture()
-def client(app):
-    return app.test_client()
+def test_cancelar_licencia(app, data):
+    licencia_id = data["licencia"].id
+    admin_id = data["admin"].id
 
-
-def login(client, username="admin", password="admin"):
-    return client.post(
-        "/auth/login",
-        data={"username": username, "password": password},
-        follow_redirects=False,
-    )
-
-
-def test_state_transitions():
-    """License should progress Borrador -> Pendiente -> Aprobada/Rechazada."""
-    lic = crear_licencia(usuario_id=1, fecha_inicio=dt.date(2024, 1, 1), fecha_fin=dt.date(2024, 1, 10))
-    assert lic.estado == EstadoLicencia.BORRADOR
-
-    lic.enviar_pendiente()
-    assert lic.estado == EstadoLicencia.PENDIENTE
-
-    lic.aprobar()
-    assert lic.estado == EstadoLicencia.APROBADA
-
-    lic2 = crear_licencia(usuario_id=2, fecha_inicio=dt.date(2024, 2, 1), fecha_fin=dt.date(2024, 2, 10))
-    lic2.enviar_pendiente()
-    lic2.rechazar()
-    assert lic2.estado == EstadoLicencia.RECHAZADA
-
-
-def test_replacement_assignment():
-    """A replacement user can be assigned to the license."""
-    lic = crear_licencia(usuario_id=1, fecha_inicio=dt.date(2024, 3, 1), fecha_fin=dt.date(2024, 3, 5))
-    lic.asignar_reemplazo(2)
-    assert lic.reemplazo_id == 2
-
-
-def test_business_days_excludes_weekends():
-    """Business day calculation should skip weekends."""
-    lic = crear_licencia(
-        usuario_id=1, fecha_inicio=dt.date(2024, 1, 1), fecha_fin=dt.date(2024, 1, 7)
-    )
-    assert lic.dias_habiles == 5
-
-
-def test_requires_replacement_before_approval():
-    """Licenses that require replacement must assign one before approval."""
-    lic = crear_licencia(
-        usuario_id=1,
-        fecha_inicio=dt.date(2024, 5, 1),
-        fecha_fin=dt.date(2024, 5, 5),
-        requires_replacement=True,
-    )
-    with pytest.raises(ValueError):
-        lic.aprobar()
-    lic.asignar_reemplazo(2)
-    lic.aprobar()
-    assert lic.estado == EstadoLicencia.APROBADA
-
-
-def test_overlap_detection():
-    """Overlapping licenses for the same user should be detected."""
-    lic = crear_licencia(usuario_id=1, fecha_inicio=dt.date(2024, 4, 1), fecha_fin=dt.date(2024, 4, 10))
-    lic.aprobar()
-    with pytest.raises(licencias.TraslapeError):
-        crear_licencia(usuario_id=1, fecha_inicio=dt.date(2024, 4, 5), fecha_fin=dt.date(2024, 4, 15))
-    
-
-def test_users_on_approved_license_restricted(client):
-    """Users with approved licenses should be denied login or module access."""
-
-    hoy = dt.date.today()
-    lic = crear_licencia(
-        usuario_id=1,
-        fecha_inicio=hoy - dt.timedelta(days=1),
-        fecha_fin=hoy + dt.timedelta(days=1),
-    )
-    lic.aprobar()
-
-    resp = login(client)
-    assert resp.status_code == 200
-
-    protegido = client.get("/licencias/listar")
-    assert protegido.status_code == 302
-    assert "/auth/login" in protegido.headers["Location"]
-
-
-def test_users_with_future_approved_license_can_login(client):
-    """Approved licenses in the future should not restrict login."""
-
-    hoy = dt.date.today()
-    lic = crear_licencia(
-        usuario_id=1,
-        fecha_inicio=hoy + dt.timedelta(days=1),
-        fecha_fin=hoy + dt.timedelta(days=2),
-    )
-    lic.aprobar()
-
-    resp = login(client)
-    assert resp.status_code == 302
-
-    protegido = client.get("/licencias/listar")
-    assert protegido.status_code == 200
-
-
-def test_users_with_rejected_license_can_login(client):
-    """Rejected licenses should not restrict user access."""
-
-    hoy = dt.date.today()
-    lic = crear_licencia(
-        usuario_id=1,
-        fecha_inicio=hoy - dt.timedelta(days=1),
-        fecha_fin=hoy + dt.timedelta(days=1),
-    )
-    lic.enviar_pendiente()
-    lic.rechazar()
-
-    resp = login(client)
-    assert resp.status_code == 302
-
-    protegido = client.get("/licencias/listar")
-    assert protegido.status_code == 200
+    with app.app_context():
+        licencia = Licencia.query.get(licencia_id)
+        admin = Usuario.query.get(admin_id)
+        assert licencia is not None and admin is not None
+        cancelar_licencia(licencia, admin)
+        assert licencia.estado == EstadoLicencia.CANCELADA

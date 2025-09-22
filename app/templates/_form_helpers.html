@@ -1,0 +1,35 @@
+{% macro render_field(field, form_group_class='mb-3', label_class='form-label', input_class='form-control', help_text=None, input_type=None, placeholder=None, min_value=None, max_value=None, step=None, rows=None, extra_attrs=None) -%}
+  <div class="{{ form_group_class }}">
+    {{ field.label(class=label_class) }}
+    {{ render_input_field(field, input_class ~ (' is-invalid' if field.errors else ''), input_type=input_type, placeholder=placeholder, min_value=min_value, max_value=max_value, step=step, rows=rows, extra_attrs=extra_attrs) }}
+    {% set description = help_text or field.description %}
+    {% if description %}
+      <div class="form-text">{{ description }}</div>
+    {% endif %}
+    {% if field.errors %}
+      {% for error in field.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro render_select(field, form_group_class='mb-3', label_class='form-label', extra_attrs=None) -%}
+  {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class='form-select', extra_attrs=extra_attrs) }}
+{%- endmacro %}
+
+{% macro render_textarea(field, form_group_class='mb-3', label_class='form-label', input_class='form-control', rows=3, help_text=None, extra_attrs=None) -%}
+  {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=input_class, rows=rows, help_text=help_text, extra_attrs=extra_attrs) }}
+{%- endmacro %}
+
+{% macro render_checkbox(field, form_group_class='form-check mb-3', input_class='form-check-input', label_class='form-check-label', extra_attrs=None) -%}
+  <div class="{{ form_group_class }}">
+    {{ render_input_field(field, input_class ~ (' is-invalid' if field.errors else ''), extra_attrs=extra_attrs) }}
+    {{ field.label(class=label_class) }}
+    {% if field.errors %}
+      {% for error in field.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+{%- endmacro %}

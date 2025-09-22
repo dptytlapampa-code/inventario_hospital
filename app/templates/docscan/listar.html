@@ -1,30 +1,36 @@
 {% extends 'base.html' %}
+{% from '_pagination.html' import render_pagination %}
 {% block title %}Documentos escaneados{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
   <h1 class="h3 mb-0">Documentos digitalizados</h1>
-  <a class="btn btn-primary" href="{{ url_for('docscan.subir') }}">Subir documento</a>
+  <form class="d-flex gap-2" method="get">
+    <input class="form-control" name="q" value="{{ buscar }}" placeholder="Buscar por título o comentario" />
+    <button class="btn btn-outline-primary" type="submit">Buscar</button>
+    <a class="btn btn-primary" href="{{ url_for('docscan.subir') }}">Subir documento</a>
+  </form>
 </div>
-<div class="table-responsive">
-  <table class="table table-striped align-middle">
+<div class="table-responsive bg-white rounded shadow-sm">
+  <table class="table table-striped align-middle mb-0">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Título</th>
-        <th>Equipo</th>
         <th>Tipo</th>
+        <th>Hospital</th>
+        <th>Fecha</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
-      {% for documento in documentos %}
+      {% for doc in documentos %}
       <tr>
-        <td>{{ documento.id }}</td>
-        <td>{{ documento.titulo }}</td>
-        <td>{{ documento.equipo_id }}</td>
-        <td class="text-capitalize">{{ documento.tipo }}</td>
+        <td>{{ doc.titulo }}</td>
+        <td class="text-capitalize">{{ doc.tipo.value }}</td>
+        <td>{{ doc.hospital.nombre if doc.hospital else '—' }}</td>
+        <td>{{ doc.uploaded_at.strftime('%d/%m/%Y') }}</td>
         <td class="text-end">
-          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('docscan.detalle', doc_id=documento.id) }}">Ver</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('docscan.detalle', doc_id=doc.id) }}">Ver</a>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('docscan.descargar', doc_id=doc.id) }}">Descargar</a>
         </td>
       </tr>
       {% else %}
@@ -35,4 +41,5 @@
     </tbody>
   </table>
 </div>
+{{ render_pagination(pagination) }}
 {% endblock %}

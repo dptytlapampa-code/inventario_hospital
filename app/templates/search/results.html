@@ -4,26 +4,30 @@
 <h1 class="mb-4">Resultados para "{{ query }}"</h1>
 <ul class="list-group mb-3">
   {% for item in results %}
-    <li class="list-group-item">
-      <strong>{{ item.tipo }}:</strong>
-      {{ item.nombre or item.descripcion or item.email }}
-      {% if item.numero_serie %}<span class="text-muted">({{ item.numero_serie }})</span>{% endif %}
-    </li>
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <div>
+      <strong>{{ item.tipo }}:</strong> {{ item.titulo }}<br>
+      <small class="text-muted">{{ item.detalle }}</small>
+    </div>
+    {% if item.url and item.url != '#' %}
+    <a class="btn btn-sm btn-outline-primary" href="{{ item.url }}">Abrir</a>
+    {% endif %}
+  </li>
   {% else %}
-    <li class="list-group-item">No se encontraron resultados</li>
+  <li class="list-group-item">No se encontraron resultados</li>
   {% endfor %}
 </ul>
 <nav aria-label="Paginación">
   <ul class="pagination">
     {% if has_prev %}
-      <li class="page-item"><a class="page-link" href="{{ url_for('search.search', q=query, page=page-1) }}">Anterior</a></li>
+    <li class="page-item"><a class="page-link" href="{{ url_for('search.search', q=query, page=page-1) }}">Anterior</a></li>
     {% else %}
-      <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+    <li class="page-item disabled"><span class="page-link">Anterior</span></li>
     {% endif %}
     {% if has_next %}
-      <li class="page-item"><a class="page-link" href="{{ url_for('search.search', q=query, page=page+1) }}">Siguiente</a></li>
+    <li class="page-item"><a class="page-link" href="{{ url_for('search.search', q=query, page=page+1) }}">Siguiente</a></li>
     {% else %}
-      <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+    <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
     {% endif %}
   </ul>
 </nav>

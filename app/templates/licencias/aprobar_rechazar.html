@@ -1,18 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}Aprobar o Rechazar{% endblock %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
+{% block title %}Gestionar licencia{% endblock %}
 {% block content %}
-<h1 class="mb-4">Aprobar o Rechazar</h1>
-<p>Solicitud de {{ solicitud.empleado }} ({{ solicitud.fecha_inicio }} - {{ solicitud.fecha_fin }})</p>
-<form method="post" class="mt-3">
+<h1 class="h3 mb-4">Gestionar licencia</h1>
+<form method="post" novalidate>
   {{ form.hidden_tag() }}
-  <div class="mb-3">
-    {{ form.accion.label(class="form-label") }}
-    {{ form.accion(class="form-select") }}
-  </div>
-  <div class="mb-3">
-    {{ form.comentario.label(class="form-label") }}
-    {{ form.comentario(class="form-control") }}
-  </div>
+  {{ render_select(form.accion) }}
+  {{ render_textarea(form.comentario, rows=3) }}
   {{ form.submit(class="btn btn-primary") }}
+  <a class="btn btn-outline-secondary" href="{{ url_for('licencias.detalle', licencia_id=licencia.id) }}">Cancelar</a>
 </form>
 {% endblock %}

@@ -1,27 +1,19 @@
 {% extends 'base.html' %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
 {% block title %}{{ titulo }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">{{ titulo }}</h1>
-<form method="post">
+<form method="post" novalidate>
   {{ form.hidden_tag() }}
   <div class="row g-3">
-    <div class="col-md-6">
-      <label class="form-label">{{ form.nombre.label }}</label>
-      {{ form.nombre(class='form-control', placeholder='Nombre del insumo') }}
-    </div>
-    <div class="col-md-3">
-      <label class="form-label">{{ form.stock.label }}</label>
-      {{ form.stock(class='form-control', min='0') }}
-    </div>
-    <div class="col-md-3">
-      <label class="form-label">{{ form.numero_serie.label }}</label>
-      {{ form.numero_serie(class='form-control', placeholder='Serie (opcional)') }}
-    </div>
-    <div class="col-12">
-      <label class="form-label">{{ form.equipos.label }}</label>
-      {{ form.equipos(class='form-select', multiple=true) }}
-      <div class="form-text">Seleccione equipos que utilicen el insumo.</div>
-    </div>
+    {{ render_field(form.nombre, form_group_class='col-md-6') }}
+    {{ render_field(form.numero_serie, form_group_class='col-md-3') }}
+    {{ render_field(form.unidad_medida, form_group_class='col-md-3') }}
+    {{ render_field(form.stock, form_group_class='col-md-3', input_class='form-control', min_value='0') }}
+    {{ render_field(form.stock_minimo, form_group_class='col-md-3', input_class='form-control', min_value='0') }}
+    {{ render_field(form.costo_unitario, form_group_class='col-md-3', input_class='form-control', step='0.01') }}
+    {{ render_textarea(form.descripcion, form_group_class='col-12', rows=3) }}
+    {{ render_select(form.equipos, form_group_class='col-12', multiple=true, size=6) }}
   </div>
   <div class="mt-4 d-flex gap-2">
     {{ form.submit(class='btn btn-primary') }}

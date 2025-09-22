@@ -1,26 +1,24 @@
-"""Reusable decorators enforcing role or permission requirements."""
+"""Decorators enforcing role and permission checks."""
 from __future__ import annotations
 
 from functools import wraps
 from typing import Callable
 
+from flask import abort, g
+from flask_login import current_user
 
-def _has_all(values: set[str], required: tuple[str, ...]) -> bool:
-    """Return ``True`` if all ``required`` values are present in ``values``."""
-    return set(required).issubset(values)
+from app.models import Modulo
 
 
 def roles_required(*roles: str) -> Callable:
-    """Allow access only to authenticated users with all ``roles``."""
+    """Ensure the current user has one of the provided ``roles``."""
 
     def decorator(view: Callable) -> Callable:
         @wraps(view)
         def wrapped(*args, **kwargs):
-            from flask import abort  # imported lazily to avoid hard dependency
-            from flask_login import current_user
-
-            user_roles = set(getattr(current_user, "roles", []))
-            if not current_user.is_authenticated or not _has_all(user_roles, roles):
+            if not current_user.is_authenticated:
+                abort(401)
+            if not current_user.has_role(*roles):
                 abort(403)
             return view(*args, **kwargs)
 
@@ -30,16 +28,15 @@ def roles_required(*roles: str) -> Callable:
 
 
 def permissions_required(*permissions: str) -> Callable:
-    """Allow access only to users that possess all ``permissions``."""
+    """Ensure the user has all permissions in ``module:action`` form."""
 
     def decorator(view: Callable) -> Callable:
         @wraps(view)
         def wrapped(*args, **kwargs):
-            from flask import abort  # imported lazily
-            from flask_login import current_user
-
-            user_perms = set(getattr(current_user, "permissions", []))
-            if not current_user.is_authenticated or not _has_all(user_perms, permissions):
+            if not current_user.is_authenticated:
+                abort(401)
+            missing = [perm for perm in permissions if not current_user.has_permission(perm)]
+            if missing:
                 abort(403)
             return view(*args, **kwargs)
 
@@ -48,4 +45,25 @@ def permissions_required(*permissions: str) -> Callable:
     return decorator
 
 
-__all__ = ["roles_required", "permissions_required"]
+def require_hospital_access(modulo: Modulo | str) -> Callable:
+    """Limit the view to hospitals the user can access for ``modulo``."""
+
+    modulo_value = modulo.value if isinstance(modulo, Modulo) else modulo
+
+    def decorator(view: Callable) -> Callable:
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not current_user.is_authenticated:
+                abort(401)
+            allowed = current_user.allowed_hospital_ids(modulo_value)
+            g.allowed_hospitals = allowed
+            if not allowed and current_user.rol and current_user.rol.nombre.lower() != "superadmin":
+                abort(403)
+            return view(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
+
+__all__ = ["roles_required", "permissions_required", "require_hospital_access"]

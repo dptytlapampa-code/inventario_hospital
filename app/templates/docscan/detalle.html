@@ -1,23 +1,15 @@
 {% extends 'base.html' %}
-{% block title %}Detalle de documento{% endblock %}
+{% block title %}{{ documento.titulo }}{% endblock %}
 {% block content %}
-{% if not documento %}
-<div class="alert alert-warning">El documento solicitado no existe.</div>
-<a class="btn btn-outline-secondary" href="{{ url_for('docscan.listar') }}">Volver</a>
-{% else %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">{{ documento.titulo }}</h1>
-  <a class="btn btn-outline-secondary" href="{{ url_for('docscan.listar') }}">Volver</a>
+<h1 class="h3 mb-4">{{ documento.titulo }}</h1>
+<div class="card">
+  <div class="card-body">
+    <p><strong>Tipo:</strong> {{ documento.tipo.value }}</p>
+    <p><strong>Hospital:</strong> {{ documento.hospital.nombre if documento.hospital else '—' }}</p>
+    <p><strong>Fecha documento:</strong> {{ documento.fecha_documento or '—' }}</p>
+    <p><strong>Comentario:</strong> {{ documento.comentario or '—' }}</p>
+    <a class="btn btn-primary" href="{{ url_for('docscan.descargar', doc_id=documento.id) }}">Descargar</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('docscan.listar') }}">Volver</a>
+  </div>
 </div>
-<ul class="list-group">
-  <li class="list-group-item d-flex justify-content-between align-items-center">
-    <span>Equipo</span>
-    <span class="badge bg-secondary">{{ documento.equipo_id }}</span>
-  </li>
-  <li class="list-group-item d-flex justify-content-between align-items-center">
-    <span>Tipo</span>
-    <span class="text-capitalize">{{ documento.tipo }}</span>
-  </li>
-</ul>
-{% endif %}
 {% endblock %}

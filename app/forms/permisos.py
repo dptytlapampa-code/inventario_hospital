@@ -1,39 +1,32 @@
-"""Formularios de permisos por rol."""
-
+"""Forms for assigning permissions to roles."""
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, SelectField, SubmitField
-from wtforms.validators import DataRequired, InputRequired
+from wtforms.validators import DataRequired
 
-from app.models.permisos import Modulo
+from app.models import Hospital, Modulo, Rol
 
 
 class PermisoForm(FlaskForm):
-    """Formulario simple para administrar permisos de módulos."""
-
-    rol_id = SelectField("Rol", coerce=int, validators=[InputRequired()])
-    modulo = SelectField("Módulo", choices=[], validators=[DataRequired()])
-    hospital_id = SelectField("Hospital", coerce=int, validators=[InputRequired()])
+    rol_id = SelectField("Rol", coerce=int, validators=[DataRequired()])
+    modulo = SelectField(
+        "Módulo",
+        choices=[(m.value, m.name.title()) for m in Modulo],
+        validators=[DataRequired()],
+    )
+    hospital_id = SelectField("Hospital", coerce=int, validators=[DataRequired()])
     can_read = BooleanField("Puede leer", default=True)
-    can_write = BooleanField("Puede escribir")
+    can_write = BooleanField("Puede editar")
+    allow_export = BooleanField("Puede exportar")
     submit = SubmitField("Guardar")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if not self.rol_id.choices:
-            self.rol_id.choices = [
-                (1, "Administrador"),
-                (2, "Operador"),
-                (3, "Consulta"),
-            ]
-        self.modulo.choices = [
-            (modulo.value, modulo.name.title()) for modulo in Modulo
+        self.rol_id.choices = [(r.id, r.nombre) for r in Rol.query.order_by(Rol.nombre)]
+        self.hospital_id.choices = [(0, "Todos")] + [
+            (h.id, h.nombre) for h in Hospital.query.order_by(Hospital.nombre)
         ]
-        if not self.hospital_id.choices:
-            self.hospital_id.choices = [
-                (0, "Todos los hospitales"),
-                (1, "Hospital Central"),
-                (2, "Hospital Norte"),
-                (3, "Hospital Sur"),
-            ]
+
+
+__all__ = ["PermisoForm"]
