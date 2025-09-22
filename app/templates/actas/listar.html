@@ -1,14 +1,46 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% from '_pagination.html' import render_pagination %}
+{% block title %}Actas{% endblock %}
 {% block content %}
-  <h1>Actas</h1>
-  <ul>
-    {% for acta_id, acta in actas %}
-      <li>
-        Acta {{ acta_id }} - {{ acta.tipo.value }} -
-        <a href="{{ url_for('actas.descargar', acta_id=acta_id) }}">Descargar</a>
-      </li>
-    {% else %}
-      <li>No hay actas</li>
-    {% endfor %}
-  </ul>
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+  <h1 class="h3 mb-0">Actas</h1>
+  <form class="d-flex gap-2" method="get">
+    <input class="form-control" type="search" name="q" value="{{ buscar }}" placeholder="Buscar por número u observación" />
+    <button class="btn btn-outline-primary" type="submit">Buscar</button>
+    <a class="btn btn-primary" href="{{ url_for('actas.crear') }}">Nueva acta</a>
+  </form>
+</div>
+<div class="table-responsive bg-white rounded shadow-sm">
+  <table class="table table-striped align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Número</th>
+        <th>Tipo</th>
+        <th>Fecha</th>
+        <th>Hospital</th>
+        <th>Equipos</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for acta in actas %}
+      <tr>
+        <td>{{ acta.numero or acta.id }}</td>
+        <td class="text-capitalize">{{ acta.tipo.value }}</td>
+        <td>{{ acta.fecha.strftime('%d/%m/%Y') }}</td>
+        <td>{{ acta.hospital.nombre if acta.hospital else '—' }}</td>
+        <td>{{ acta.items|length }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('actas.detalle', acta_id=acta.id) }}">Ver</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="text-center text-muted">Sin actas generadas.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ render_pagination(pagination) }}
 {% endblock %}

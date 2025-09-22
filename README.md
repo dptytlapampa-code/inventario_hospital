@@ -40,7 +40,7 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 
 ## 2. Alcance funcional
 
-- Autenticación y roles: Superadmin, Admin, Técnico. Usuario inicial: `admin / 123456` (Superadmin).
+- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `superadmin / Cambiar123!` (Superadmin). Otros usuarios de ejemplo se crean con `python seeds/seed.py`.
 - Permisos granulares por hospital y módulo (inventario, insumos, actas, adjuntos, docscan, reportes, auditoría, licencias).
 - Ubicaciones jerárquicas: Hospital → Servicio → Oficina (ABM, validaciones de duplicados, edición sin cambiar IDs).
 - Equipos: tipos predefinidos, estados (Operativo, En Servicio Técnico, De baja), expediente/año opcionales, historial.
@@ -138,10 +138,11 @@ python3 -m venv .venv
 source .venv/bin/activate          # Windows: .\.venv\Scripts\activate
 pip install -r requirements.txt
 
+# Dependencias opcionales (Bcrypt nativo, PostgreSQL, PDF, QR)
+# pip install flask-bcrypt psycopg2-binary weasyprint qrcode Pillow
+
 # Migraciones
 export FLASK_APP=wsgi.py           # Windows: set FLASK_APP=wsgi.py
-flask db init                      # primera vez
-flask db migrate -m "init"
 flask db upgrade
 
 # (Opcional) Seeds (reinicia datos base)
@@ -191,8 +192,10 @@ El repositorio incluye una migración inicial con todas las tablas declaradas en
 
 Seeds (`seeds/seed.py`): abre una sesión SQLAlchemy sobre `DATABASE_URL`, limpia los datos existentes y vuelve a poblar la base con hospitales (Lucio Molas, René Favaloro), usuarios base, permisos por módulo/hospital, inventario de ejemplo (equipos + insumos) y licencias en distintos estados:
 
-- `admin / 123456` (Superadmin)
-- Admin y Técnico por hospital (con permisos de módulos diferenciados)
+- `superadmin / Cambiar123!` (Superadmin global)
+- `admin_molas / Cambiar123!` y `admin_favaloro / Cambiar123!` (Admins locales)
+- `tecnico_molas / Cambiar123!` y `tecnico_favaloro / Cambiar123!` (Técnicos por hospital)
+- `consulta / Cambiar123!` (Usuario de solo lectura)
 - Equipos/insumos/actas/adjuntos/licencias de ejemplo
 - Asegura que los permisos por hospital y módulo queden cargados.
 
@@ -205,6 +208,7 @@ Seeds (`seeds/seed.py`): abre una sesión SQLAlchemy sobre `DATABASE_URL`, limpi
   - `@require_permission('<modulo>')`
   - `@require_hospital_access(hospital_id)`
 - **Estados de usuario:** activo / suspendido por licencia (ver módulo de licencias).
+- **Passwords:** si no se instala `flask-bcrypt` el sistema cae en una implementación PBKDF2 segura integrada (útil para entornos sin acceso a PyPI).
 
 ## 8. Módulo de Licencias/Vacaciones
 
@@ -313,7 +317,8 @@ Casos clave:
 
 - **psycopg2 o conexión fallida:** verificar `DATABASE_URL`, credenciales y que Postgres esté levantado.
 - **Migraciones:**
-  - Primera vez: `flask db init` → `flask db migrate` → `flask db upgrade`.
+  - Con el repositorio tal como viene alcanza con `flask db upgrade`.
+  - Si creás nuevas migraciones desde cero: `flask db init` → `flask db migrate` → `flask db upgrade`.
   - Error de heads múltiples: `flask db stamp head` y volver a migrar.
 - **WeasyPrint/ReportLab:** pueden requerir paquetes del SO (Cairo, Pango, libffi, etc.). Agregarlos en Dockerfile o instalar en el host.
 - **Docker puerto ocupado:** cambia mapeo (`8000:8000` → `8080:8000`) en `docker-compose.yml`.

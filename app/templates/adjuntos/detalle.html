@@ -1,23 +1,16 @@
 {% extends 'base.html' %}
-{% block title %}Detalle de adjunto{% endblock %}
+{% block title %}Adjunto {{ adjunto.filename }}{% endblock %}
 {% block content %}
-{% if not adjunto %}
-<div class="alert alert-warning">El adjunto solicitado no existe.</div>
-<a class="btn btn-outline-secondary" href="{{ url_for('adjuntos.listar') }}">Volver</a>
-{% else %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">{{ adjunto.filename }}</h1>
-  <a class="btn btn-outline-secondary" href="{{ url_for('adjuntos.listar') }}">Volver</a>
+<h1 class="h3 mb-4">{{ adjunto.filename }}</h1>
+<div class="card">
+  <div class="card-body">
+    <p><strong>Equipo:</strong> {{ adjunto.equipo.descripcion or adjunto.equipo.codigo }}</p>
+    <p><strong>Tipo:</strong> {{ adjunto.tipo.value }}</p>
+    <p><strong>Subido por:</strong> {{ adjunto.uploaded_by.nombre if adjunto.uploaded_by else '—' }}</p>
+    <p><strong>Fecha:</strong> {{ adjunto.uploaded_at.strftime('%d/%m/%Y') }}</p>
+    <p><strong>Descripción:</strong> {{ adjunto.descripcion or '—' }}</p>
+    <a class="btn btn-primary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('adjuntos.listar') }}">Volver</a>
+  </div>
 </div>
-<ul class="list-group">
-  <li class="list-group-item d-flex justify-content-between align-items-center">
-    <span>Equipo</span>
-    <span class="badge bg-secondary">{{ adjunto.equipo_id }}</span>
-  </li>
-  <li class="list-group-item d-flex justify-content-between align-items-center">
-    <span>Tipo</span>
-    <span class="text-capitalize">{{ adjunto.tipo }}</span>
-  </li>
-</ul>
-{% endif %}
 {% endblock %}

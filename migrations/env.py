@@ -44,7 +44,9 @@ config = context.config
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:  # pragma: no cover - configuration hook
-    fileConfig(config.config_file_name)
+    ini_path = Path(config.config_file_name)
+    if ini_path.exists():
+        fileConfig(config.config_file_name)
 
 # Configure the SQLAlchemy URL from the environment (if provided) or fall back
 # to the application's default database URI.

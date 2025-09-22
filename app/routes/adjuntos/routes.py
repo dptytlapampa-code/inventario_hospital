@@ -1,62 +1,104 @@
-"""Vistas para administrar adjuntos de equipos."""
-
+"""Routes to manage equipment attachments."""
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from pathlib import Path
+from uuid import uuid4
 
+from flask import Blueprint, current_app, flash, g, redirect, render_template, request, send_file, url_for
+from flask_login import current_user, login_required
+from werkzeug.utils import secure_filename
+
+from app.extensions import db
 from app.forms.adjunto import AdjuntoForm
-from app.routes._compat import Blueprint, flash, login_required, redirect, render_template, url_for
-
-ADJUNTOS: List[Dict[str, object]] = [
-    {
-        "id": 1,
-        "equipo_id": 1,
-        "filename": "manual_impresora.pdf",
-        "tipo": "manual",
-    },
-    {
-        "id": 2,
-        "equipo_id": 2,
-        "filename": "garantia_switch.pdf",
-        "tipo": "garantia",
-    },
-]
-
-
-def _get_adjunto(adjunto_id: int) -> Optional[Dict[str, object]]:
-    return next((adjunto for adjunto in ADJUNTOS if adjunto["id"] == adjunto_id), None)
-
+from app.models import Adjunto, Equipo, Modulo
+from app.security import permissions_required, require_hospital_access
+from app.services.audit_service import log_action
+from sqlalchemy import or_
 
 adjuntos_bp = Blueprint("adjuntos", __name__, url_prefix="/adjuntos")
 
 
+def _adjunto_dir() -> Path:
+    base = Path(current_app.config.get("UPLOAD_FOLDER", "uploads")) / "adjuntos"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
 @adjuntos_bp.route("/")
 @login_required
-def listar() -> str:
-    return render_template("adjuntos/listar.html", adjuntos=ADJUNTOS)
+@permissions_required("adjuntos:read")
+@require_hospital_access(Modulo.ADJUNTOS)
+def listar():
+    page = request.args.get("page", type=int, default=1)
+    per_page = current_app.config.get("DEFAULT_PAGE_SIZE", 20)
+    buscar = request.args.get("q", "")
+
+    query = Adjunto.query.join(Adjunto.equipo).order_by(Adjunto.uploaded_at.desc())
+    allowed = getattr(g, "allowed_hospitals", set())
+    if allowed:
+        query = query.filter(Equipo.hospital_id.in_(allowed))
+    if buscar:
+        like = f"%{buscar}%"
+        query = query.filter(
+            or_(
+                Adjunto.filename.ilike(like),
+                Adjunto.descripcion.ilike(like),
+                Equipo.codigo.ilike(like),
+                Equipo.descripcion.ilike(like),
+            )
+        )
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    return render_template(
+        "adjuntos/listar.html",
+        adjuntos=pagination.items,
+        pagination=pagination,
+        buscar=buscar,
+    )
 
 
 @adjuntos_bp.route("/subir", methods=["GET", "POST"])
 @login_required
-def subir() -> str:
+@permissions_required("adjuntos:write")
+@require_hospital_access(Modulo.ADJUNTOS)
+def subir():
     form = AdjuntoForm()
-    if form.validate_on_submit():  # pragma: no cover - requiere contexto Flask real
-        new_id = max((int(item["id"]) for item in ADJUNTOS), default=0) + 1
-        ADJUNTOS.append(
-            {
-                "id": new_id,
-                "equipo_id": form.equipo_id.data,
-                "filename": form.filename.data,
-                "tipo": form.tipo.data,
-            }
+    if form.validate_on_submit():
+        file = form.archivo.data
+        original_name = secure_filename(file.filename)
+        unique_name = f"{uuid4().hex}_{original_name}"
+        path = _adjunto_dir() / unique_name
+        file.save(path)
+
+        adjunto = Adjunto(
+            equipo_id=form.equipo_id.data,
+            filename=original_name,
+            path=path.as_posix(),
+            tipo=form.tipo.data,
+            descripcion=form.descripcion.data or None,
+            uploaded_by=current_user,
         )
-        flash("Adjunto cargado", "success")
+        db.session.add(adjunto)
+        db.session.commit()
+        log_action(usuario_id=current_user.id, accion="subir", modulo="adjuntos", tabla="adjuntos", registro_id=adjunto.id)
+        flash("Adjunto subido correctamente", "success")
         return redirect(url_for("adjuntos.listar"))
     return render_template("adjuntos/formulario.html", form=form, titulo="Nuevo adjunto")
 
 
 @adjuntos_bp.route("/<int:adjunto_id>")
 @login_required
-def detalle(adjunto_id: int) -> str:
-    adjunto = _get_adjunto(adjunto_id)
+@permissions_required("adjuntos:read")
+@require_hospital_access(Modulo.ADJUNTOS)
+def detalle(adjunto_id: int):
+    adjunto = Adjunto.query.get_or_404(adjunto_id)
     return render_template("adjuntos/detalle.html", adjunto=adjunto)
+
+
+@adjuntos_bp.route("/<int:adjunto_id>/descargar")
+@login_required
+@permissions_required("adjuntos:read")
+@require_hospital_access(Modulo.ADJUNTOS)
+def descargar(adjunto_id: int):
+    adjunto = Adjunto.query.get_or_404(adjunto_id)
+    file_path = Path(adjunto.path)
+    return send_file(file_path, as_attachment=True, download_name=adjunto.filename)

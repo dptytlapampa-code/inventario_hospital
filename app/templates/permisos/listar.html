@@ -1,32 +1,37 @@
 {% extends 'base.html' %}
+{% from '_pagination.html' import render_pagination %}
 {% block title %}Permisos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
   <h1 class="h3 mb-0">Permisos</h1>
-  <a class="btn btn-primary" href="{{ url_for('permisos.crear') }}">Nuevo permiso</a>
+  <form class="d-flex gap-2" method="get">
+    <input class="form-control" name="q" value="{{ buscar }}" placeholder="Buscar por rol, hospital o módulo" />
+    <button class="btn btn-outline-primary" type="submit">Buscar</button>
+    <a class="btn btn-primary" href="{{ url_for('permisos.crear') }}">Nuevo permiso</a>
+  </form>
 </div>
-<div class="table-responsive">
-  <table class="table table-striped align-middle">
+<div class="table-responsive bg-white rounded shadow-sm">
+  <table class="table table-striped align-middle mb-0">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Rol</th>
         <th>Módulo</th>
         <th>Hospital</th>
         <th>Lectura</th>
         <th>Escritura</th>
+        <th>Exportar</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {% for permiso in permisos %}
       <tr>
-        <td>{{ permiso.id }}</td>
-        <td>{{ permiso.rol }}</td>
-        <td class="text-capitalize">{{ permiso.modulo }}</td>
-        <td>{{ permiso.hospital }}</td>
-        <td>{% if permiso.can_read %}Sí{% else %}No{% endif %}</td>
-        <td>{% if permiso.can_write %}Sí{% else %}No{% endif %}</td>
+        <td>{{ permiso.rol.nombre }}</td>
+        <td class="text-capitalize">{{ permiso.modulo.value }}</td>
+        <td>{{ permiso.hospital.nombre if permiso.hospital else 'Todos' }}</td>
+        <td>{{ 'Sí' if permiso.can_read else 'No' }}</td>
+        <td>{{ 'Sí' if permiso.can_write else 'No' }}</td>
+        <td>{{ 'Sí' if permiso.allow_export else 'No' }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('permisos.editar', permiso_id=permiso.id) }}">Editar</a>
         </td>
@@ -38,5 +43,5 @@
       {% endfor %}
     </tbody>
   </table>
-</div>
+{{ render_pagination(pagination) }}
 {% endblock %}

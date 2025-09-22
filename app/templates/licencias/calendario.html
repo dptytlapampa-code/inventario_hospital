@@ -1,31 +1,22 @@
 {% extends 'base.html' %}
+{% from '_form_helpers.html' import render_field %}
 {% block title %}Calendario de licencias{% endblock %}
 {% block content %}
-<h1 class="mb-4">Calendario de licencias</h1>
-{% if solicitudes %}
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th>Empleado</th>
-      <th>Inicio</th>
-      <th>Fin</th>
-      <th>Estado</th>
-      <th>Días hábiles</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for s in solicitudes %}
-    <tr>
-      <td>{{ s.empleado }}</td>
-      <td>{{ s.fecha_inicio }}</td>
-      <td>{{ s.fecha_fin }}</td>
-      <td>{{ s.estado }}</td>
-      <td>{{ s.dias_habiles }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>No hay solicitudes</p>
-{% endif %}
+<h1 class="h3 mb-4">Calendario de licencias aprobadas</h1>
+<form method="get" class="row g-3 mb-4" novalidate>
+  {{ form.hidden_tag() }}
+  {{ render_field(form.mes, form_group_class='col-md-4', input_class='form-control', input_type='date') }}
+  <div class="col-md-3 d-flex align-items-end">
+    {{ form.submit(class='btn btn-outline-primary w-100') }}
+  </div>
+</form>
+<ul class="list-group">
+  {% for evento in eventos %}
+  <li class="list-group-item">
+    <strong>{{ evento.title }}</strong> - {{ evento.start }} a {{ evento.end }} ({{ evento.estado }})
+  </li>
+  {% else %}
+  <li class="list-group-item text-muted">No hay licencias aprobadas.</li>
+  {% endfor %}
+</ul>
 {% endblock %}

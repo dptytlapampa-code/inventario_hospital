@@ -10,9 +10,16 @@
     <a class="btn btn-outline-secondary" href="{{ url_for('main.index') }}">Volver al inicio</a>
   </div>
 </div>
-<div class="card">
+<div class="card mb-4">
+  <div class="card-header">Equipos por estado</div>
   <div class="card-body">
     <canvas id="inventoryChart" height="120"></canvas>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">Licencias por mes</div>
+  <div class="card-body">
+    <canvas id="licenseChart" height="120"></canvas>
   </div>
 </div>
 {% endblock %}
@@ -21,6 +28,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     window.dashboardData = {{ chart_data|tojson }};
+    window.licensesData = {{ licencias_chart|tojson }};
   </script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

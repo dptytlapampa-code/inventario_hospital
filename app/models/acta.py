@@ -1,3 +1,4 @@
+"""Models representing delivery/loan/transfer acts."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -8,7 +9,9 @@ from sqlalchemy import (
     DateTime,
     Enum as SAEnum,
     ForeignKey,
+    Integer,
     String,
+    Text,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,13 +19,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .usuario import Usuario
-    from .hospital import Hospital
     from .equipo import Equipo
+    from .hospital import Hospital, Oficina, Servicio
+    from .usuario import Usuario
 
 
 class TipoActa(str, Enum):
-    """Tipos de acta."""
+    """Types of acta documents."""
 
     ENTREGA = "entrega"
     PRESTAMO = "prestamo"
@@ -30,35 +33,54 @@ class TipoActa(str, Enum):
 
 
 class Acta(Base):
-    """Acta generada por el sistema."""
+    """Document generated when assets change custody."""
 
     __tablename__ = "actas"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    numero: Mapped[str | None] = mapped_column(String(50), unique=True)
     tipo: Mapped[TipoActa] = mapped_column(SAEnum(TipoActa, name="tipo_acta"), nullable=False)
     fecha: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
-    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
-    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"), nullable=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
+    servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
+    oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
+    observaciones: Mapped[str | None] = mapped_column(Text())
+    pdf_path: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+        nullable=False,
+    )
 
-    usuario: Mapped["Usuario"] = relationship("Usuario")
-    hospital: Mapped["Hospital"] = relationship("Hospital")
-    items: Mapped[list["ActaItem"]] = relationship("ActaItem", back_populates="acta")
+    usuario: Mapped["Usuario | None"] = relationship("Usuario")
+    hospital: Mapped["Hospital | None"] = relationship("Hospital")
+    servicio: Mapped["Servicio | None"] = relationship("Servicio")
+    oficina: Mapped["Oficina | None"] = relationship("Oficina")
+    items: Mapped[list["ActaItem"]] = relationship(
+        "ActaItem", back_populates="acta", cascade="all, delete-orphan"
+    )
 
 
 class ActaItem(Base):
-    """Ítems asociados a un acta."""
+    """Assets included in an acta."""
 
     __tablename__ = "acta_items"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    acta_id: Mapped[int] = mapped_column(ForeignKey("actas.id"), index=True)
-    equipo_id: Mapped[int] = mapped_column(ForeignKey("equipos.id"), index=True)
-    descripcion: Mapped[str | None] = mapped_column(String(255))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    acta_id: Mapped[int] = mapped_column(ForeignKey("actas.id"), nullable=False)
+    equipo_id: Mapped[int | None] = mapped_column(ForeignKey("equipos.id"))
+    cantidad: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(Text())
 
     acta: Mapped["Acta"] = relationship("Acta", back_populates="items")
-    equipo: Mapped["Equipo"] = relationship("Equipo", back_populates="acta_items")
+    equipo: Mapped["Equipo | None"] = relationship("Equipo", back_populates="acta_items")
 
 
-__all__ = ["TipoActa", "Acta", "ActaItem"]
+__all__ = ["Acta", "ActaItem", "TipoActa"]

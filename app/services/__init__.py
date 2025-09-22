@@ -6,4 +6,5 @@ __all__ = [
     "search_service",
     "audit_service",
     "licencia_service",
+    "insumo_service",
 ]

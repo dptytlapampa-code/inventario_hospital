@@ -1,28 +1,35 @@
 {% extends 'base.html' %}
+{% from '_pagination.html' import render_pagination %}
 {% block title %}Insumos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
   <h1 class="h3 mb-0">Insumos</h1>
-  <a class="btn btn-primary" href="{{ url_for('insumos.crear') }}">Nuevo insumo</a>
+  <div class="d-flex flex-column flex-sm-row gap-2">
+    <form class="d-flex gap-2" method="get">
+      <input class="form-control" id="q" name="q" placeholder="Nombre o número de serie" value="{{ buscar }}">
+      <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+    </form>
+    <a class="btn btn-primary" href="{{ url_for('insumos.crear') }}">Nuevo insumo</a>
+  </div>
 </div>
-<div class="table-responsive">
-  <table class="table table-striped align-middle">
+<div class="table-responsive bg-white rounded shadow-sm">
+  <table class="table table-striped align-middle mb-0">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Nombre</th>
         <th>Stock</th>
+        <th>Mínimo</th>
         <th>N° Serie</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {% for insumo in insumos %}
-      <tr>
-        <td>{{ insumo.id }}</td>
+      <tr class="{% if insumo.stock <= insumo.stock_minimo and insumo.stock_minimo > 0 %}table-warning{% endif %}">
         <td>{{ insumo.nombre }}</td>
         <td>{{ insumo.stock }}</td>
-        <td>{{ insumo.numero_serie or '-' }}</td>
+        <td>{{ insumo.stock_minimo }}</td>
+        <td>{{ insumo.numero_serie or '—' }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('insumos.detalle', insumo_id=insumo.id) }}">Ver</a>
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('insumos.editar', insumo_id=insumo.id) }}">Editar</a>
@@ -36,4 +43,5 @@
     </tbody>
   </table>
 </div>
+{{ render_pagination(pagination) }}
 {% endblock %}

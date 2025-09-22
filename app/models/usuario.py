@@ -1,48 +1,124 @@
+"""User model for authentication and permission checks."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import Iterable, TYPE_CHECKING
 
-from sqlalchemy import String, ForeignKey
+from flask_login import UserMixin
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.extensions import bcrypt
 
 from .base import Base
 
 if TYPE_CHECKING:  # pragma: no cover
+    from .hospital import Hospital, Oficina, Servicio
+    from .licencia import Licencia
+    from .permisos import Permiso
     from .rol import Rol
 
 
-class Usuario(Base):
-    """Modelo de usuario del sistema."""
+class Usuario(Base, UserMixin):
+    """Authenticated system user."""
 
     __tablename__ = "usuarios"
+    __table_args__ = (UniqueConstraint("username", name="uq_usuario_username"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    rol_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id"), nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    telefono: Mapped[str | None] = mapped_column(String(50))
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    rol_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False)
+    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
+    servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
+    oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
+    ultimo_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+        nullable=False,
+    )
 
-    licencias = relationship("Licencia", back_populates="usuario")
     rol: Mapped["Rol"] = relationship("Rol", back_populates="usuarios")
+    hospital: Mapped["Hospital | None"] = relationship("Hospital", back_populates="usuarios")
+    servicio: Mapped["Servicio | None"] = relationship("Servicio")
+    oficina: Mapped["Oficina | None"] = relationship("Oficina")
+    licencias: Mapped[list["Licencia"]] = relationship(
+        "Licencia", back_populates="usuario", foreign_keys="Licencia.usuario_id"
+    )
+    reemplazos: Mapped[list["Licencia"]] = relationship(
+        "Licencia", back_populates="reemplazo", foreign_keys="Licencia.reemplazo_id"
+    )
+
+    def set_password(self, password: str) -> None:
+        """Hash and store ``password``."""
+
+        self.password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    def check_password(self, password: str) -> bool:
+        """Return True when ``password`` matches the stored hash."""
+
+        if not self.password_hash:
+            return False
+        return bcrypt.check_password_hash(self.password_hash, password)
 
     @property
     def roles(self) -> list[str]:
-        """Return a list with the user's role name for decorator checks."""
+        """Return the user's role name for decorator checks."""
 
         return [self.rol.nombre] if self.rol else []
 
     @property
     def permissions(self) -> list[str]:
-        """Aggregate permissions derived from the user's role."""
+        """Flattened permission strings (``module:action``)."""
 
         if not self.rol:
             return []
         perms: list[str] = []
-        for perm in self.rol.permisos:
-            if perm.can_read:
-                perms.append(f"{perm.modulo.value}:read")
-            if perm.can_write:
-                perms.append(f"{perm.modulo.value}:write")
+        for permiso in self.rol.permisos:
+            prefix = permiso.modulo.value
+            if permiso.can_read:
+                perms.append(f"{prefix}:read")
+            if permiso.can_write:
+                perms.append(f"{prefix}:write")
         return perms
+
+    def has_role(self, *roles: str) -> bool:
+        return any(self.rol and self.rol.nombre == role for role in roles)
+
+    def has_permission(self, permiso: str) -> bool:
+        return permiso in self.permissions
+
+    def allowed_hospital_ids(self, modulo: str | None = None) -> set[int]:
+        """Return hospital IDs where the user has access to ``modulo``."""
+
+        if not self.rol:
+            return set()
+        if self.rol.nombre.lower() == "superadmin":
+            return {permiso.hospital_id for permiso in self.rol.permisos if permiso.hospital_id}
+
+        hospital_ids: set[int] = set()
+        for permiso in self.rol.permisos:
+            if modulo and permiso.modulo.value != modulo:
+                continue
+            if permiso.hospital_id:
+                hospital_ids.add(permiso.hospital_id)
+        if self.hospital_id:
+            hospital_ids.add(self.hospital_id)
+        return hospital_ids
+
+    def update_permissions(self, permisos: Iterable["Permiso"]) -> None:
+        """Synchronise permission relationship."""
+
+        self.rol.permisos = list(permisos)
 
 
 __all__ = ["Usuario"]

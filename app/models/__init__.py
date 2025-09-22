@@ -1,39 +1,44 @@
-"""Model package with optional imports for lightweight testing.
+"""Expose SQLAlchemy models for external usage."""
+from __future__ import annotations
 
-This project primarily exercises a few simple models during tests. Many of the
-modules in :mod:`app.models` depend on external libraries such as SQLAlchemy
-which are not available in the execution environment. Importing the package
-would normally raise :class:`ModuleNotFoundError` when those dependencies are
-missing and prevent the lightweight tests from running.
-
-To keep the public API stable while avoiding hard dependencies, the heavy
-imports are wrapped in ``try``/``except`` blocks. If an optional dependency is
-unavailable the corresponding names are set to ``None`` so that importing the
-package still succeeds.
-"""
-
-from .user import User, USERS, USERNAME_TABLE
-
-
-# Optional models -----------------------------------------------------------
-try:  # pragma: no cover - exercised only when dependencies are installed
-    from .base import Base
-    from .hospital import Hospital
-    from .licencia import Licencia, TipoLicencia, EstadoLicencia
-    from .usuario import Usuario
-except Exception:  # pragma: no cover - missing optional dependencies
-    Base = Hospital = Licencia = TipoLicencia = EstadoLicencia = Usuario = None  # type: ignore
-
+from .acta import Acta, ActaItem, TipoActa
+from .adjunto import Adjunto, TipoAdjunto
+from .auditoria import Auditoria
+from .base import Base
+from .docscan import Docscan, TipoDocscan
+from .equipo import Equipo, EstadoEquipo, TipoEquipo
+from .hospital import Hospital, Oficina, Servicio
+from .insumo import Insumo, InsumoMovimiento, MovimientoTipo, equipo_insumos
+from .licencia import Licencia, TipoLicencia, EstadoLicencia
+from .permisos import Modulo, Permiso
+from .rol import Rol
+from .usuario import Usuario
 
 __all__ = [
+    "Acta",
+    "ActaItem",
+    "TipoActa",
+    "Adjunto",
+    "TipoAdjunto",
+    "Auditoria",
     "Base",
+    "Docscan",
+    "TipoDocscan",
+    "Equipo",
+    "EstadoEquipo",
+    "TipoEquipo",
     "Hospital",
+    "Servicio",
+    "Oficina",
+    "Insumo",
+    "InsumoMovimiento",
+    "MovimientoTipo",
+    "equipo_insumos",
     "Licencia",
     "TipoLicencia",
     "EstadoLicencia",
+    "Modulo",
+    "Permiso",
+    "Rol",
     "Usuario",
-    "User",
-    "USERS",
-    "USERNAME_TABLE",
 ]
-

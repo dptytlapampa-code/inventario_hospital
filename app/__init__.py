@@ -1,60 +1,38 @@
 """Application factory for the Inventario Hospital system."""
 from __future__ import annotations
 
-from typing import Any, Callable
-
 from flask import Flask
 
 from config import Config
-from app.extensions import csrf, db, login_manager, migrate
-from app.models.user import USERNAME_TABLE
-
-
-def _init_extension(extension: Any, app: Flask, *args: Any) -> None:
-    """Safely call ``init_app`` on an extension if available."""
-
-    init_app: Callable[..., Any] | None = getattr(extension, "init_app", None)
-    if callable(init_app):
-        init_app(app, *args)
+from app.extensions import configure_logging, init_extensions, login_manager
 
 
 def create_app(config_class: type[Config] | Config = Config) -> Flask:
     """Create and configure a fully featured Flask application."""
 
-    app = Flask(__name__)
-
+    app = Flask(__name__, instance_relative_config=False)
     if isinstance(config_class, type):
         app.config.from_object(config_class)
     else:
         app.config.from_object(config_class)
 
-    _init_extension(db, app)
+    configure_logging(app)
+    init_extensions(app)
 
-    if hasattr(migrate, "init_app") and callable(getattr(migrate, "init_app")):
-        migrate.init_app(app, db)  # type: ignore[call-arg]
-    else:
-        _init_extension(migrate, app, db)
+    from app.utils import render_input_field
 
-    _init_extension(login_manager, app)
-    if hasattr(login_manager, "login_view"):
-        login_manager.login_view = "auth.login"
+    app.jinja_env.globals.setdefault("render_input_field", render_input_field)
 
-    _init_extension(csrf, app)
+    from app.models.usuario import Usuario  # imported lazily to avoid circular imports
 
-    user_loader = getattr(login_manager, "user_loader", None)
-    if callable(user_loader):
-
-        @login_manager.user_loader  # type: ignore[misc]
-        def load_user(username: str):  # pragma: no cover - flask-login handles errors
-            return USERNAME_TABLE.get(username)
-
-    else:  # pragma: no cover - fallback for minimal stubs during tests
-
-        def load_user(username: str):
-            return USERNAME_TABLE.get(username)
-
-        setattr(login_manager, "user_callback", load_user)
-        setattr(login_manager, "_user_callback", load_user)
+    @login_manager.user_loader
+    def load_user(user_id: str) -> Usuario | None:  # type: ignore[override]
+        if not user_id:
+            return None
+        try:
+            return Usuario.query.get(int(user_id))
+        except (ValueError, TypeError):  # pragma: no cover - defensive
+            return None
 
     from app.routes.actas import actas_bp
     from app.routes.adjuntos import adjuntos_bp
@@ -83,12 +61,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     ):
         app.register_blueprint(blueprint)
 
-    if "main.index" in app.view_functions:
-        app.add_url_rule(
-            "/",
-            endpoint="index",
-            view_func=app.view_functions["main.index"],
-        )
+    app.add_url_rule("/", endpoint="index", view_func=app.view_functions["main.index"])
 
     return app
 

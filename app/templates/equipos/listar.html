@@ -1,30 +1,48 @@
 {% extends 'base.html' %}
+{% from '_pagination.html' import render_pagination %}
 {% block title %}Equipos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
   <h1 class="h3 mb-0">Equipos</h1>
   <a class="btn btn-primary" href="{{ url_for('equipos.crear') }}">Nuevo equipo</a>
 </div>
-<div class="table-responsive">
-  <table class="table table-striped align-middle">
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-4">
+    {{ form.buscar.label(class="form-label") }}
+    {{ form.buscar(class="form-control", placeholder="Descripción o serie") }}
+  </div>
+  <div class="col-md-3">
+    {{ form.hospital_id.label(class="form-label") }}
+    {{ form.hospital_id(class="form-select") }}
+  </div>
+  <div class="col-md-3">
+    {{ form.estado.label(class="form-label") }}
+    {{ form.estado(class="form-select") }}
+  </div>
+  <div class="col-md-2 d-flex align-items-end">
+    <button class="btn btn-outline-secondary w-100" type="submit">Filtrar</button>
+  </div>
+</form>
+<div class="table-responsive bg-white rounded shadow-sm">
+  <table class="table table-striped align-middle mb-0">
     <thead>
       <tr>
-        <th>ID</th>
+        <th>Código</th>
         <th>Descripción</th>
         <th>Tipo</th>
         <th>Estado</th>
-        <th>N° Serie</th>
+        <th>Hospital</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {% for equipo in equipos %}
       <tr>
-        <td>{{ equipo.id }}</td>
-        <td>{{ equipo.descripcion }}</td>
-        <td class="text-capitalize">{{ equipo.tipo }}</td>
-        <td class="text-capitalize">{{ equipo.estado }}</td>
-        <td>{{ equipo.numero_serie or '-' }}</td>
+        <td>{{ equipo.codigo or '—' }}</td>
+        <td>{{ equipo.descripcion or 'Sin descripción' }}</td>
+        <td class="text-capitalize">{{ equipo.tipo.value.replace('_',' ') }}</td>
+        <td class="text-capitalize">{{ equipo.estado.value.replace('_',' ') }}</td>
+        <td>{{ equipo.hospital.nombre }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('equipos.detalle', equipo_id=equipo.id) }}">Ver</a>
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.editar', equipo_id=equipo.id) }}">Editar</a>
@@ -38,4 +56,5 @@
     </tbody>
   </table>
 </div>
+{{ render_pagination(pagination) }}
 {% endblock %}

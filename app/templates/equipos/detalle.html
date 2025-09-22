@@ -1,39 +1,136 @@
 {% extends 'base.html' %}
 {% block title %}Detalle de equipo{% endblock %}
 {% block content %}
-{% if not equipo %}
-<div class="alert alert-warning">El equipo solicitado no existe.</div>
-<a class="btn btn-outline-secondary" href="{{ url_for('equipos.listar') }}">Volver</a>
-{% else %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">{{ equipo.descripcion }}</h1>
-  <a class="btn btn-outline-secondary" href="{{ url_for('equipos.listar') }}">Volver</a>
+  <h1 class="h3 mb-0">{{ equipo.descripcion or 'Equipo' }}</h1>
+  <div class="btn-group">
+    <a class="btn btn-outline-primary" href="{{ url_for('equipos.editar', equipo_id=equipo.id) }}">Editar</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('equipos.listar') }}">Volver</a>
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Código</h6>
+        <p class="mb-0">{{ equipo.codigo or '—' }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Tipo</h6>
+        <p class="mb-0 text-capitalize">{{ equipo.tipo.value.replace('_',' ') }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Estado</h6>
+        <p class="mb-0 text-capitalize">{{ equipo.estado.value.replace('_',' ') }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Número de serie</h6>
+        <p class="mb-0">{{ equipo.numero_serie or 'Sin dato' }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Ubicación</h6>
+        <p class="mb-0">{{ equipo.hospital.nombre }}{% if equipo.servicio %}<br>{{ equipo.servicio.nombre }}{% endif %}{% if equipo.oficina %}<br>{{ equipo.oficina.nombre }}{% endif %}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Responsable</h6>
+        <p class="mb-0">{{ equipo.responsable or 'No asignado' }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Fechas</h6>
+        <p class="mb-0">Compra: {{ equipo.fecha_compra or '—' }}<br>Instalación: {{ equipo.fecha_instalacion or '—' }}<br>Garantía: {{ equipo.garantia_hasta or '—' }}</p>
+      </div>
+    </div>
+  </div>
 </div>
 <div class="row g-3">
-  <div class="col-md-4">
+  <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-body">
-        <h6 class="text-muted text-uppercase">Tipo</h6>
-        <p class="fs-5 text-capitalize mb-0">{{ equipo.tipo }}</p>
-      </div>
+      <div class="card-header">Insumos asociados</div>
+      <ul class="list-group list-group-flush">
+        {% for insumo in insumos %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ insumo.nombre }}</span>
+          <span class="badge bg-secondary">Stock: {{ insumo.stock }}</span>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted">Sin insumos vinculados.</li>
+        {% endfor %}
+      </ul>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-body">
-        <h6 class="text-muted text-uppercase">Estado</h6>
-        <p class="fs-5 text-capitalize mb-0">{{ equipo.estado }}</p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100">
-      <div class="card-body">
-        <h6 class="text-muted text-uppercase">Número de serie</h6>
-        <p class="fs-5 mb-0">{{ equipo.numero_serie or 'Sin dato' }}</p>
-      </div>
+      <div class="card-header">Adjuntos</div>
+      <ul class="list-group list-group-flush">
+        {% for adjunto in adjuntos %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ adjunto.filename }} ({{ adjunto.tipo.value }})</span>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted">No hay documentos adjuntos.</li>
+        {% endfor %}
+      </ul>
     </div>
   </div>
 </div>
-{% endif %}
+<div class="row g-3 mt-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Historial reciente</div>
+      <ul class="list-group list-group-flush">
+        {% for entrada in historial %}
+        <li class="list-group-item">
+          <strong>{{ entrada.accion }}</strong><br>
+          {{ entrada.descripcion or '' }}<br>
+          <small class="text-muted">{{ entrada.fecha }}{% if entrada.usuario %} por {{ entrada.usuario.nombre }}{% endif %}</small>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted">Sin movimientos registrados.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Actas vinculadas</div>
+      <ul class="list-group list-group-flush">
+        {% for acta in actas %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ acta.tipo.value.title() }} - {{ acta.fecha.strftime('%d/%m/%Y') }}</span>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('actas.detalle', acta_id=acta.id) }}">Ver</a>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted">Sin actas relacionadas.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
 {% endblock %}

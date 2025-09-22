@@ -1,30 +1,37 @@
 {% extends 'base.html' %}
+{% extends 'base.html' %}
+{% from '_pagination.html' import render_pagination %}
 {% block title %}Adjuntos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
   <h1 class="h3 mb-0">Adjuntos</h1>
-  <a class="btn btn-primary" href="{{ url_for('adjuntos.subir') }}">Subir adjunto</a>
+  <form class="d-flex gap-2" method="get">
+    <input class="form-control" name="q" value="{{ buscar }}" placeholder="Buscar por equipo o archivo" />
+    <button class="btn btn-outline-primary" type="submit">Buscar</button>
+    <a class="btn btn-primary" href="{{ url_for('adjuntos.subir') }}">Subir adjunto</a>
+  </form>
 </div>
-<div class="table-responsive">
-  <table class="table table-striped align-middle">
+<div class="table-responsive bg-white rounded shadow-sm">
+  <table class="table table-striped align-middle mb-0">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Equipo</th>
         <th>Archivo</th>
         <th>Tipo</th>
+        <th>Fecha</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {% for adjunto in adjuntos %}
       <tr>
-        <td>{{ adjunto.id }}</td>
-        <td>{{ adjunto.equipo_id }}</td>
+        <td>{{ adjunto.equipo.descripcion or adjunto.equipo.codigo }}</td>
         <td>{{ adjunto.filename }}</td>
-        <td class="text-capitalize">{{ adjunto.tipo }}</td>
+        <td class="text-capitalize">{{ adjunto.tipo.value.replace('_',' ') }}</td>
+        <td>{{ adjunto.uploaded_at.strftime('%d/%m/%Y') }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('adjuntos.detalle', adjunto_id=adjunto.id) }}">Ver</a>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>
         </td>
       </tr>
       {% else %}
@@ -35,4 +42,5 @@
     </tbody>
   </table>
 </div>
+{{ render_pagination(pagination) }}
 {% endblock %}
