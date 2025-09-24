@@ -1,17 +1,26 @@
 (function () {
-  document.addEventListener('DOMContentLoaded', () => {
-    const container = document.querySelector('[data-serial-container]');
-    if (!container) {
-      initLookups();
+  function onReady(callback) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', callback, { once: true });
       return;
     }
+    callback();
+  }
+
+  function initSerialToggle() {
+    const container = document.querySelector('[data-serial-container]');
+    if (!container) {
+      return;
+    }
+
     const serialInput = container.querySelector('[data-serial-input]');
     const toggle = document.querySelector('[data-serial-toggle]');
     const message = container.querySelector('[data-serial-message]');
+
     if (!serialInput || !toggle) {
-      initLookups();
       return;
     }
+
     const defaultMessage = message ? message.textContent : '';
     const originalValue = serialInput.value;
     let manualValue = serialInput.value;
@@ -26,7 +35,9 @@
         serialInput.setAttribute('disabled', 'disabled');
         manualValue = serialInput.value;
         if (message) {
-          message.textContent = originalValue ? `Código interno actual: ${originalValue}` : defaultMessage;
+          message.textContent = originalValue
+            ? `Código interno actual: ${originalValue}`
+            : defaultMessage;
           message.classList.remove('d-none');
         }
       } else {
@@ -41,17 +52,23 @@
 
     toggle.addEventListener('change', updateSerialState);
     updateSerialState();
-    initLookups();
-  });
+  }
 
-  function initLookups() {
-    const hospitalHidden = document.querySelector('#hospital_id');
-    const servicioHidden = document.querySelector('#servicio_id');
-    const oficinaHidden = document.querySelector('#oficina_id');
-    const servicioInput = document.querySelector('#servicio_busqueda');
-    const oficinaInput = document.querySelector('#oficina_busqueda');
+  function initLookupHierarchy() {
+    const hospitalHidden = document.getElementById('hospital_id');
+    const servicioHidden = document.getElementById('servicio_id');
+    const oficinaHidden = document.getElementById('oficina_id');
 
-    if (!hospitalHidden || !servicioHidden || !oficinaHidden || !servicioInput || !oficinaInput) {
+    const servicioInput = document.getElementById('servicio_busqueda');
+    const oficinaInput = document.getElementById('oficina_busqueda');
+
+    if (
+      !hospitalHidden ||
+      !servicioHidden ||
+      !oficinaHidden ||
+      !servicioInput ||
+      !oficinaInput
+    ) {
       return;
     }
 
@@ -75,21 +92,27 @@
       if (!input) {
         return;
       }
+
       if (enabled) {
         input.removeAttribute('disabled');
       } else {
         input.setAttribute('disabled', 'disabled');
       }
+
       const control = input.closest('.lookup-control');
       if (!control) {
         return;
       }
+
       const showAll = control.querySelector('[data-lookup-show-all]');
       if (showAll) {
-        if (enabled) {
-          showAll.removeAttribute('disabled');
-        } else {
-          showAll.setAttribute('disabled', 'disabled');
+        showAll.toggleAttribute('disabled', !enabled);
+      }
+
+      if (!enabled) {
+        const results = control.querySelector('[data-lookup-results]');
+        if (results) {
+          results.classList.add('d-none');
         }
       }
     }
@@ -105,6 +128,7 @@
     hospitalHidden.addEventListener('change', () => {
       if (hospitalHidden.value !== previousHospital) {
         clearLookup(servicioInput);
+        clearLookup(oficinaInput);
         previousHospital = hospitalHidden.value;
       }
       updateServiceAvailability();
@@ -118,7 +142,13 @@
       updateOfficeAvailability();
     });
 
+    // Initialise according to the current persisted values.
     updateServiceAvailability();
     updateOfficeAvailability();
   }
+
+  onReady(() => {
+    initSerialToggle();
+    initLookupHierarchy();
+  });
 })();
