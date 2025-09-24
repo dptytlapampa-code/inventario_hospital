@@ -39,8 +39,8 @@
         form_group_class='col-12 col-md-6',
         placeholder='Buscar oficina',
         params={'hospital_id': form.hospital_id.id, 'servicio_id': form.servicio_id.id},
-        required_params=['hospital_id'],
-        requires_message='Seleccione un hospital para buscar oficinas',
+        required_params=['hospital_id', 'servicio_id'],
+        requires_message='Seleccione un hospital y un servicio para buscar oficinas',
         allow_empty=True,
         empty_label='Sin definir'
       ) }}
