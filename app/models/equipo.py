@@ -5,15 +5,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import (
-    Date,
-    DateTime,
-    Enum as SAEnum,
-    ForeignKey,
-    String,
-    Text,
-    func,
-)
+from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -22,6 +14,7 @@ from .insumo import equipo_insumos
 if TYPE_CHECKING:  # pragma: no cover
     from .acta import ActaItem
     from .adjunto import Adjunto
+    from .equipo_adjunto import EquipoAdjunto
     from .hospital import Hospital, Oficina, Servicio
     from .insumo import Insumo
     from .usuario import Usuario
@@ -70,6 +63,7 @@ class Equipo(Base):
     marca: Mapped[str | None] = mapped_column(String(100))
     modelo: Mapped[str | None] = mapped_column(String(100))
     numero_serie: Mapped[str | None] = mapped_column(String(120), index=True)
+    sin_numero_serie: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitales.id"), nullable=False)
     servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
     oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
@@ -96,6 +90,9 @@ class Equipo(Base):
     )
     acta_items: Mapped[list["ActaItem"]] = relationship("ActaItem", back_populates="equipo")
     adjuntos: Mapped[list["Adjunto"]] = relationship("Adjunto", back_populates="equipo")
+    archivos: Mapped[list["EquipoAdjunto"]] = relationship(
+        "EquipoAdjunto", back_populates="equipo", cascade="all, delete-orphan"
+    )
     historial: Mapped[list["EquipoHistorial"]] = relationship(
         "EquipoHistorial", back_populates="equipo", cascade="all, delete-orphan"
     )

@@ -146,3 +146,32 @@ body {
   padding: 1rem;
   color: #6c757d;
 }
+
+.lookup-control {
+  position: relative;
+}
+
+.lookup-control .input-group > input {
+  min-width: 0;
+}
+
+.lookup-control .lookup-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1020;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: none;
+  box-shadow: 0 0.5rem 1rem rgba(15, 23, 42, 0.08);
+}
+
+.lookup-control .lookup-results .list-group-item {
+  cursor: pointer;
+}
+
+.object-fit-cover {
+  object-fit: cover;
+}

@@ -4,17 +4,19 @@ from __future__ import annotations
 from datetime import date
 
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileAllowed, FileField, FileRequired
 from wtforms import (
+    BooleanField,
     DateField,
+    HiddenField,
     SelectField,
-    SelectMultipleField,
     StringField,
     SubmitField,
     TextAreaField,
 )
 from wtforms.validators import DataRequired, Length, Optional
 
-from app.models import EstadoEquipo, Hospital, Insumo, Oficina, Servicio, TipoEquipo
+from app.models import EstadoEquipo, Hospital, Oficina, Servicio, TipoEquipo
 
 
 class EquipoForm(FlaskForm):
@@ -27,106 +29,89 @@ class EquipoForm(FlaskForm):
     marca = StringField("Marca", validators=[Optional(), Length(max=100)])
     modelo = StringField("Modelo", validators=[Optional(), Length(max=100)])
     numero_serie = StringField("Número de serie", validators=[Optional(), Length(max=120)])
-    hospital_id = SelectField("Hospital", coerce=int, validators=[DataRequired()])
-    servicio_id = SelectField(
-        "Servicio",
-        coerce=int,
-        validators=[Optional()],
-        validate_choice=False,
-        render_kw={"data-placeholder": "Escriba para buscar un servicio"},
-    )
-    oficina_id = SelectField(
-        "Oficina",
-        coerce=int,
-        validators=[Optional()],
-        validate_choice=False,
-        render_kw={"data-placeholder": "Seleccione un servicio para buscar oficinas"},
-    )
+    hospital_busqueda = StringField("Hospital", validators=[DataRequired(), Length(max=160)])
+    hospital_id = HiddenField()
+    servicio_busqueda = StringField("Servicio", validators=[Optional(), Length(max=160)])
+    servicio_id = HiddenField()
+    oficina_busqueda = StringField("Oficina", validators=[Optional(), Length(max=160)])
+    oficina_id = HiddenField()
     responsable = StringField("Responsable", validators=[Optional(), Length(max=120)])
     fecha_compra = DateField("Fecha de compra", validators=[Optional()], default=None)
     fecha_instalacion = DateField("Fecha de instalación", validators=[Optional()], default=None)
     garantia_hasta = DateField("Garantía hasta", validators=[Optional()], default=None)
     observaciones = TextAreaField("Observaciones", validators=[Optional(), Length(max=1000)])
-    insumos = SelectMultipleField(
-        "Insumos asociados",
-        coerce=int,
-        validators=[Optional()],
-        validate_choice=False,
-        render_kw={"data-placeholder": "Buscar insumos"},
-    )
+    sin_numero_serie = BooleanField("Sin número de serie visible", default=False)
     submit = SubmitField("Guardar")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.tipo.choices = [(tipo.value, tipo.name.replace("_", " ").title()) for tipo in TipoEquipo]
         self.estado.choices = [(estado.value, estado.name.replace("_", " ").title()) for estado in EstadoEquipo]
-        self.hospital_id.choices = [
-            (h.id, h.nombre) for h in Hospital.query.order_by(Hospital.nombre)
-        ]
-        self.hospital_id.choices.insert(0, (0, "- Seleccione -"))
+        self._populate_lookup_defaults()
 
-        self._preload_selected_servicio()
-        self._preload_selected_oficina()
-        self._preload_selected_insumos()
-
-    def _preload_selected_servicio(self) -> None:
-        value = self.servicio_id.data or (self.servicio_id.raw_data[0] if self.servicio_id.raw_data else None)
-        if not value:
-            self.servicio_id.choices = []
-            return
-        try:
-            servicio_id = int(value)
-        except (TypeError, ValueError):
-            self.servicio_id.choices = []
-            return
-        servicio = Servicio.query.get(servicio_id)
-        if servicio:
-            label = f"{servicio.hospital.nombre} · {servicio.nombre}"
-            self.servicio_id.choices = [(servicio.id, label)]
-        else:
-            self.servicio_id.choices = []
-
-    def _preload_selected_oficina(self) -> None:
-        value = self.oficina_id.data or (self.oficina_id.raw_data[0] if self.oficina_id.raw_data else None)
-        if not value:
-            self.oficina_id.choices = []
-            return
-        try:
-            oficina_id = int(value)
-        except (TypeError, ValueError):
-            self.oficina_id.choices = []
-            return
-        oficina = Oficina.query.get(oficina_id)
-        if oficina:
-            label = f"{oficina.hospital.nombre} · {oficina.nombre}"
-            self.oficina_id.choices = [(oficina.id, label)]
-        else:
-            self.oficina_id.choices = []
-
-    def _preload_selected_insumos(self) -> None:
-        data = self.insumos.data or self.insumos.raw_data or []
-        if not data:
-            self.insumos.choices = []
-            return
-        if not isinstance(data, (list, tuple)):
-            data = [data]
-        ids = []
-        for value in data:
+    # pylint: disable=too-many-return-statements
+    def _populate_lookup_defaults(self) -> None:
+        if self.hospital_id.data and not self.hospital_busqueda.data:
             try:
-                ids.append(int(value))
-            except (TypeError, ValueError):  # pragma: no cover - defensive
-                continue
-        if not ids:
-            self.insumos.choices = []
-            return
-        insumos = Insumo.query.filter(Insumo.id.in_(ids)).order_by(Insumo.nombre).all()
-        self.insumos.choices = [(insumo.id, insumo.nombre) for insumo in insumos]
+                hospital_id = int(self.hospital_id.data)
+            except (TypeError, ValueError):
+                hospital_id = None
+            if hospital_id:
+                hospital = Hospital.query.get(hospital_id)
+                if hospital:
+                    localidad = getattr(hospital, "localidad", None) or getattr(
+                        hospital, "direccion", None
+                    )
+                    self.hospital_busqueda.data = (
+                        f"{hospital.nombre} - {localidad}" if localidad else hospital.nombre
+                    )
+        if self.servicio_id.data and not self.servicio_busqueda.data:
+            try:
+                servicio_id = int(self.servicio_id.data)
+            except (TypeError, ValueError):
+                servicio_id = None
+            if servicio_id:
+                servicio = Servicio.query.get(servicio_id)
+                if servicio:
+                    self.servicio_busqueda.data = servicio.nombre
+        if self.oficina_id.data and not self.oficina_busqueda.data:
+            try:
+                oficina_id = int(self.oficina_id.data)
+            except (TypeError, ValueError):
+                oficina_id = None
+            if oficina_id:
+                oficina = Oficina.query.get(oficina_id)
+                if oficina:
+                    self.oficina_busqueda.data = oficina.nombre
 
     def validate(self, extra_validators=None):  # type: ignore[override]
         if not super().validate(extra_validators=extra_validators):
             return False
-        if self.hospital_id.data == 0:
-            self.hospital_id.errors.append("Debe seleccionar un hospital")
+        if not self._validate_lookup(self.hospital_busqueda, self.hospital_id, Hospital, required=True):
+            return False
+        if not self._validate_lookup(self.servicio_busqueda, self.servicio_id, Servicio, required=False):
+            return False
+        if not self._validate_lookup(self.oficina_busqueda, self.oficina_id, Oficina, required=False):
+            return False
+
+        if self.servicio_id.data:
+            servicio = Servicio.query.get(self.servicio_id.data)
+            if not servicio or servicio.hospital_id != self.hospital_id.data:
+                self.servicio_busqueda.errors.append("Seleccione una opción válida")
+                return False
+        if self.oficina_id.data:
+            oficina = Oficina.query.get(self.oficina_id.data)
+            if not oficina or oficina.hospital_id != self.hospital_id.data:
+                self.oficina_busqueda.errors.append("Seleccione una opción válida")
+                return False
+            if self.servicio_id.data and oficina.servicio_id and oficina.servicio_id != self.servicio_id.data:
+                self.oficina_busqueda.errors.append("Seleccione una opción válida")
+                return False
+        numero_serie = (self.numero_serie.data or "").strip()
+        if not self.sin_numero_serie.data and not numero_serie:
+            self.numero_serie.errors.append(
+                "Ingrese un número de serie o marque 'Sin número de serie visible'"
+            )
             return False
         if self.fecha_compra.data and self.fecha_compra.data > date.today():
             self.fecha_compra.errors.append("La fecha de compra no puede ser futura")
@@ -138,6 +123,40 @@ class EquipoForm(FlaskForm):
         ):
             self.fecha_instalacion.errors.append("La instalación no puede ser anterior a la compra")
             return False
+        return True
+
+    @staticmethod
+    def _validate_lookup(text_field, hidden_field, model, required: bool) -> bool:
+        text = (text_field.data or "").strip() if text_field is not None else ""
+        hidden_value = hidden_field.data if hidden_field is not None else None
+
+        if not text and not hidden_value:
+            if required:
+                text_field.errors.append("Seleccione una opción válida")
+                return False
+            hidden_field.data = None
+            return True
+
+        if required and not hidden_value:
+            text_field.errors.append("Seleccione una opción válida")
+            return False
+        if hidden_value in (None, ""):
+            if text:
+                text_field.errors.append("Seleccione una opción válida")
+                return False
+            text_field.data = ""
+            hidden_field.data = None
+            return True
+        try:
+            identifier = int(hidden_value)
+        except (TypeError, ValueError):
+            text_field.errors.append("Seleccione una opción válida")
+            return False
+        instance = model.query.get(identifier)
+        if not instance:
+            text_field.errors.append("Seleccione una opción válida")
+            return False
+        hidden_field.data = identifier
         return True
 
 
@@ -159,4 +178,17 @@ class EquipoFiltroForm(FlaskForm):
         ]
 
 
-__all__ = ["EquipoForm", "EquipoFiltroForm"]
+class EquipoAdjuntoForm(FlaskForm):
+    """Upload form for equipment attachments."""
+
+    archivo = FileField(
+        "Archivo",
+        validators=[
+            FileRequired(message="Seleccione un archivo"),
+            FileAllowed({"pdf", "jpg", "jpeg", "png"}, "Formatos permitidos: PDF o imagen"),
+        ],
+    )
+    submit = SubmitField("Subir archivo")
+
+
+__all__ = ["EquipoForm", "EquipoFiltroForm", "EquipoAdjuntoForm"]

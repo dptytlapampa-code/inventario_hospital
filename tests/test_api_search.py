@@ -15,6 +15,42 @@ def test_search_servicios_endpoint(client, admin_credentials):
     assert any("Emergencias" in item["text"] for item in data["results"])
 
 
+def test_search_hospitales_lookup(client, admin_credentials):
+    login(client, **admin_credentials)
+    resp = client.get("/api/search/hospitales?q=Central")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert any("Hospital Central" in item["text"] for item in data["results"])
+    resp_all = client.get("/api/search/hospitales?q=...")
+    assert resp_all.status_code == 200
+    assert resp_all.get_json()["results"]
+
+
+def test_search_servicios_lookup_requires_hospital(client, admin_credentials, data):
+    login(client, **admin_credentials)
+    resp = client.get("/api/search/servicios?q=eme")
+    assert resp.status_code == 400
+    hospital_id = data["hospital"].id
+    resp_ok = client.get(f"/api/search/servicios?hospital_id={hospital_id}&q=eme")
+    assert resp_ok.status_code == 200
+    payload = resp_ok.get_json()
+    assert any(item["text"] == "Emergencias" for item in payload["results"])
+
+
+def test_search_oficinas_lookup_requires_hospital(client, admin_credentials, data):
+    login(client, **admin_credentials)
+    resp = client.get("/api/search/oficinas?q=principal")
+    assert resp.status_code == 400
+    hospital_id = data["hospital"].id
+    servicio_id = data["servicio"].id
+    resp_ok = client.get(
+        f"/api/search/oficinas?hospital_id={hospital_id}&servicio_id={servicio_id}&q=principal"
+    )
+    assert resp_ok.status_code == 200
+    payload = resp_ok.get_json()
+    assert payload["results"]
+
+
 def test_search_oficinas_requires_servicio(client, admin_credentials, data):
     login(client, **admin_credentials)
     resp = client.get("/api/oficinas/search?q=principal")

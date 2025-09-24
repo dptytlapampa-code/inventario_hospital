@@ -1,15 +1,31 @@
 """Blueprint managing equipment inventory."""
 from __future__ import annotations
 
-from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for
+from pathlib import Path
+from uuid import uuid4
+
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from werkzeug.utils import secure_filename
 
 from app.extensions import db
-from app.forms.equipo import EquipoFiltroForm, EquipoForm
-from app.models import Equipo, EstadoEquipo, Insumo, Modulo
+from app.forms.equipo import EquipoAdjuntoForm, EquipoFiltroForm, EquipoForm
+from app.models import Equipo, EquipoAdjunto, EstadoEquipo, Modulo
 from app.security import permissions_required, require_hospital_access
 from app.services.audit_service import log_action
+from app.services.equipo_service import generate_internal_serial
 
 
 equipos_bp = Blueprint("equipos", __name__, url_prefix="/equipos")
@@ -53,15 +69,6 @@ def listar():
         equipos=pagination.items,
         pagination=pagination,
     )
-
-
-def _asignar_insumos(equipo: Equipo, insumo_ids: list[int]) -> None:
-    equipo.insumos.clear()
-    if insumo_ids:
-        insumos = Insumo.query.filter(Insumo.id.in_(insumo_ids)).all()
-        equipo.insumos.extend(insumos)
-
-
 @equipos_bp.route("/crear", methods=["GET", "POST"])
 @login_required
 @permissions_required("inventario:write")
@@ -69,6 +76,9 @@ def _asignar_insumos(equipo: Equipo, insumo_ids: list[int]) -> None:
 def crear():
     form = EquipoForm()
     if form.validate_on_submit():
+        numero_serie = (form.numero_serie.data or "").strip() or None
+        if form.sin_numero_serie.data:
+            numero_serie = generate_internal_serial(db.session)
         equipo = Equipo(
             codigo=form.codigo.data or None,
             tipo=form.tipo.data,
@@ -76,7 +86,8 @@ def crear():
             descripcion=form.descripcion.data or None,
             marca=form.marca.data or None,
             modelo=form.modelo.data or None,
-            numero_serie=form.numero_serie.data or None,
+            numero_serie=numero_serie,
+            sin_numero_serie=bool(form.sin_numero_serie.data),
             hospital_id=form.hospital_id.data,
             servicio_id=form.servicio_id.data or None,
             oficina_id=form.oficina_id.data or None,
@@ -86,7 +97,6 @@ def crear():
             garantia_hasta=form.garantia_hasta.data,
             observaciones=form.observaciones.data or None,
         )
-        _asignar_insumos(equipo, [int(i) for i in form.insumos.data])
         equipo.registrar_evento(current_user, "Alta", "Creación de equipo")
         db.session.add(equipo)
         db.session.commit()
@@ -104,16 +114,19 @@ def editar(equipo_id: int):
     equipo = Equipo.query.get_or_404(equipo_id)
     form = EquipoForm(obj=equipo)
     if request.method == "GET":
-        form.insumos.data = [insumo.id for insumo in equipo.insumos]
-        form._preload_selected_insumos()
+        form.sin_numero_serie.data = equipo.sin_numero_serie
     if form.validate_on_submit():
+        numero_serie = (form.numero_serie.data or "").strip() or None
+        if form.sin_numero_serie.data:
+            numero_serie = generate_internal_serial(db.session)
         equipo.codigo = form.codigo.data or None
         equipo.tipo = form.tipo.data
         equipo.estado = form.estado.data
         equipo.descripcion = form.descripcion.data or None
         equipo.marca = form.marca.data or None
         equipo.modelo = form.modelo.data or None
-        equipo.numero_serie = form.numero_serie.data or None
+        equipo.numero_serie = numero_serie
+        equipo.sin_numero_serie = bool(form.sin_numero_serie.data)
         equipo.hospital_id = form.hospital_id.data
         equipo.servicio_id = form.servicio_id.data or None
         equipo.oficina_id = form.oficina_id.data or None
@@ -122,7 +135,6 @@ def editar(equipo_id: int):
         equipo.fecha_instalacion = form.fecha_instalacion.data
         equipo.garantia_hasta = form.garantia_hasta.data
         equipo.observaciones = form.observaciones.data or None
-        _asignar_insumos(equipo, [int(i) for i in form.insumos.data])
         equipo.registrar_evento(current_user, "Actualización", "Edición de equipo")
         db.session.commit()
         log_action(usuario_id=current_user.id, accion="editar", modulo="inventario", tabla="equipos", registro_id=equipo.id)
@@ -137,11 +149,148 @@ def editar(equipo_id: int):
 @require_hospital_access(Modulo.INVENTARIO)
 def detalle(equipo_id: int):
     equipo = Equipo.query.get_or_404(equipo_id)
+    form_adjuntos = EquipoAdjuntoForm()
     return render_template(
         "equipos/detalle.html",
         equipo=equipo,
         historial=equipo.historial[-10:],
         actas=[item.acta for item in equipo.acta_items],
         adjuntos=equipo.adjuntos,
+        archivos=sorted(
+            equipo.archivos,
+            key=lambda item: item.created_at or item.id,
+            reverse=True,
+        ),
         insumos=equipo.insumos,
+        adjunto_form=form_adjuntos,
     )
+
+
+def _ensure_upload_size(file_storage) -> bool:
+    file_storage.stream.seek(0, 2)
+    size = file_storage.stream.tell()
+    file_storage.stream.seek(0)
+    max_size = 10 * 1024 * 1024
+    return size <= max_size
+
+
+def _equipment_upload_dir(equipo_id: int) -> Path:
+    base = Path(current_app.config["EQUIPOS_UPLOAD_FOLDER"])
+    base.mkdir(parents=True, exist_ok=True)
+    target = base / str(equipo_id)
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+@equipos_bp.route("/<int:equipo_id>/adjuntos/subir", methods=["POST"])
+@login_required
+@permissions_required("inventario:write")
+@require_hospital_access(Modulo.INVENTARIO)
+def subir_adjunto(equipo_id: int):
+    equipo = Equipo.query.get_or_404(equipo_id)
+    form = EquipoAdjuntoForm()
+    if not form.validate_on_submit():
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(error, "danger")
+        return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
+
+    file = form.archivo.data
+    if not _ensure_upload_size(file):
+        flash("El archivo supera el tamaño máximo permitido (10 MB).", "danger")
+        return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
+
+    original_name = secure_filename(file.filename or "archivo")
+    extension = Path(original_name).suffix.lower()
+    unique_name = f"{uuid4().hex}{extension}"
+    directory = _equipment_upload_dir(equipo.id)
+    storage_path = directory / unique_name
+    file.save(storage_path)
+
+    adjunto = EquipoAdjunto(
+        equipo_id=equipo.id,
+        filename=original_name,
+        filepath=str(storage_path),
+        mime_type=file.mimetype or "application/octet-stream",
+        uploaded_by_id=current_user.id,
+    )
+    db.session.add(adjunto)
+    equipo.registrar_evento(current_user, "Adjunto", f"Archivo {original_name} cargado")
+    db.session.commit()
+    log_action(
+        usuario_id=current_user.id,
+        accion="subir_adjunto",
+        modulo="inventario",
+        tabla="equipos_adjuntos",
+        registro_id=adjunto.id,
+    )
+    flash("Archivo adjuntado correctamente.", "success")
+    return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
+
+
+def _resolve_storage_path(adjunto: EquipoAdjunto) -> Path:
+    configured = Path(current_app.config["EQUIPOS_UPLOAD_FOLDER"]).resolve()
+    stored = Path(adjunto.filepath)
+    if not stored.is_absolute():
+        stored = configured / stored
+    stored = stored.resolve()
+    if configured not in stored.parents and stored != configured:
+        raise FileNotFoundError("Ubicación fuera del directorio permitido")
+    return stored
+
+
+@equipos_bp.route("/<int:equipo_id>/adjuntos/<int:adjunto_id>/descargar")
+@login_required
+@permissions_required("inventario:read")
+@require_hospital_access(Modulo.INVENTARIO)
+def descargar_adjunto(equipo_id: int, adjunto_id: int):
+    adjunto = EquipoAdjunto.query.get_or_404(adjunto_id)
+    if adjunto.equipo_id != equipo_id:
+        abort(404)
+    try:
+        stored_path = _resolve_storage_path(adjunto)
+    except FileNotFoundError:
+        flash("El archivo del adjunto no está disponible.", "warning")
+        return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
+    if not stored_path.exists():
+        flash("El archivo del adjunto no está disponible.", "warning")
+        return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
+    inline = request.args.get("preview") == "1"
+    return send_file(
+        stored_path,
+        as_attachment=not inline,
+        download_name=adjunto.filename,
+    )
+
+
+@equipos_bp.route("/<int:equipo_id>/adjuntos/<int:adjunto_id>/eliminar", methods=["POST"])
+@login_required
+@permissions_required("inventario:write")
+@require_hospital_access(Modulo.INVENTARIO)
+def eliminar_adjunto(equipo_id: int, adjunto_id: int):
+    adjunto = EquipoAdjunto.query.get_or_404(adjunto_id)
+    if adjunto.equipo_id != equipo_id:
+        abort(404)
+    try:
+        stored_path = _resolve_storage_path(adjunto)
+    except FileNotFoundError:
+        stored_path = None
+    if stored_path and stored_path.exists():
+        stored_path.unlink(missing_ok=True)
+        parent = stored_path.parent
+        if parent != stored_path and parent.exists() and not any(parent.iterdir()):
+            parent.rmdir()
+    equipo = Equipo.query.get(equipo_id)
+    db.session.delete(adjunto)
+    if equipo:
+        equipo.registrar_evento(current_user, "Adjunto", f"Archivo {adjunto.filename} eliminado")
+    db.session.commit()
+    log_action(
+        usuario_id=current_user.id,
+        accion="eliminar_adjunto",
+        modulo="inventario",
+        tabla="equipos_adjuntos",
+        registro_id=adjunto.id,
+    )
+    flash("Adjunto eliminado correctamente.", "success")
+    return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
