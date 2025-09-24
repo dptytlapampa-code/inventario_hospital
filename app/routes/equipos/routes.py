@@ -195,6 +195,7 @@ def editar(equipo_id: int):
 def detalle(equipo_id: int):
     equipo = Equipo.query.get_or_404(equipo_id)
     form_adjuntos = EquipoAdjuntoForm()
+    delete_form = EquipoAdjuntoDeleteForm()
 
     historial_entries = sorted(
         equipo.historial,
@@ -238,6 +239,7 @@ def detalle(equipo_id: int):
         archivos=archivos,
         insumos=equipo.insumos,
         adjunto_form=form_adjuntos,
+        delete_form=delete_form,
         tipos_acta=list(TipoActa),
         max_upload_size=current_app.config.get("EQUIPOS_MAX_FILE_SIZE", 10 * 1024 * 1024),
     )

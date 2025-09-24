@@ -145,7 +145,7 @@
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id) }}">Descargar</a>
               <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id, preview=1) }}" target="_blank" rel="noopener">Ver</a>
               <form method="post" action="{{ url_for('equipos.eliminar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id) }}" onsubmit="return confirm('¿Eliminar adjunto?');">
-                {{ csrf_token() }}
+                {{ delete_form.csrf_token }}
                 <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
               </form>
             </div>
