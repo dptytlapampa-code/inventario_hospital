@@ -43,8 +43,8 @@
   {{ render_select(field, form_group_class=form_group_class, label_class=label_class, input_class=select_class|trim, multiple=multiple, extra_attrs=attrs) }}
 {%- endmacro %}
 
-{% macro render_textarea(field, form_group_class='mb-3', label_class='form-label', input_class='form-control', rows=3, help_text=None, extra_attrs=None) -%}
-  {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=input_class, rows=rows, help_text=help_text, extra_attrs=extra_attrs) }}
+{% macro render_textarea(field, form_group_class='mb-3', label_class='form-label', input_class='form-control', rows=3, help_text=None, placeholder=None, extra_attrs=None) -%}
+  {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=input_class, rows=rows, help_text=help_text, placeholder=placeholder, extra_attrs=extra_attrs) }}
 {%- endmacro %}
 
 {% macro render_checkbox(field, form_group_class='form-check mb-3', input_class='form-check-input', label_class='form-check-label', extra_attrs=None) -%}
