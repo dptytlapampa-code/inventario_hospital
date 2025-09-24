@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% from '_form_helpers.html' import render_field %}
+{% block title %}Mi perfil{% endblock %}
+{% block header_title %}Mi perfil{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate class="row g-3 needs-validation">
+      {{ form.hidden_tag() }}
+      {{ render_field(form.nombre, form_group_class='col-12 col-md-6', placeholder='Nombre') }}
+      {{ render_field(form.apellido, form_group_class='col-12 col-md-6', placeholder='Apellido') }}
+      {{ render_field(form.email, form_group_class='col-12 col-md-6', placeholder='Correo electrónico') }}
+      {{ render_field(form.telefono, form_group_class='col-12 col-md-6', placeholder='Teléfono de contacto') }}
+      {{ render_field(form.password, form_group_class='col-12 col-md-6', input_type='password', placeholder='Nueva contraseña (opcional)') }}
+      {{ render_field(form.confirm_password, form_group_class='col-12 col-md-6', input_type='password', placeholder='Confirmar contraseña') }}
+      <div class="col-12 d-flex flex-column flex-md-row gap-2 justify-content-end">
+        {{ form.submit(class='btn btn-primary px-4') }}
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.index') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

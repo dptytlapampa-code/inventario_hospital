@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from flask import Blueprint, render_template
-from flask_login import login_required
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 
 from app.extensions import db
+from app.forms.usuario import PerfilForm
 from app.models import Equipo, EstadoEquipo, EstadoLicencia, Hospital, Insumo, Licencia
 
 main_bp = Blueprint("main", __name__)
@@ -74,3 +75,25 @@ def dashboard() -> str:
     licencias_chart = {"labels": labels, "values": [licencias_por_mes[label] for label in labels]}
 
     return render_template("main/dashboard.html", chart_data=chart_data, licencias_chart=licencias_chart)
+
+
+@main_bp.route("/perfil", methods=["GET", "POST"])
+@login_required
+def perfil() -> str:
+    form = PerfilForm(current_user, obj=current_user)
+    if form.validate_on_submit():
+        current_user.nombre = form.nombre.data.strip()
+        current_user.apellido = (form.apellido.data or "").strip() or None
+        current_user.email = form.email.data.strip().lower()
+        current_user.telefono = (form.telefono.data or "").strip() or None
+        if form.password.data:
+            current_user.set_password(form.password.data)
+        db.session.commit()
+        flash("Perfil actualizado correctamente", "success")
+        return redirect(url_for("main.perfil"))
+    if request.method == "GET":
+        form.nombre.data = current_user.nombre
+        form.apellido.data = current_user.apellido
+        form.email.data = current_user.email
+        form.telefono.data = current_user.telefono
+    return render_template("usuarios/perfil.html", form=form)

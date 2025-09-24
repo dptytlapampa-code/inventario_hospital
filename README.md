@@ -150,6 +150,9 @@ python seeds/seed.py
 
 # Ejecutar
 flask run                          # o python wsgi.py
+
+# Exponer en red local (LAN)
+export FLASK_RUN_HOST=0.0.0.0      # acceder vía http://<ip_local>:5000/
 ```
 
 ### 5.3 Con Docker
@@ -189,6 +192,8 @@ flask db upgrade
 ```
 
 El repositorio incluye una migración inicial con todas las tablas declaradas en `app/models`. El comando `flask db upgrade` tomará la URL configurada en `DATABASE_URL` (o el valor por defecto de `config.py`).
+
+La migración `c6be45c2d4ab_equipos_lookup_updates` añade el tamaño de archivo a `equipos_adjuntos` y crea índices de búsqueda sobre hospitales/servicios/oficinas. Se implementa con `op.batch_alter_table(..., recreate="always")` para mantener la compatibilidad con SQLite durante pruebas locales.
 
 Seeds (`seeds/seed.py`): abre una sesión SQLAlchemy sobre `DATABASE_URL`, limpia los datos existentes y vuelve a poblar la base con hospitales (Lucio Molas, René Favaloro), usuarios base, permisos por módulo/hospital, inventario de ejemplo (equipos + insumos) y licencias en distintos estados:
 
@@ -300,6 +305,14 @@ Casos clave:
 - Licencias (solapamientos, estados, bloqueos operativos, reemplazos).
 - Generación de actas PDF (smoke test de servicio).
 - Auditoría.
+
+### 12.1 Pruebas manuales sugeridas
+
+1. Crear/editar un equipo verificando que los selectores Hospital → Servicio → Oficina respeten la dependencia y permitan buscar toda la base desde el botón “…” (enviar `q=...`).
+2. Marcar “Sin N° de serie visible” y confirmar que el sistema deshabilita el campo y genera un código interno `EQ-AAAAMMDD-####` al guardar.
+3. Subir y eliminar evidencias (PNG/JPG/PDF) verificando tamaño máximo, vista previa y confirmando que la eliminación solicita CSRF y registra evento en el historial.
+4. Revisar el detalle del equipo: los bloques “Historial reciente” y “Actas vinculadas” deben mostrar hasta tres ítems y ofrecer el enlace “Ver todo” para abrir la vista completa con filtros.
+5. Actualizar datos personales desde “Mi perfil” y confirmar que el dropdown superior muestra el acceso rápido junto con la opción para cerrar sesión.
 
 ## 13. Uso con GitHub y Codex (desarrollo por partes)
 

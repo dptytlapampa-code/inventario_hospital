@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 from app.models import Equipo
 
 
-def generate_internal_serial(session: Session, year: int | None = None) -> str:
-    """Return a unique serial number for equipment without visible serial."""
+def generate_internal_serial(session: Session, moment: datetime | None = None) -> str:
+    """Return a unique serial number for equipment without a visible serial."""
 
-    year = year or datetime.utcnow().year
-    prefix = f"SNV-{year:04d}"
+    timestamp = moment or datetime.utcnow()
+    prefix = f"EQ-{timestamp:%Y%m%d}"
     like_expression = f"{prefix}-%"
     last_value = (
         session.query(Equipo.numero_serie)
@@ -20,15 +20,13 @@ def generate_internal_serial(session: Session, year: int | None = None) -> str:
         .order_by(Equipo.numero_serie.desc())
         .first()
     )
-    next_sequence = 1
+    sequence = 1
     if last_value and last_value[0]:
         try:
-            last_sequence = int(str(last_value[0]).split("-")[-1])
-        except (ValueError, IndexError):
-            next_sequence = 1
-        else:
-            next_sequence = last_sequence + 1
-    return f"{prefix}-{next_sequence:06d}"
+            sequence = int(str(last_value[0]).rsplit("-", maxsplit=1)[-1]) + 1
+        except (ValueError, IndexError):  # pragma: no cover - defensive
+            sequence = 1
+    return f"{prefix}-{sequence:04d}"
 
 
 __all__ = ["generate_internal_serial"]

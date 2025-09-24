@@ -21,6 +21,160 @@
     }
   }
 
+  class LookupModal {
+    constructor() {
+      this.element = document.getElementById('lookupModal');
+      if (!this.element || typeof bootstrap === 'undefined') {
+        this.modal = null;
+        return;
+      }
+      this.modal = new bootstrap.Modal(this.element);
+      this.title = this.element.querySelector('[data-lookup-modal-title]');
+      this.searchInput = this.element.querySelector('[data-lookup-modal-search]');
+      this.results = this.element.querySelector('[data-lookup-modal-results]');
+      this.summary = this.element.querySelector('[data-lookup-modal-summary]');
+      this.prevButton = this.element.querySelector('[data-lookup-modal-prev]');
+      this.nextButton = this.element.querySelector('[data-lookup-modal-next]');
+      this.loading = false;
+      this.control = null;
+      this.params = {};
+      this.currentPage = 1;
+      this.currentQuery = '';
+      this.total = 0;
+      this.pages = 0;
+
+      const debouncedSearch = debounce(() => {
+        this.load(1, this.searchInput ? this.searchInput.value.trim() : '');
+      }, 300);
+      this.searchInput && this.searchInput.addEventListener('input', debouncedSearch);
+
+      this.prevButton && this.prevButton.addEventListener('click', () => {
+        if (this.currentPage > 1) {
+          this.load(this.currentPage - 1, this.currentQuery);
+        }
+      });
+      this.nextButton && this.nextButton.addEventListener('click', () => {
+        if (this.currentPage < this.pages) {
+          this.load(this.currentPage + 1, this.currentQuery);
+        }
+      });
+
+      this.results &&
+        this.results.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-value]');
+          if (!button || !this.control) {
+            return;
+          }
+          this.control.selectOption({ id: button.dataset.value, text: button.dataset.text || button.textContent.trim() });
+          this.hide();
+        });
+    }
+
+    open(control, params) {
+      if (!this.modal || !control) {
+        return;
+      }
+      this.control = control;
+      this.params = params || {};
+      this.currentQuery = '';
+      this.currentPage = 1;
+      this.total = 0;
+      this.pages = 0;
+      if (this.title) {
+        const label = control.input.getAttribute('aria-label') || control.input.placeholder || control.input.name || 'Seleccionar opción';
+        this.title.textContent = label;
+      }
+      if (this.searchInput) {
+        this.searchInput.value = '';
+      }
+      this.renderItems([]);
+      this.modal.show();
+      this.load(1, '');
+    }
+
+    hide() {
+      if (this.modal) {
+        this.modal.hide();
+      }
+    }
+
+    async load(page, query) {
+      if (!this.control || this.loading) {
+        return;
+      }
+      this.loading = true;
+      if (this.summary) {
+        this.summary.textContent = 'Cargando…';
+      }
+      if (this.results) {
+        this.results.innerHTML = '';
+      }
+      try {
+        const data = await this.control.request(query, page, this.params);
+        this.currentQuery = query;
+        this.currentPage = data.page || page;
+        this.pages = data.pages || 0;
+        this.total = data.total || 0;
+        this.renderItems(data.items || []);
+      } catch (error) {
+        this.renderItems([]);
+        if (this.summary) {
+          this.summary.textContent = error && error.message ? error.message : 'No se pudieron obtener los datos.';
+        }
+      } finally {
+        this.loading = false;
+      }
+    }
+
+    renderItems(items) {
+      if (!this.results) {
+        return;
+      }
+      this.results.innerHTML = '';
+      const control = this.control;
+      if (control && control.allowEmpty) {
+        const emptyOption = document.createElement('button');
+        emptyOption.type = 'button';
+        emptyOption.className = 'list-group-item list-group-item-action';
+        emptyOption.dataset.value = '';
+        emptyOption.dataset.text = control.emptyLabel;
+        emptyOption.textContent = control.emptyLabel;
+        this.results.appendChild(emptyOption);
+      }
+      if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'list-group-item text-muted small';
+        empty.textContent = 'Sin resultados disponibles.';
+        this.results.appendChild(empty);
+      } else {
+        items.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'list-group-item list-group-item-action';
+          button.dataset.value = item.id ?? '';
+          button.dataset.text = item.label || item.text || '';
+          button.textContent = item.label || item.text || '';
+          this.results.appendChild(button);
+        });
+      }
+      if (this.summary) {
+        if (this.total) {
+          this.summary.textContent = `Mostrando página ${this.currentPage} de ${this.pages || 1}. Total: ${this.total}`;
+        } else {
+          this.summary.textContent = 'Sin registros disponibles.';
+        }
+      }
+      if (this.prevButton) {
+        this.prevButton.disabled = !this.control || this.currentPage <= 1;
+      }
+      if (this.nextButton) {
+        this.nextButton.disabled = !this.control || (this.pages && this.currentPage >= this.pages);
+      }
+    }
+  }
+
+  const lookupModal = new LookupModal();
+
   class LookupControl {
     constructor(input) {
       this.input = input;
@@ -33,14 +187,38 @@
       this.requiredParams = new Set(parseJsonAttribute(input.dataset.lookupRequired, []));
       this.resetTargets = parseJsonAttribute(input.dataset.lookupReset, []);
       this.requiredMessage = input.dataset.lookupRequiredMessage || null;
+      this.allowEmpty = input.dataset.lookupAllowEmpty === 'true';
+      this.emptyLabel = input.dataset.lookupEmptyLabel || 'Sin definir';
       this.page = 1;
       this.currentQuery = '';
       this.loading = false;
       this.nextPage = null;
+      this.total = 0;
+      this.pages = 0;
+      this.paramElements = new Map();
       this.debouncedSearch = debounce((value) => this.search(value), 300);
 
       registry.set(this.input.id, this);
+      this.registerDependencies();
       this.bindEvents();
+    }
+
+    registerDependencies() {
+      Object.entries(this.params || {}).forEach(([param, elementId]) => {
+        if (!elementId) {
+          return;
+        }
+        const element = document.getElementById(elementId);
+        if (!element) {
+          return;
+        }
+        this.paramElements.set(param, element);
+        element.addEventListener('change', () => {
+          this.updateDisabledState();
+          this.reset();
+        });
+      });
+      this.updateDisabledState();
     }
 
     bindEvents() {
@@ -50,7 +228,9 @@
           this.reset();
           return;
         }
-        this.hidden && (this.hidden.value = '');
+        if (this.hidden) {
+          this.hidden.value = '';
+        }
         this.debouncedSearch(value);
       });
 
@@ -67,8 +247,12 @@
 
       this.showAllButton &&
         this.showAllButton.addEventListener('click', () => {
-          this.input.value = '...';
-          this.search('...');
+          const state = this.collectParams();
+          if (!state.ok) {
+            this.showMessage(state.message || 'Complete los datos requeridos.');
+            return;
+          }
+          lookupModal.open(this, state.params);
         });
 
       document.addEventListener('click', (event) => {
@@ -81,70 +265,100 @@
       if (this.results) {
         this.results.addEventListener('click', (event) => {
           const button = event.target.closest('[data-value]');
-          if (!button) {
-            if (event.target.matches('[data-load-more]')) {
-              this.loadMore();
-            }
+          if (button) {
+            this.selectOption({ id: button.dataset.value, text: button.dataset.text || button.textContent.trim() });
             return;
           }
-          this.selectOption({ id: button.dataset.value, text: button.dataset.text || button.textContent.trim() });
+          if (event.target.matches('[data-load-more]')) {
+            this.loadMore();
+          }
         });
       }
     }
 
-    buildParams() {
+    updateDisabledState() {
+      const missing = Array.from(this.requiredParams).some((param) => {
+        const value = this.getParamValue(param);
+        return value === null || value === undefined || value === '';
+      });
+      if (missing) {
+        this.input.setAttribute('disabled', 'disabled');
+        this.showAllButton && this.showAllButton.setAttribute('disabled', 'disabled');
+        this.hideResults(true);
+      } else {
+        this.input.removeAttribute('disabled');
+        this.showAllButton && this.showAllButton.removeAttribute('disabled');
+      }
+    }
+
+    getParamValue(param) {
+      const element = this.paramElements.get(param);
+      if (!element) {
+        return '';
+      }
+      if (element.tomselect) {
+        const value = element.tomselect.getValue();
+        return Array.isArray(value) ? value[0] || '' : value;
+      }
+      return element.value;
+    }
+
+    collectParams() {
       const params = {};
-      for (const [param, elementId] of Object.entries(this.params)) {
-        if (!elementId) {
+      for (const [param, element] of this.paramElements.entries()) {
+        const value = this.getParamValue(param);
+        if (!value) {
+          if (this.requiredParams.has(param)) {
+            return { ok: false, message: this.requiredMessage || 'Seleccione una opción previa.' };
+          }
           continue;
         }
-        const element = document.getElementById(elementId);
-        const value = element ? element.value : '';
-        if (!value && this.requiredParams.has(param)) {
-          return { ok: false, message: this.requiredMessage || 'Complete los datos requeridos.' };
-        }
-        if (value) {
-          params[param] = value;
-        }
+        params[param] = value;
       }
       return { ok: true, params };
+    }
+
+    async request(query, page = 1, params = {}) {
+      const url = new URL(this.input.dataset.lookupUrl, window.location.origin);
+      url.searchParams.set('page', page);
+      url.searchParams.set('q', query || '');
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          url.searchParams.set(key, value);
+        }
+      });
+      const response = await fetch(url, { credentials: 'include' });
+      const data = await response.json();
+      if (!response.ok) {
+        const errorMessage = data && data.message ? data.message : 'No se pudo obtener la información.';
+        throw new Error(errorMessage);
+      }
+      return data;
     }
 
     async search(query, page = 1, append = false) {
       if (this.loading) {
         return;
       }
-      const { ok, params, message } = this.buildParams();
-      if (!ok) {
-        this.showMessage(message || 'Seleccione una opción previa.');
+      const state = this.collectParams();
+      if (!state.ok) {
+        this.showMessage(state.message || 'Seleccione una opción válida.');
         return;
       }
-
-      const url = new URL(this.input.dataset.lookupUrl, window.location.origin);
-      url.searchParams.set('q', query);
-      url.searchParams.set('page', page);
-      Object.entries(params || {}).forEach(([key, value]) => {
-        url.searchParams.set(key, value);
-      });
-
+      const value = query.trim();
+      const effectiveQuery = value || '';
       this.loading = true;
       this.showMessage('Buscando…', append);
-
       try {
-        const response = await fetch(url, { credentials: 'include' });
-        const data = await response.json();
-        if (!response.ok) {
-          const errorMessage = data && data.message ? data.message : 'Sin resultados disponibles.';
-          this.showMessage(errorMessage);
-          return;
-        }
-        this.currentQuery = query;
-        this.page = page;
-        this.nextPage = data.next ? page + 1 : null;
-        this.renderResults(data.results || [], append);
+        const data = await this.request(effectiveQuery, page, state.params);
+        this.currentQuery = effectiveQuery;
+        this.page = data.page || page;
+        this.pages = data.pages || 0;
+        this.total = data.total || 0;
+        this.nextPage = this.pages && this.page < this.pages ? this.page + 1 : null;
+        this.renderResults(data.items || [], append);
       } catch (error) {
-        console.error('Error al buscar opciones', error);
-        this.showMessage('No se pudo obtener la información.');
+        this.showMessage(error && error.message ? error.message : 'No se pudo obtener la información.');
       } finally {
         this.loading = false;
       }
@@ -163,9 +377,18 @@
       }
       if (!append) {
         this.results.innerHTML = '';
+        if (this.allowEmpty) {
+          const emptyOption = document.createElement('button');
+          emptyOption.type = 'button';
+          emptyOption.className = 'list-group-item list-group-item-action';
+          emptyOption.dataset.value = '';
+          emptyOption.dataset.text = this.emptyLabel;
+          emptyOption.textContent = this.emptyLabel;
+          this.results.appendChild(emptyOption);
+        }
       } else {
-        const loadMoreButton = this.results.querySelector('[data-load-more]');
-        loadMoreButton && loadMoreButton.remove();
+        const loadMore = this.results.querySelector('[data-load-more]');
+        loadMore && loadMore.remove();
       }
 
       if (!items.length && !append) {
@@ -177,9 +400,9 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'list-group-item list-group-item-action';
-        button.dataset.value = item.id;
-        button.dataset.text = item.text;
-        button.textContent = item.text;
+        button.dataset.value = item.id ?? '';
+        button.dataset.text = item.label || item.text || '';
+        button.textContent = item.label || item.text || '';
         this.results.appendChild(button);
       });
 
@@ -220,9 +443,20 @@
     }
 
     selectOption(item) {
+      if (this.allowEmpty && (item.id === '' || item.id === null || item.id === undefined)) {
+        this.input.value = this.emptyLabel;
+        if (this.hidden) {
+          this.hidden.value = '';
+          this.hidden.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        this.hideResults(true);
+        this.resetDependents();
+        return;
+      }
       this.input.value = item.text;
       if (this.hidden) {
         this.hidden.value = item.id;
+        this.hidden.dispatchEvent(new Event('change', { bubbles: true }));
       }
       this.hideResults(true);
       this.resetDependents();
@@ -232,10 +466,13 @@
       this.input.value = '';
       if (this.hidden) {
         this.hidden.value = '';
+        this.hidden.dispatchEvent(new Event('change', { bubbles: true }));
       }
       this.currentQuery = '';
       this.page = 1;
       this.nextPage = null;
+      this.total = 0;
+      this.pages = 0;
       this.hideResults(true);
       if (notify) {
         this.resetDependents();
@@ -247,6 +484,7 @@
         const lookup = registry.get(targetId);
         if (lookup) {
           lookup.reset();
+          lookup.updateDisabledState();
           return;
         }
         const element = document.getElementById(targetId);

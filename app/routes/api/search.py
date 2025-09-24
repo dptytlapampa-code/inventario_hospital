@@ -1,7 +1,9 @@
 """Asynchronous search endpoints for select widgets."""
 from __future__ import annotations
 
-from flask import jsonify, request
+import json
+
+from flask import current_app, jsonify, request
 from flask_login import login_required
 from sqlalchemy import asc, or_
 
@@ -10,17 +12,19 @@ from app.models import Hospital, Insumo, Oficina, Servicio
 from . import api_bp
 
 DEFAULT_PAGE_SIZE = 20
+LOOKUP_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 50
-LOOKUP_PAGE_SIZE = 100
 
 
 def _sanitize_query_param() -> str:
     query = request.args.get("q", "").strip()
+    if query == "...":
+        return ""
     return query[:80]
 
 
-def _get_page_size() -> int:
-    page_size = request.args.get("per_page", type=int, default=DEFAULT_PAGE_SIZE)
+def _get_page_size(default: int = DEFAULT_PAGE_SIZE) -> int:
+    page_size = request.args.get("per_page", type=int, default=default)
     return max(1, min(page_size, MAX_PAGE_SIZE))
 
 
@@ -29,13 +33,21 @@ def _format_hospital_label(hospital: Hospital) -> str:
     return f"{hospital.nombre} - {locality}" if locality else hospital.nombre
 
 
-def _paginate(query, page: int, per_page: int):
-    offset = max(page - 1, 0) * per_page
-    items = query.limit(per_page + 1).offset(offset).all()
-    has_next = len(items) > per_page
-    if has_next:
-        items = items[:-1]
-    return items, has_next
+def _build_paginated_response(pagination, formatter):
+    items = [formatter(item) for item in pagination.items]
+    return jsonify(
+        {
+            "items": items,
+            "page": pagination.page,
+            "pages": pagination.pages,
+            "total": pagination.total,
+        }
+    )
+
+
+def _log_missing_dependency(endpoint: str, **extra) -> None:
+    payload = {"endpoint": endpoint, "status": 400, **extra}
+    current_app.logger.warning(json.dumps(payload, ensure_ascii=False))
 
 
 @api_bp.route("/search/hospitales")
@@ -43,9 +55,10 @@ def _paginate(query, page: int, per_page: int):
 def search_hospitales():
     query_value = _sanitize_query_param()
     page = request.args.get("page", type=int, default=1)
+    per_page = _get_page_size()
 
     lookup = Hospital.query.order_by(asc(Hospital.nombre))
-    if query_value and query_value != "...":
+    if query_value:
         like = f"%{query_value}%"
         conditions = [Hospital.nombre.ilike(like)]
         localidad_column = getattr(Hospital, "localidad", None)
@@ -55,15 +68,11 @@ def search_hospitales():
         if direccion_column is not None and direccion_column not in conditions:
             conditions.append(direccion_column.ilike(like))
         lookup = lookup.filter(or_(*conditions))
-    items, has_next = _paginate(lookup, page, LOOKUP_PAGE_SIZE)
-    results = [
-        {
-            "id": hospital.id,
-            "text": _format_hospital_label(hospital),
-        }
-        for hospital in items
-    ]
-    return jsonify({"results": results, "next": has_next})
+    pagination = lookup.paginate(page=page, per_page=per_page, error_out=False)
+    return _build_paginated_response(
+        pagination,
+        lambda hospital: {"id": hospital.id, "label": _format_hospital_label(hospital)},
+    )
 
 
 @api_bp.route("/search/servicios")
@@ -71,28 +80,38 @@ def search_hospitales():
 def search_servicios_lookup():
     hospital_id = request.args.get("hospital_id", type=int)
     if not hospital_id:
+        _log_missing_dependency(
+            "api.search_servicios_lookup", message="hospital_id es requerido"
+        )
         return (
-            jsonify({"results": [], "next": False, "message": "Seleccione un hospital"}),
+            jsonify(
+                {
+                    "items": [],
+                    "page": 1,
+                    "pages": 0,
+                    "total": 0,
+                    "message": "Seleccione un hospital",
+                }
+            ),
             400,
         )
 
     query_value = _sanitize_query_param()
     page = request.args.get("page", type=int, default=1)
+    per_page = _get_page_size(LOOKUP_PAGE_SIZE)
 
-    lookup = Servicio.query.filter(Servicio.hospital_id == hospital_id).order_by(asc(Servicio.nombre))
-    if query_value and query_value != "...":
+    lookup = (
+        Servicio.query.filter(Servicio.hospital_id == hospital_id)
+        .order_by(asc(Servicio.nombre))
+    )
+    if query_value:
         like = f"%{query_value}%"
         lookup = lookup.filter(Servicio.nombre.ilike(like))
 
-    items, has_next = _paginate(lookup, page, LOOKUP_PAGE_SIZE)
-    results = [
-        {
-            "id": servicio.id,
-            "text": servicio.nombre,
-        }
-        for servicio in items
-    ]
-    return jsonify({"results": results, "next": has_next})
+    pagination = lookup.paginate(page=page, per_page=per_page, error_out=False)
+    return _build_paginated_response(
+        pagination, lambda servicio: {"id": servicio.id, "label": servicio.nombre}
+    )
 
 
 @api_bp.route("/search/oficinas")
@@ -100,31 +119,42 @@ def search_servicios_lookup():
 def search_oficinas_lookup():
     hospital_id = request.args.get("hospital_id", type=int)
     if not hospital_id:
+        _log_missing_dependency(
+            "api.search_oficinas_lookup", message="hospital_id es requerido"
+        )
         return (
-            jsonify({"results": [], "next": False, "message": "Seleccione un hospital"}),
+            jsonify(
+                {
+                    "items": [],
+                    "page": 1,
+                    "pages": 0,
+                    "total": 0,
+                    "message": "Seleccione un hospital",
+                }
+            ),
             400,
         )
     servicio_id = request.args.get("servicio_id", type=int)
 
     query_value = _sanitize_query_param()
     page = request.args.get("page", type=int, default=1)
+    per_page = _get_page_size(LOOKUP_PAGE_SIZE)
 
-    lookup = Oficina.query.filter(Oficina.hospital_id == hospital_id).order_by(asc(Oficina.nombre))
+    lookup = (
+        Oficina.query.filter(Oficina.hospital_id == hospital_id)
+        .order_by(asc(Oficina.nombre))
+    )
     if servicio_id:
         lookup = lookup.filter(Oficina.servicio_id == servicio_id)
-    if query_value and query_value != "...":
+    if query_value:
         like = f"%{query_value}%"
         lookup = lookup.filter(Oficina.nombre.ilike(like))
 
-    items, has_next = _paginate(lookup, page, LOOKUP_PAGE_SIZE)
-    results = [
-        {
-            "id": oficina.id,
-            "text": oficina.nombre,
-        }
-        for oficina in items
-    ]
-    return jsonify({"results": results, "next": has_next})
+    pagination = lookup.paginate(page=page, per_page=per_page, error_out=False)
+    return _build_paginated_response(
+        pagination,
+        lambda oficina: {"id": oficina.id, "label": oficina.nombre},
+    )
 
 
 @api_bp.route("/servicios/search")
@@ -140,14 +170,13 @@ def search_servicios():
         search = search.filter(Servicio.nombre.ilike(like))
 
     pagination = search.paginate(page=page, per_page=per_page, error_out=False)
-    results = [
-        {
+    return _build_paginated_response(
+        pagination,
+        lambda servicio: {
             "id": servicio.id,
-            "text": f"{servicio.hospital.nombre} · {servicio.nombre}",
-        }
-        for servicio in pagination.items
-    ]
-    return jsonify({"results": results, "next": pagination.has_next})
+            "label": f"{servicio.hospital.nombre} · {servicio.nombre}",
+        },
+    )
 
 
 @api_bp.route("/oficinas/search")
@@ -155,8 +184,19 @@ def search_servicios():
 def search_oficinas():
     servicio_id = request.args.get("servicio_id", type=int)
     if not servicio_id:
+        _log_missing_dependency(
+            "api.search_oficinas", message="servicio_id es requerido"
+        )
         return (
-            jsonify({"results": [], "next": False, "message": "Seleccione un servicio para filtrar oficinas"}),
+            jsonify(
+                {
+                    "items": [],
+                    "page": 1,
+                    "pages": 0,
+                    "total": 0,
+                    "message": "Seleccione un servicio para filtrar oficinas",
+                }
+            ),
             400,
         )
 
@@ -170,14 +210,13 @@ def search_oficinas():
         search = search.filter(Oficina.nombre.ilike(like))
 
     pagination = search.paginate(page=page, per_page=per_page, error_out=False)
-    results = [
-        {
+    return _build_paginated_response(
+        pagination,
+        lambda oficina: {
             "id": oficina.id,
-            "text": f"{oficina.hospital.nombre} · {oficina.nombre}",
-        }
-        for oficina in pagination.items
-    ]
-    return jsonify({"results": results, "next": pagination.has_next})
+            "label": f"{oficina.hospital.nombre} · {oficina.nombre}",
+        },
+    )
 
 
 @api_bp.route("/insumos/search")
@@ -193,11 +232,6 @@ def search_insumos():
         search = search.filter(Insumo.nombre.ilike(like))
 
     pagination = search.paginate(page=page, per_page=per_page, error_out=False)
-    results = [
-        {
-            "id": insumo.id,
-            "text": insumo.nombre,
-        }
-        for insumo in pagination.items
-    ]
-    return jsonify({"results": results, "next": pagination.has_next})
+    return _build_paginated_response(
+        pagination, lambda insumo: {"id": insumo.id, "label": insumo.nombre}
+    )

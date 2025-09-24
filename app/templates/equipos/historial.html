@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% from '_form_helpers.html' import render_field %}
+{% set query_args = request.args.to_dict(flat=True) %}
+{% block title %}Historial del equipo{% endblock %}
+{% block header_title %}Historial del equipo{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('equipos.detalle', equipo_id=equipo.id) }}">&larr; Volver al equipo</a>
+</div>
+<form method="get" class="row g-3 mb-3 align-items-end">
+  {{ render_field(form.accion, form_group_class='col-12 col-md-4', placeholder='Filtrar por acción o descripción') }}
+  {{ render_field(form.fecha_desde, form_group_class='col-6 col-md-3', input_type='date') }}
+  {{ render_field(form.fecha_hasta, form_group_class='col-6 col-md-3', input_type='date') }}
+  <div class="col-12 col-md-2 d-flex gap-2">
+    {{ form.submit(class='btn btn-primary flex-grow-1') }}
+    <a class="btn btn-outline-secondary" href="{{ url_for('equipos.historial_completo', equipo_id=equipo.id) }}">Limpiar</a>
+  </div>
+</form>
+<div class="card">
+  <div class="card-body p-0">
+    <ul class="list-group list-group-flush">
+      {% for registro in registros %}
+      <li class="list-group-item">
+        <div class="d-flex justify-content-between flex-column flex-md-row gap-2">
+          <div>
+            <strong>{{ registro.accion }}</strong>
+            {% if registro.descripcion %}
+            <div class="text-muted small">{{ registro.descripcion }}</div>
+            {% endif %}
+          </div>
+          <div class="text-muted small text-md-end">
+            {{ registro.fecha.strftime('%d/%m/%Y %H:%M') if registro.fecha else '' }}
+            {% if registro.usuario %}<br>Por {{ registro.usuario.nombre }}{% endif %}
+          </div>
+        </div>
+      </li>
+      {% else %}
+      <li class="list-group-item text-muted">No se encontraron registros para los filtros seleccionados.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% if pagination.pages > 1 %}
+<nav class="mt-3" aria-label="Historial paginación">
+  <ul class="pagination">
+    <li class="page-item{% if not pagination.has_prev %} disabled{% endif %}">
+      {% if pagination.has_prev %}
+      <a class="page-link" href="{{ url_for('equipos.historial_completo', equipo_id=equipo.id, **query_args|combine({'page': pagination.prev_num})) }}">Anterior</a>
+      {% else %}
+      <span class="page-link">Anterior</span>
+      {% endif %}
+    </li>
+    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+      {% if page_num %}
+        <li class="page-item{% if page_num == pagination.page %} active{% endif %}">
+          <a class="page-link" href="{{ url_for('equipos.historial_completo', equipo_id=equipo.id, **query_args|combine({'page': page_num})) }}">{{ page_num }}</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+      {% endif %}
+    {% endfor %}
+    <li class="page-item{% if not pagination.has_next %} disabled{% endif %}">
+      {% if pagination.has_next %}
+      <a class="page-link" href="{{ url_for('equipos.historial_completo', equipo_id=equipo.id, **query_args|combine({'page': pagination.next_num})) }}">Siguiente</a>
+      {% else %}
+      <span class="page-link">Siguiente</span>
+      {% endif %}
+    </li>
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

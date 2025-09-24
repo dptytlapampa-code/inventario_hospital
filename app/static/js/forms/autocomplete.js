@@ -114,17 +114,17 @@
         }
         fetch(buildUrl(endpoint, params), { credentials: 'include' })
           .then((response) => {
-            if (!response.ok) {
-              return response.json().then((data) => {
-                const message = data.message || 'Sin resultados disponibles';
+            return response.json().then((data) => {
+              if (!response.ok) {
+                const message = data && data.message ? data.message : 'Sin resultados disponibles';
                 showDropdownMessage(tom, message);
-                return { results: [] };
-              });
-            }
-            return response.json();
+                return { items: [] };
+              }
+              return data;
+            });
           })
           .then((data) => {
-            callback(data.results || []);
+            callback(data.items || data.results || []);
           })
           .catch(() => {
             callback();

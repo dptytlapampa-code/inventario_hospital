@@ -56,4 +56,29 @@ class UsuarioForm(FlaskForm):
         return True
 
 
-__all__ = ["UsuarioForm"]
+class PerfilForm(FlaskForm):
+    """Allow an authenticated user to update their own profile."""
+
+    nombre = StringField("Nombre", validators=[DataRequired(), Length(max=120)])
+    apellido = StringField("Apellido", validators=[Optional(), Length(max=120)])
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    telefono = StringField("Teléfono", validators=[Optional(), Length(max=50)])
+    password = PasswordField("Nueva contraseña", validators=[Optional(), Length(min=8, max=128)])
+    confirm_password = PasswordField(
+        "Confirmar contraseña",
+        validators=[Optional(), EqualTo("password", message="Las contraseñas deben coincidir.")],
+    )
+    submit = SubmitField("Guardar cambios")
+
+    def __init__(self, usuario: Usuario, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._usuario = usuario
+
+    def validate_email(self, field):  # type: ignore[override]
+        query = Usuario.query.filter(Usuario.email == field.data)
+        query = query.filter(Usuario.id != self._usuario.id)
+        if query.first():
+            raise ValidationError("Ya existe un usuario con este email")
+
+
+__all__ = ["UsuarioForm", "PerfilForm"]

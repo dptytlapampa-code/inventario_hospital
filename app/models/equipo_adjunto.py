@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -25,12 +25,18 @@ class EquipoAdjunto(Base):
     filepath: Mapped[str] = mapped_column(String(255), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(120), nullable=False)
     uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    file_size: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
 
     equipo: Mapped["Equipo"] = relationship("Equipo", back_populates="archivos")
     uploaded_by: Mapped["Usuario | None"] = relationship("Usuario")
+
+    def size_in_bytes(self) -> int | None:
+        """Return the stored file size, if available."""
+
+        return self.file_size
 
 
 __all__ = ["EquipoAdjunto"]

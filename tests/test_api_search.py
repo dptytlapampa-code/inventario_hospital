@@ -11,8 +11,9 @@ def test_search_servicios_endpoint(client, admin_credentials):
     resp = client.get("/api/servicios/search?q=eme")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["results"]
-    assert any("Emergencias" in item["text"] for item in data["results"])
+    assert data["items"]
+    assert any("Emergencias" in item["label"] for item in data["items"])
+    assert data["total"] >= len(data["items"])
 
 
 def test_search_hospitales_lookup(client, admin_credentials):
@@ -20,10 +21,10 @@ def test_search_hospitales_lookup(client, admin_credentials):
     resp = client.get("/api/search/hospitales?q=Central")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert any("Hospital Central" in item["text"] for item in data["results"])
+    assert any("Hospital Central" in item["label"] for item in data["items"])
     resp_all = client.get("/api/search/hospitales?q=...")
     assert resp_all.status_code == 200
-    assert resp_all.get_json()["results"]
+    assert resp_all.get_json()["items"]
 
 
 def test_search_servicios_lookup_requires_hospital(client, admin_credentials, data):
@@ -34,7 +35,7 @@ def test_search_servicios_lookup_requires_hospital(client, admin_credentials, da
     resp_ok = client.get(f"/api/search/servicios?hospital_id={hospital_id}&q=eme")
     assert resp_ok.status_code == 200
     payload = resp_ok.get_json()
-    assert any(item["text"] == "Emergencias" for item in payload["results"])
+    assert any(item["label"] == "Emergencias" for item in payload["items"])
 
 
 def test_search_oficinas_lookup_requires_hospital(client, admin_credentials, data):
@@ -48,7 +49,7 @@ def test_search_oficinas_lookup_requires_hospital(client, admin_credentials, dat
     )
     assert resp_ok.status_code == 200
     payload = resp_ok.get_json()
-    assert payload["results"]
+    assert payload["items"]
 
 
 def test_search_oficinas_requires_servicio(client, admin_credentials, data):
@@ -59,7 +60,7 @@ def test_search_oficinas_requires_servicio(client, admin_credentials, data):
     resp = client.get(f"/api/oficinas/search?servicio_id={servicio_id}&q=principal")
     assert resp.status_code == 200
     payload = resp.get_json()
-    assert payload["results"]
+    assert payload["items"]
 
 
 def test_search_insumos_endpoint(client, admin_credentials):
@@ -67,4 +68,4 @@ def test_search_insumos_endpoint(client, admin_credentials):
     resp = client.get("/api/insumos/search?q=mouse")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert any("Mouse" in item["text"] for item in data["results"])
+    assert any("Mouse" in item["label"] for item in data["items"])

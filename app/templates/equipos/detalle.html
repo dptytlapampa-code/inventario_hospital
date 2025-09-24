@@ -89,9 +89,12 @@
       <div class="card-header">Adjuntos</div>
       <ul class="list-group list-group-flush">
         {% for adjunto in adjuntos %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ adjunto.filename }} ({{ normalize_enum_value(adjunto.tipo) }})</span>
-          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>
+        <li class="list-group-item d-flex flex-column gap-1">
+          <div class="d-flex justify-content-between align-items-start">
+            <span class="fw-semibold">{{ adjunto.filename }}</span>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>
+          </div>
+          <small class="text-muted">{{ normalize_enum_value(adjunto.tipo)|title }} · {{ adjunto.created_at.strftime('%d/%m/%Y %H:%M') if adjunto.created_at else '' }}</small>
         </li>
         {% else %}
         <li class="list-group-item text-muted">No hay documentos adjuntos.</li>
@@ -104,7 +107,7 @@
   <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
     <div>
       <h2 class="h6 mb-0">Evidencias del equipo</h2>
-      <p class="mb-0 text-muted small">Adjunte imágenes o PDF relacionados al equipo.</p>
+      <p class="mb-0 text-muted small">Adjunte imágenes o PDF relacionados al equipo. Tamaño máximo: {{ humanize_bytes(max_upload_size) }}.</p>
     </div>
     <form method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2" action="{{ url_for('equipos.subir_adjunto', equipo_id=equipo.id) }}">
       {{ adjunto_form.hidden_tag() }}
@@ -123,21 +126,26 @@
           <div class="ratio ratio-4x3">
             <img src="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id, preview=1) }}" alt="{{ archivo.filename }}" class="w-100 h-100 object-fit-cover rounded-top">
           </div>
+          {% elif archivo.mime_type == 'application/pdf' %}
+          <div class="ratio ratio-4x3 bg-light border-bottom">
+            <object data="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id, preview=1) }}" type="application/pdf" class="w-100 h-100 rounded-top">PDF</object>
+          </div>
           {% else %}
           <div class="d-flex align-items-center justify-content-center py-4 bg-light border-bottom">
-            <span class="fw-semibold text-secondary">PDF</span>
+            <span class="fw-semibold text-secondary">Archivo</span>
           </div>
           {% endif %}
           <div class="card-body d-flex flex-column gap-2">
-            <div class="small" title="{{ archivo.filename }}">{{ archivo.filename }}</div>
+            <div class="small fw-semibold" title="{{ archivo.filename }}">{{ archivo.filename }}</div>
+            <div class="text-muted small">{{ humanize_bytes(archivo.size_in_bytes()) }} · {{ archivo.created_at.strftime('%d/%m/%Y %H:%M') if archivo.created_at else '' }}</div>
             <div class="d-flex flex-wrap gap-2">
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id) }}">Descargar</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id, preview=1) }}" target="_blank" rel="noopener">Ver</a>
               <form method="post" action="{{ url_for('equipos.eliminar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id) }}" onsubmit="return confirm('¿Eliminar adjunto?');">
-                {{ csrf_token() }}
+                {{ delete_form.csrf_token(id='delete-token-' ~ archivo.id) }}
                 <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
               </form>
             </div>
-            <small class="text-muted">Subido {{ archivo.created_at.strftime('%d/%m/%Y %H:%M') if archivo.created_at else '' }}</small>
           </div>
         </div>
       </div>
@@ -152,7 +160,12 @@
 <div class="row g-3 mt-3">
   <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-header">Historial reciente</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Historial reciente</span>
+        {% if historial_total > historial|length %}
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.historial_completo', equipo_id=equipo.id) }}">Ver todo</a>
+        {% endif %}
+      </div>
       <ul class="list-group list-group-flush">
         {% for entrada in historial %}
         <li class="list-group-item">
@@ -168,7 +181,12 @@
   </div>
   <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-header">Actas vinculadas</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Actas vinculadas</span>
+        {% if actas_total > actas|length %}
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.actas_completas', equipo_id=equipo.id) }}">Ver todo</a>
+        {% endif %}
+      </div>
       <ul class="list-group list-group-flush">
         {% for acta in actas %}
         <li class="list-group-item d-flex justify-content-between align-items-center">

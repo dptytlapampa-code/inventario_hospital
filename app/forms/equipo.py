@@ -16,7 +16,14 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, Optional
 
-from app.models import EstadoEquipo, Hospital, Oficina, Servicio, TipoEquipo
+from app.models import (
+    EstadoEquipo,
+    Hospital,
+    Oficina,
+    Servicio,
+    TipoActa,
+    TipoEquipo,
+)
 
 
 class EquipoForm(FlaskForm):
@@ -191,4 +198,65 @@ class EquipoAdjuntoForm(FlaskForm):
     submit = SubmitField("Subir archivo")
 
 
-__all__ = ["EquipoForm", "EquipoFiltroForm", "EquipoAdjuntoForm"]
+class EquipoAdjuntoDeleteForm(FlaskForm):
+    """Simple CSRF protected form to remove an attachment."""
+
+    submit = SubmitField("Eliminar")
+
+
+class EquipoHistorialFiltroForm(FlaskForm):
+    """Filter historical entries for an equipment."""
+
+    accion = StringField("Acción", validators=[Optional(), Length(max=120)])
+    fecha_desde = DateField("Desde", validators=[Optional()])
+    fecha_hasta = DateField("Hasta", validators=[Optional()])
+    submit = SubmitField("Filtrar")
+
+    def validate(self, extra_validators=None):  # type: ignore[override]
+        if not super().validate(extra_validators=extra_validators):
+            return False
+        if (
+            self.fecha_desde.data
+            and self.fecha_hasta.data
+            and self.fecha_desde.data > self.fecha_hasta.data
+        ):
+            self.fecha_hasta.errors.append("La fecha hasta debe ser posterior a la fecha desde")
+            return False
+        return True
+
+
+class EquipoActaFiltroForm(FlaskForm):
+    """Filter actas associated with an equipment."""
+
+    tipo = SelectField("Tipo", coerce=str, validators=[Optional()])
+    fecha_desde = DateField("Desde", validators=[Optional()])
+    fecha_hasta = DateField("Hasta", validators=[Optional()])
+    submit = SubmitField("Filtrar")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.tipo.choices = [("", "Todos")] + [
+            (tipo.value, tipo.name.replace("_", " ").title()) for tipo in TipoActa
+        ]
+
+    def validate(self, extra_validators=None):  # type: ignore[override]
+        if not super().validate(extra_validators=extra_validators):
+            return False
+        if (
+            self.fecha_desde.data
+            and self.fecha_hasta.data
+            and self.fecha_desde.data > self.fecha_hasta.data
+        ):
+            self.fecha_hasta.errors.append("La fecha hasta debe ser posterior a la fecha desde")
+            return False
+        return True
+
+
+__all__ = [
+    "EquipoForm",
+    "EquipoFiltroForm",
+    "EquipoAdjuntoForm",
+    "EquipoAdjuntoDeleteForm",
+    "EquipoHistorialFiltroForm",
+    "EquipoActaFiltroForm",
+]
