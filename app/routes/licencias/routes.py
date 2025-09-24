@@ -29,6 +29,10 @@ licencias_bp = Blueprint("licencias", __name__, url_prefix="/licencias")
 @permissions_required("licencias:write")
 @require_hospital_access(Modulo.LICENCIAS)
 def solicitar():
+    if current_user.role == "superadmin":
+        flash("El superadministrador no puede solicitar licencias.", "warning")
+        return render_template("errors/403.html"), 403
+
     form = LicenciaForm()
     if form.validate_on_submit():
         licencia = crear_licencia(
@@ -63,7 +67,7 @@ def listar():
     allowed = getattr(g, "allowed_hospitals", set())
     if allowed:
         query = query.filter(Licencia.hospital_id.in_(allowed))
-    elif not current_user.has_role("Superadmin"):
+    elif current_user.role != "superadmin":
         query = query.filter(Licencia.usuario_id == current_user.id)
 
     if estado:
@@ -157,7 +161,7 @@ def calendario():
     allowed = getattr(g, "allowed_hospitals", set())
     if allowed:
         query = query.filter(Licencia.hospital_id.in_(allowed))
-    elif not current_user.has_role("Superadmin"):
+    elif current_user.role != "superadmin":
         query = query.filter(Licencia.usuario_id == current_user.id)
 
     if form.validate() and form.mes.data:

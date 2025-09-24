@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% from '_form_helpers.html' import render_field, render_select, render_checkbox %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block header_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<form method="post" novalidate class="needs-validation">
+  {{ form.hidden_tag() }}
+  <div class="form-section">
+    <div class="section-header">Datos personales</div>
+    <div class="section-body row g-3">
+      {{ render_field(form.nombre, form_group_class='col-12 col-md-6', placeholder='Nombre') }}
+      {{ render_field(form.apellido, form_group_class='col-12 col-md-6', placeholder='Apellido') }}
+      {{ render_field(form.email, form_group_class='col-12 col-md-6', placeholder='usuario@hospital.gob.ar') }}
+      {{ render_field(form.username, form_group_class='col-12 col-md-6', placeholder='Nombre de usuario') }}
+      {{ render_select(form.rol_id, form_group_class='col-12 col-md-6') }}
+      <div class="col-12 col-md-6 d-flex align-items-center">
+        {{ render_checkbox(form.activo, form_group_class='form-check mb-0') }}
+      </div>
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-header">Credenciales</div>
+    <div class="section-body row g-3">
+      {{ render_field(form.password, form_group_class='col-12 col-md-6', input_type='password', placeholder='Contraseña segura (mínimo 8 caracteres)') }}
+      {{ render_field(form.confirm_password, form_group_class='col-12 col-md-6', input_type='password', placeholder='Repetir contraseña') }}
+      <div class="col-12 text-muted small">
+        {% if usuario %}
+        Deje la contraseña en blanco para mantener la actual.
+        {% else %}
+        La contraseña es obligatoria para nuevos usuarios.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="d-flex flex-column flex-md-row gap-2 justify-content-end">
+    {{ form.submit(class='btn btn-primary px-4') }}
+    <a class="btn btn-outline-secondary" href="{{ url_for('usuarios.listar') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

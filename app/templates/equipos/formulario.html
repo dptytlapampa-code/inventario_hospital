@@ -1,30 +1,89 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea, render_ajax_select %}
 {% block title %}{{ titulo }}{% endblock %}
+{% block header_title %}{{ titulo }}{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">{{ titulo }}</h1>
-<form method="post" novalidate>
+<form method="post" novalidate class="needs-validation">
   {{ form.hidden_tag() }}
-  <div class="row g-3">
-    {{ render_field(form.codigo, form_group_class='col-md-3', input_class='form-control', placeholder='Código patrimonial') }}
-    {{ render_select(form.tipo, form_group_class='col-md-3') }}
-    {{ render_select(form.estado, form_group_class='col-md-3') }}
-    {{ render_select(form.hospital_id, form_group_class='col-md-3') }}
-    {{ render_select(form.servicio_id, form_group_class='col-md-3') }}
-    {{ render_select(form.oficina_id, form_group_class='col-md-3') }}
-    {{ render_textarea(form.descripcion, form_group_class='col-md-6', rows=3) }}
-    {{ render_field(form.marca, form_group_class='col-md-3') }}
-    {{ render_field(form.modelo, form_group_class='col-md-3') }}
-    {{ render_field(form.numero_serie, form_group_class='col-md-3') }}
-    {{ render_field(form.responsable, form_group_class='col-md-3') }}
-    {{ render_field(form.fecha_compra, form_group_class='col-md-3', input_class='form-control', input_type='date') }}
-    {{ render_field(form.fecha_instalacion, form_group_class='col-md-3', input_class='form-control', input_type='date') }}
-    {{ render_field(form.garantia_hasta, form_group_class='col-md-3', input_class='form-control', input_type='date') }}
-    {{ render_textarea(form.observaciones, form_group_class='col-12', rows=3) }}
-    {{ render_select(form.insumos, form_group_class='col-12', multiple=true, size=5) }}
+  <div class="form-section">
+    <div class="section-header">Información general</div>
+    <div class="section-body row g-3">
+      {{ render_textarea(form.descripcion, form_group_class='col-12', rows=3, placeholder='Descripción breve del equipo') }}
+      {{ render_select(form.tipo, form_group_class='col-12 col-md-6', label_class='form-label') }}
+      {{ render_select(form.estado, form_group_class='col-12 col-md-6', label_class='form-label') }}
+      {{ render_select(form.hospital_id, form_group_class='col-12 col-md-6', label_class='form-label') }}
+      {{ render_ajax_select(
+        form.servicio_id,
+        url_for('api.search_servicios'),
+        form_group_class='col-12 col-md-6',
+        placeholder='Escriba para buscar un servicio',
+        extra_attrs={'data-min-chars': 1}
+      ) }}
+      {{ render_ajax_select(
+        form.oficina_id,
+        url_for('api.search_oficinas'),
+        form_group_class='col-12 col-md-6',
+        placeholder='Filtre oficinas por servicio',
+        depends_on=form.servicio_id.id,
+        depends_message='Seleccione un servicio para filtrar oficinas'
+      ) }}
+      {{ render_field(form.responsable, form_group_class='col-12 col-md-6', placeholder='Responsable del equipo') }}
+    </div>
   </div>
-  <div class="mt-4 d-flex gap-2">
-    {{ form.submit(class='btn btn-primary') }}
+  <div class="form-section">
+    <div class="section-header">Características técnicas</div>
+    <div class="section-body row g-3">
+      {{ render_field(form.marca, form_group_class='col-12 col-md-4', placeholder='Marca') }}
+      {{ render_field(form.modelo, form_group_class='col-12 col-md-4', placeholder='Modelo') }}
+      {{ render_field(form.numero_serie, form_group_class='col-12 col-md-4', placeholder='Número de serie') }}
+      {{ render_field(form.fecha_compra, form_group_class='col-12 col-md-4', input_type='date') }}
+      {{ render_field(form.fecha_instalacion, form_group_class='col-12 col-md-4', input_type='date') }}
+      {{ render_field(form.garantia_hasta, form_group_class='col-12 col-md-4', input_type='date') }}
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-header">Identificación</div>
+    <div class="section-body row g-3">
+      {{ render_field(form.codigo, form_group_class='col-12 col-md-6', placeholder='Código patrimonial') }}
+      {{ render_textarea(form.observaciones, form_group_class='col-12', rows=3, placeholder='Observaciones relevantes') }}
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-header">Insumos asociados</div>
+    <div class="section-body row g-3">
+      <div class="col-12">
+        {{ render_ajax_select(
+          form.insumos,
+          url_for('api.search_insumos'),
+          form_group_class='mb-3',
+          placeholder='Escriba para buscar insumos',
+          multiple=true,
+          extra_attrs={'data-role': 'insumos-selector'}
+        ) }}
+      </div>
+      <div class="col-12">
+        <div class="form-section mb-0 d-none" data-insumos-card>
+          <div class="section-header">Cantidades por insumo (próximamente)</div>
+          <div class="section-body">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>Insumo</th>
+                    <th style="width: 140px;">Cantidad</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <div class="insumo-table-placeholder text-muted small">Las cantidades se preparan para futuras versiones.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="d-flex flex-column flex-md-row gap-2 justify-content-end">
+    {{ form.submit(class='btn btn-primary px-4') }}
     <a class="btn btn-outline-secondary" href="{{ url_for('equipos.listar') }}">Cancelar</a>
   </div>
 </form>

@@ -7,6 +7,7 @@ from flask import Flask, render_template
 
 from config import Config
 from app.extensions import configure_logging, init_extensions, login_manager
+from app.security.rbac import has_role
 from app.utils import build_select_attrs, normalize_enum_value, render_input_field
 
 
@@ -34,6 +35,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     app.jinja_env.globals.setdefault("render_input_field", render_input_field)
     app.jinja_env.globals.setdefault("build_select_attrs", build_select_attrs)
     app.jinja_env.globals.setdefault("normalize_enum_value", normalize_enum_value)
+    app.jinja_env.globals.setdefault("has_role", has_role)
     app.jinja_env.filters.setdefault("enum_value", normalize_enum_value)
 
     from app.models.usuario import Usuario  # imported lazily to avoid circular imports
@@ -49,6 +51,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
 
     from app.routes.actas import actas_bp
     from app.routes.adjuntos import adjuntos_bp
+    from app.routes.api import api_bp
     from app.routes.auth import auth_bp
     from app.routes.docscan import docscan_bp
     from app.routes.equipos import equipos_bp
@@ -57,6 +60,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     from app.routes.main import main_bp
     from app.routes.permisos import permisos_bp
     from app.routes.search import search_bp
+    from app.routes.usuarios import usuarios_bp
     from app.routes.ubicaciones import ubicaciones_bp
 
     for blueprint in (
@@ -71,6 +75,8 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         actas_bp,
         search_bp,
         licencias_bp,
+        api_bp,
+        usuarios_bp,
     ):
         app.register_blueprint(blueprint)
 

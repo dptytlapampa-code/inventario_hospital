@@ -1,0 +1,148 @@
+:root {
+  --sidebar-width: 260px;
+}
+
+body {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  background: #1f2933;
+  color: #fff;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease-in-out;
+  z-index: 1030;
+}
+
+.app-sidebar a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-sidebar .sidebar-header {
+  padding: 1.25rem 1.5rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.app-sidebar .nav-link {
+  color: rgba(255, 255, 255, 0.85);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0;
+}
+
+.app-sidebar .nav-link:hover,
+.app-sidebar .nav-link.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-navbar {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-navbar .form-control {
+  max-width: 320px;
+}
+
+.app-content {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+@media (max-width: 991.98px) {
+  .app-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    transform: translateX(-100%);
+    box-shadow: 0 0 30px rgba(15, 23, 42, 0.45);
+  }
+
+  body.sidebar-open .app-sidebar {
+    transform: translateX(0);
+  }
+
+  .app-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+    z-index: 1025;
+  }
+
+  body.sidebar-open .app-sidebar-backdrop {
+    opacity: 1;
+    pointer-events: all;
+  }
+}
+
+.form-section {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 0.25rem 1.25rem rgba(15, 23, 42, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.form-section .section-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+.form-section .section-body {
+  padding: 1.25rem;
+}
+
+.table-filter {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.table-filter .form-control,
+.table-filter .form-select {
+  min-width: 180px;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.table-toolbar .search-input {
+  max-width: 260px;
+}
+
+.insumo-table-placeholder {
+  padding: 1rem;
+  color: #6c757d;
+}

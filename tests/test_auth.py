@@ -61,7 +61,7 @@ def test_login_ignores_external_next(client, superadmin_credentials):
     assert parsed.path == "/"
 
 
-@pytest.mark.parametrize("username", ["admin", "tecnico"])
+@pytest.mark.parametrize("username", ["admin", "gestor", "visor"])
 def test_users_can_access_dashboard(client, username):
     login(client, username=username, password="Cambiar123!")
     resp = client.get("/")

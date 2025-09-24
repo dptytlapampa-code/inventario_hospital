@@ -105,6 +105,7 @@ def editar(equipo_id: int):
     form = EquipoForm(obj=equipo)
     if request.method == "GET":
         form.insumos.data = [insumo.id for insumo in equipo.insumos]
+        form._preload_selected_insumos()
     if form.validate_on_submit():
         equipo.codigo = form.codigo.data or None
         equipo.tipo = form.tipo.data

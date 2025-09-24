@@ -23,8 +23,10 @@ from app.models import (
     Licencia,
     Modulo,
     MovimientoTipo,
+    Oficina,
     Permiso,
     Rol,
+    Servicio,
     TipoActa,
     TipoEquipo,
     TipoLicencia,
@@ -42,15 +44,17 @@ def _populate_database() -> dict[str, object]:
     db.session.add(hospital)
     db.session.flush()
 
-    rol_super = Rol(nombre="Superadmin")
-    rol_admin = Rol(nombre="Admin")
-    rol_tecnico = Rol(nombre="Tecnico")
-    db.session.add_all([rol_super, rol_admin, rol_tecnico])
+    rol_super = Rol(nombre="superadmin")
+    rol_admin = Rol(nombre="admin")
+    rol_gestor = Rol(nombre="gestor")
+    rol_visor = Rol(nombre="visor")
+    db.session.add_all([rol_super, rol_admin, rol_gestor, rol_visor])
     db.session.flush()
 
     superadmin = Usuario(
         username="superadmin",
-        nombre="Super Admin",
+        nombre="Super",
+        apellido="Admin",
         email="super@hospital.test",
         rol=rol_super,
         hospital=hospital,
@@ -59,23 +63,35 @@ def _populate_database() -> dict[str, object]:
 
     admin = Usuario(
         username="admin",
-        nombre="Admin",
+        nombre="Ana",
+        apellido="Gestión",
         email="admin@hospital.test",
         rol=rol_admin,
         hospital=hospital,
     )
     admin.set_password(DEFAULT_PASSWORD)
 
-    tecnico = Usuario(
-        username="tecnico",
-        nombre="Tecnico",
-        email="tecnico@hospital.test",
-        rol=rol_tecnico,
+    gestor = Usuario(
+        username="gestor",
+        nombre="Gesto",
+        apellido="Operativo",
+        email="gestor@hospital.test",
+        rol=rol_gestor,
         hospital=hospital,
     )
-    tecnico.set_password(DEFAULT_PASSWORD)
+    gestor.set_password(DEFAULT_PASSWORD)
 
-    db.session.add_all([superadmin, admin, tecnico])
+    visor = Usuario(
+        username="visor",
+        nombre="Violeta",
+        apellido="Consulta",
+        email="visor@hospital.test",
+        rol=rol_visor,
+        hospital=hospital,
+    )
+    visor.set_password(DEFAULT_PASSWORD)
+
+    db.session.add_all([superadmin, admin, gestor, visor])
     db.session.flush()
 
     permisos = [
@@ -102,7 +118,7 @@ def _populate_database() -> dict[str, object]:
     )
     permisos.append(
         Permiso(
-            rol=rol_tecnico,
+            rol=rol_gestor,
             modulo=Modulo.INSUMOS,
             hospital=hospital,
             can_read=True,
@@ -110,6 +126,13 @@ def _populate_database() -> dict[str, object]:
         )
     )
     db.session.add_all(permisos)
+
+    servicio = Servicio(nombre="Emergencias", hospital=hospital)
+    db.session.add(servicio)
+    db.session.flush()
+
+    oficina = Oficina(nombre="Oficina Principal", servicio=servicio, hospital=hospital)
+    db.session.add(oficina)
 
     equipo = Equipo(
         codigo="EQ-100",
@@ -161,7 +184,10 @@ def _populate_database() -> dict[str, object]:
         "hospital": hospital,
         "superadmin": superadmin,
         "admin": admin,
-        "tecnico": tecnico,
+        "gestor": gestor,
+        "visor": visor,
+        "servicio": servicio,
+        "oficina": oficina,
         "equipo": equipo,
         "insumo": insumo,
         "acta": acta,
@@ -194,11 +220,14 @@ def data(app):
             "hospital": Hospital.query.first(),
             "superadmin": Usuario.query.filter_by(username="superadmin").first(),
             "admin": Usuario.query.filter_by(username="admin").first(),
-            "tecnico": Usuario.query.filter_by(username="tecnico").first(),
+            "gestor": Usuario.query.filter_by(username="gestor").first(),
+            "visor": Usuario.query.filter_by(username="visor").first(),
             "equipo": Equipo.query.first(),
             "insumo": Insumo.query.first(),
             "acta": Acta.query.first(),
             "licencia": Licencia.query.first(),
+            "servicio": Servicio.query.first(),
+            "oficina": Oficina.query.first(),
         }
 
 
@@ -213,6 +242,11 @@ def admin_credentials():
 
 
 @pytest.fixture()
-def tecnico_credentials():
-    return {"username": "tecnico", "password": DEFAULT_PASSWORD}
+def gestor_credentials():
+    return {"username": "gestor", "password": DEFAULT_PASSWORD}
+
+
+@pytest.fixture()
+def visor_credentials():
+    return {"username": "visor", "password": DEFAULT_PASSWORD}
 
