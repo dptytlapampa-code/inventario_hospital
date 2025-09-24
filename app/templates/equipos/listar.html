@@ -23,26 +23,44 @@
     <button class="btn btn-outline-secondary w-100" type="submit">Filtrar</button>
   </div>
 </form>
-<div class="table-responsive bg-white rounded shadow-sm">
+<div class="table-responsive bg-white">
   <table class="table table-striped align-middle mb-0">
     <thead>
       <tr>
-        <th>Código</th>
-        <th>Descripción</th>
-        <th>Tipo</th>
+        <th>Equipo</th>
+        <th>Código patrimonial</th>
         <th>Estado</th>
-        <th>Hospital</th>
-        <th></th>
+        <th>Ubicación</th>
+        <th class="text-end">Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for equipo in equipos %}
       <tr>
+        {% set tipo_label = normalize_enum_value(equipo.tipo).replace('_', ' ') %}
+        {% set estado_label = normalize_enum_value(equipo.estado).replace('_', ' ') %}
+        {% set estado_clases = {
+          'OPERATIVO': 'status-badge--success',
+          'SERVICIO_TECNICO': 'status-badge--warning',
+          'DE_BAJA': 'status-badge--danger',
+          'PRESTADO': 'status-badge--info'
+        } %}
+        {% set estado_class = estado_clases.get((equipo.estado.name if equipo.estado is not none else '') , 'status-badge--muted') %}
+        {% set marca_modelo = (equipo.marca or '') ~ (' ' + equipo.modelo if equipo.modelo else '') %}
+        <td>
+          <div class="fw-semibold">{{ tipo_label|title }}{% if marca_modelo.strip() %} - {{ marca_modelo.strip() }}{% endif %}</div>
+          <div class="text-muted small">{{ equipo.descripcion or 'Sin descripción registrada' }}</div>
+        </td>
         <td>{{ equipo.codigo or '—' }}</td>
-        <td>{{ equipo.descripcion or 'Sin descripción' }}</td>
-        <td class="text-capitalize">{{ normalize_enum_value(equipo.tipo).replace('_',' ') }}</td>
-        <td class="text-capitalize">{{ normalize_enum_value(equipo.estado).replace('_',' ') }}</td>
-        <td>{{ equipo.hospital.nombre }}</td>
+        <td>
+          <span class="status-badge {{ estado_class }}">{{ estado_label }}</span>
+        </td>
+        <td>
+          <div>{{ equipo.hospital.nombre }}</div>
+          {% if equipo.servicio %}
+          <div class="text-muted small">Servicio: {{ equipo.servicio.nombre }}</div>
+          {% endif %}
+        </td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('equipos.detalle', equipo_id=equipo.id) }}">Ver</a>
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.editar', equipo_id=equipo.id) }}">Editar</a>

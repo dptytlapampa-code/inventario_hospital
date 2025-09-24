@@ -58,7 +58,7 @@ class EquipoForm(FlaskForm):
 
     # pylint: disable=too-many-return-statements
     def _populate_lookup_defaults(self) -> None:
-        if self.hospital_id.data and not self.hospital_busqueda.data:
+        if self.hospital_id.data:
             try:
                 hospital_id = int(self.hospital_id.data)
             except (TypeError, ValueError):
@@ -66,13 +66,8 @@ class EquipoForm(FlaskForm):
             if hospital_id:
                 hospital = Hospital.query.get(hospital_id)
                 if hospital:
-                    localidad = getattr(hospital, "localidad", None) or getattr(
-                        hospital, "direccion", None
-                    )
-                    self.hospital_busqueda.data = (
-                        f"{hospital.nombre} - {localidad}" if localidad else hospital.nombre
-                    )
-        if self.servicio_id.data and not self.servicio_busqueda.data:
+                    self.hospital_busqueda.data = self._format_hospital_label(hospital)
+        if self.servicio_id.data:
             try:
                 servicio_id = int(self.servicio_id.data)
             except (TypeError, ValueError):
@@ -81,7 +76,7 @@ class EquipoForm(FlaskForm):
                 servicio = Servicio.query.get(servicio_id)
                 if servicio:
                     self.servicio_busqueda.data = servicio.nombre
-        if self.oficina_id.data and not self.oficina_busqueda.data:
+        if self.oficina_id.data:
             try:
                 oficina_id = int(self.oficina_id.data)
             except (TypeError, ValueError):
@@ -94,7 +89,13 @@ class EquipoForm(FlaskForm):
     def validate(self, extra_validators=None):  # type: ignore[override]
         if not super().validate(extra_validators=extra_validators):
             return False
-        if not self._validate_lookup(self.hospital_busqueda, self.hospital_id, Hospital, required=True):
+        if not self._validate_lookup(
+            self.hospital_busqueda,
+            self.hospital_id,
+            Hospital,
+            required=True,
+            label_getter=self._format_hospital_label,
+        ):
             return False
         if not self._validate_lookup(self.servicio_busqueda, self.servicio_id, Servicio, required=False):
             return False
@@ -133,7 +134,7 @@ class EquipoForm(FlaskForm):
         return True
 
     @staticmethod
-    def _validate_lookup(text_field, hidden_field, model, required: bool) -> bool:
+    def _validate_lookup(text_field, hidden_field, model, required: bool, label_getter=None) -> bool:
         text = (text_field.data or "").strip() if text_field is not None else ""
         hidden_value = hidden_field.data if hidden_field is not None else None
 
@@ -164,7 +165,17 @@ class EquipoForm(FlaskForm):
             text_field.errors.append("Seleccione una opción válida")
             return False
         hidden_field.data = identifier
+        if text_field is not None:
+            if label_getter is not None:
+                text_field.data = label_getter(instance)
+            else:
+                text_field.data = getattr(instance, "nombre", str(instance))
         return True
+
+    @staticmethod
+    def _format_hospital_label(hospital: Hospital) -> str:
+        localidad = getattr(hospital, "localidad", None) or getattr(hospital, "direccion", None)
+        return f"{hospital.nombre} - {localidad}" if localidad else hospital.nombre
 
 
 class EquipoFiltroForm(FlaskForm):

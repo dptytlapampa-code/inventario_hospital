@@ -1,51 +1,86 @@
 {% extends 'base.html' %}
 {% block title %}Inicio{% endblock %}
 {% block content %}
-<div class="row g-4 mb-4">
-  {% for nombre, valor in stats.items() %}
-  <div class="col-md-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body text-center">
-        <h5 class="card-title text-uppercase fw-semibold">{{ nombre.replace('_',' ') }}</h5>
-        <p class="display-5 fw-bold mb-0">{{ valor }}</p>
+<div class="dashboard-updated text-muted small mb-3" data-dashboard-updated>
+  Actualizado: {{ metrics.generated_at_display }}
+  <span class="ms-2"><a class="link-secondary" href="{{ url_for('main.dashboard') }}">Ver dashboard completo</a></span>
+</div>
+<div class="row g-3" data-dashboard-kpis>
+  {% for kpi in metrics.kpis %}
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card kpi-card" data-kpi-card="{{ kpi.key }}">
+      <div class="card-body">
+        <span class="text-muted text-uppercase small">{{ kpi.label }}</span>
+        <div class="display-6 fw-bold" data-kpi-value>{{ kpi.value }}</div>
+        <div class="kpi-variation{% if kpi.delta > 0 %} kpi-variation--up{% else %} kpi-variation--steady{% endif %}" data-kpi-variation>
+          <span class="kpi-trend-icon">{% if kpi.delta > 0 %}▲{% else %}→{% endif %}</span>
+          <span class="kpi-trend-value">{% if kpi.delta > 0 %}+{{ kpi.delta }}{% else %}0{% endif %}</span>
+          <span class="text-muted">últimos 7 días</span>
+        </div>
       </div>
     </div>
   </div>
   {% endfor %}
 </div>
-<div class="row g-3">
-  <div class="col-md-6">
+
+<div class="row g-3 mt-1">
+  <div class="col-lg-6">
     <div class="card h-100">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span class="fw-semibold">Novedades recientes</span>
-        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.dashboard') }}">Ver dashboard</a>
+      <div class="card-header">Distribución de equipos por estado</div>
+      <div class="card-body">
+        <canvas id="chartEquipmentState" height="220" aria-label="Gráfico de equipos por estado" role="img"></canvas>
       </div>
-      <ul class="list-group list-group-flush">
-        {% for notice in notices %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ notice.titulo }}</span>
-          <span class="text-muted small">{{ notice.fecha.strftime('%d/%m/%Y') }}</span>
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted">Sin novedades</li>
-        {% endfor %}
-      </ul>
     </div>
   </div>
-  <div class="col-md-6">
+  <div class="col-lg-6">
     <div class="card h-100">
-      <div class="card-header">Insumos con stock crítico</div>
-      <ul class="list-group list-group-flush">
-        {% for insumo in low_stock %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ insumo.nombre }}</span>
-          <span class="badge bg-danger">{{ insumo.stock }}</span>
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted">Sin alertas de stock.</li>
-        {% endfor %}
-      </ul>
+      <div class="card-header">Equipos por tipo</div>
+      <div class="card-body">
+        <canvas id="chartEquipmentType" height="220" aria-label="Gráfico de equipos por tipo" role="img"></canvas>
+      </div>
     </div>
   </div>
 </div>
+
+<div class="row g-3 mt-1">
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header">Stock de insumos por categoría</div>
+      <div class="card-body">
+        <canvas id="chartInsumoStock" height="220" aria-label="Gráfico de stock de insumos" role="img"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Alertas de stock crítico</span>
+        <span class="badge bg-danger-subtle text-danger-emphasis" data-critical-total>{{ metrics.critical_supplies|length }}</span>
+      </div>
+      <div class="card-body">
+        <ul class="list-group list-group-flush" data-critical-list>
+          {% for item in metrics.critical_supplies %}
+          <li class="list-group-item d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold">{{ item.nombre }}</div>
+              <div class="text-muted small">Mínimo {{ item.stock_minimo }} · Faltan {{ item.faltante }}</div>
+            </div>
+            <span class="status-badge status-badge--danger">{{ item.stock }}</span>
+          </li>
+          {% else %}
+          <li class="list-group-item text-muted">Sin insumos en alerta.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    window.dashboardMetrics = {{ metrics|tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

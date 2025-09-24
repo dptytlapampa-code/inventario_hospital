@@ -27,6 +27,7 @@ def listar():
     page = request.args.get("page", type=int, default=1)
     per_page = current_app.config.get("DEFAULT_PAGE_SIZE", 20)
     buscar = request.args.get("q", "")
+    criticos = request.args.get("criticos", type=int)
 
     query = Insumo.query.order_by(Insumo.nombre)
     allowed = getattr(g, "allowed_hospitals", set())
@@ -46,12 +47,19 @@ def listar():
             )
         )
 
+    if criticos:
+        query = query.filter(
+            Insumo.stock_minimo > 0,
+            Insumo.stock <= Insumo.stock_minimo,
+        )
+
     pagination = _paginar(query, page, per_page)
     return render_template(
         "insumos/listar.html",
         insumos=pagination.items,
         pagination=pagination,
         buscar=buscar,
+        criticos=bool(criticos),
     )
 
 
