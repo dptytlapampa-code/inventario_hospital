@@ -48,6 +48,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     for key, folder in {
         "ADJUNTOS_UPLOAD_FOLDER": upload_root / app.config.get("ADJUNTOS_SUBFOLDER", "adjuntos"),
         "DOCSCAN_UPLOAD_FOLDER": upload_root / app.config.get("DOCSCAN_SUBFOLDER", "docscan"),
+        "EQUIPOS_UPLOAD_FOLDER": upload_root / app.config.get("EQUIPOS_SUBFOLDER", "equipos"),
     }.items():
         folder.mkdir(parents=True, exist_ok=True)
         app.config[key] = str(folder)
