@@ -1,8 +1,21 @@
 {% extends 'base.html' %}
 {% block title %}Detalle de equipo{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">{{ equipo.descripcion or 'Equipo' }}</h1>
+{% set tipo_label = normalize_enum_value(equipo.tipo).replace('_', ' ') %}
+{% set marca_modelo = (equipo.marca or '') ~ (' ' + equipo.modelo if equipo.modelo else '') %}
+{% set estado_label = normalize_enum_value(equipo.estado).replace('_', ' ') %}
+{% set estado_clases = {
+  'OPERATIVO': 'status-badge--success',
+  'SERVICIO_TECNICO': 'status-badge--warning',
+  'DE_BAJA': 'status-badge--danger',
+  'PRESTADO': 'status-badge--info'
+} %}
+{% set estado_class = estado_clases.get((equipo.estado.name if equipo.estado is not none else ''), 'status-badge--muted') %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ tipo_label|title }}{% if marca_modelo.strip() %} - {{ marca_modelo.strip() }}{% endif %}</h1>
+    <p class="text-muted mb-0">{{ equipo.codigo or 'Sin código patrimonial' }}{% if equipo.descripcion %} · {{ equipo.descripcion }}{% endif %}</p>
+  </div>
   <div class="btn-group">
     <a class="btn btn-outline-primary" href="{{ url_for('equipos.editar', equipo_id=equipo.id) }}">Editar</a>
     <a class="btn btn-outline-secondary" href="{{ url_for('equipos.listar') }}">Volver</a>
@@ -12,7 +25,16 @@
   <div class="col-md-3">
     <div class="card h-100">
       <div class="card-body">
-        <h6 class="text-muted">Código</h6>
+        <h6 class="text-muted">Equipo</h6>
+        <p class="mb-1 fw-semibold">{{ tipo_label|title }}{% if marca_modelo.strip() %} - {{ marca_modelo.strip() }}{% endif %}</p>
+        <p class="mb-0 text-muted small">{{ equipo.descripcion or 'Sin descripción registrada' }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Código patrimonial</h6>
         <p class="mb-0">{{ equipo.codigo or '—' }}</p>
       </div>
     </div>
@@ -20,16 +42,8 @@
   <div class="col-md-3">
     <div class="card h-100">
       <div class="card-body">
-        <h6 class="text-muted">Tipo</h6>
-        <p class="mb-0 text-capitalize">{{ normalize_enum_value(equipo.tipo).replace('_',' ') }}</p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card h-100">
-      <div class="card-body">
         <h6 class="text-muted">Estado</h6>
-        <p class="mb-0 text-capitalize">{{ normalize_enum_value(equipo.estado).replace('_',' ') }}</p>
+        <span class="status-badge {{ estado_class }}">{{ estado_label }}</span>
       </div>
     </div>
   </div>
@@ -145,7 +159,7 @@
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id) }}">Descargar</a>
               <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id, preview=1) }}" target="_blank" rel="noopener">Ver</a>
               <form method="post" action="{{ url_for('equipos.eliminar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id) }}" onsubmit="return confirm('¿Eliminar adjunto?');">
-                {{ csrf_token() }}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
               </form>
             </div>

@@ -22,26 +22,109 @@
           </button>
         </div>
         {% if current_user.is_authenticated %}
-        <nav class="nav flex-column py-3">
-          <a class="nav-link{% if request.endpoint == 'main.index' %} active{% endif %}" href="{{ url_for('main.index') }}">Dashboard</a>
-          <a class="nav-link{% if request.blueprint == 'equipos' %} active{% endif %}" href="{{ url_for('equipos.listar') }}">Equipos</a>
-          <a class="nav-link{% if request.blueprint == 'insumos' %} active{% endif %}" href="{{ url_for('insumos.listar') }}">Insumos</a>
-          <a class="nav-link{% if request.blueprint == 'ubicaciones' %} active{% endif %}" href="{{ url_for('ubicaciones.listar') }}">Ubicaciones</a>
-          <a class="nav-link{% if request.blueprint == 'actas' %} active{% endif %}" href="{{ url_for('actas.listar') }}">Actas</a>
-          <a class="nav-link{% if request.blueprint == 'adjuntos' %} active{% endif %}" href="{{ url_for('adjuntos.listar') }}">Adjuntos</a>
-          <a class="nav-link{% if request.blueprint == 'docscan' %} active{% endif %}" href="{{ url_for('docscan.listar') }}">Docscan</a>
-          <a class="nav-link{% if request.blueprint == 'licencias' %} active{% endif %}" href="{{ url_for('licencias.listar') }}">Licencias</a>
-          {% if has_role('admin', 'superadmin') %}
-          <a class="nav-link{% if request.blueprint == 'usuarios' %} active{% endif %}" href="{{ url_for('usuarios.listar') }}">Usuarios</a>
-          {% endif %}
-          {% if has_role('superadmin') %}
-          <a class="nav-link{% if request.blueprint == 'permisos' %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Permisos</a>
-          {% endif %}
-          <a class="nav-link" href="{{ url_for('auth.logout') }}">Salir</a>
+        {% set current_bp = request.blueprint or '' %}
+        {% set current_endpoint = request.endpoint or '' %}
+        {% set equipos_open = current_bp in ['equipos', 'adjuntos', 'actas', 'docscan'] %}
+        {% set insumos_open = current_bp == 'insumos' %}
+        {% set ubicaciones_open = current_bp == 'ubicaciones' %}
+        {% set usuarios_open = current_bp in ['usuarios', 'licencias', 'permisos'] %}
+        {% set vista_actual = request.args.get('vista', 'hospitales') %}
+        {% set filtro_insumos = request.args.get('criticos') %}
+        <nav class="sidebar-nav" aria-label="Menú principal">
+          <ul class="sidebar-nav-list list-unstyled mb-0">
+            <li>
+              <a class="sidebar-link{% if current_endpoint == 'main.index' %} active{% endif %}" href="{{ url_for('main.index') }}">
+                <span class="sidebar-link-text">Dashboard</span>
+              </a>
+            </li>
+          </ul>
+          <div class="accordion accordion-flush sidebar-accordion" id="sidebarAccordion">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="accordionEquipos">
+                <button class="accordion-button{% if not equipos_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEquipos" aria-expanded="{{ 'true' if equipos_open else 'false' }}" aria-controls="collapseEquipos">
+                  Equipos
+                </button>
+              </h2>
+              <div id="collapseEquipos" class="accordion-collapse collapse{% if equipos_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
+                <div class="accordion-body p-0">
+                  <ul class="sidebar-subnav list-unstyled mb-0">
+                    <li><a class="sidebar-sublink{% if current_bp == 'equipos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('equipos.listar') }}">Listado</a></li>
+                    <li><a class="sidebar-sublink{% if current_endpoint == 'equipos.crear' %} active{% endif %}" href="{{ url_for('equipos.crear') }}">Nuevo</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'adjuntos' %} active{% endif %}" href="{{ url_for('adjuntos.listar') }}">Adjuntos</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'actas' %} active{% endif %}" href="{{ url_for('actas.listar') }}">Actas</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'docscan' %} active{% endif %}" href="{{ url_for('docscan.listar') }}">Docscan</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="accordionInsumos">
+                <button class="accordion-button{% if not insumos_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumos" aria-expanded="{{ 'true' if insumos_open else 'false' }}" aria-controls="collapseInsumos">
+                  Insumos
+                </button>
+              </h2>
+              <div id="collapseInsumos" class="accordion-collapse collapse{% if insumos_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
+                <div class="accordion-body p-0">
+                  <ul class="sidebar-subnav list-unstyled mb-0">
+                    <li><a class="sidebar-sublink{% if current_bp == 'insumos' and not filtro_insumos %} active{% endif %}" href="{{ url_for('insumos.listar') }}">Listado</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'insumos' and filtro_insumos %} active{% endif %}" href="{{ url_for('insumos.listar', criticos=1) }}">Críticos</a></li>
+                    <li><a class="sidebar-sublink{% if current_endpoint == 'insumos.crear' %} active{% endif %}" href="{{ url_for('insumos.crear') }}">Nuevo</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="accordionUbicaciones">
+                <button class="accordion-button{% if not ubicaciones_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUbicaciones" aria-expanded="{{ 'true' if ubicaciones_open else 'false' }}" aria-controls="collapseUbicaciones">
+                  Ubicaciones
+                </button>
+              </h2>
+              <div id="collapseUbicaciones" class="accordion-collapse collapse{% if ubicaciones_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
+                <div class="accordion-body p-0">
+                  <ul class="sidebar-subnav list-unstyled mb-0">
+                    <li><a class="sidebar-sublink{% if current_bp == 'ubicaciones' and vista_actual == 'hospitales' %} active{% endif %}" href="{{ url_for('ubicaciones.listar', vista='hospitales') }}">Hospitales</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'ubicaciones' and vista_actual == 'servicios' %} active{% endif %}" href="{{ url_for('ubicaciones.listar', vista='servicios') }}">Servicios</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'ubicaciones' and vista_actual == 'oficinas' %} active{% endif %}" href="{{ url_for('ubicaciones.listar', vista='oficinas') }}">Oficinas</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            {% if has_role('admin', 'superadmin') %}
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="accordionUsuarios">
+                <button class="accordion-button{% if not usuarios_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUsuarios" aria-expanded="{{ 'true' if usuarios_open else 'false' }}" aria-controls="collapseUsuarios">
+                  Usuarios
+                </button>
+              </h2>
+              <div id="collapseUsuarios" class="accordion-collapse collapse{% if usuarios_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
+                <div class="accordion-body p-0">
+                  <ul class="sidebar-subnav list-unstyled mb-0">
+                    <li><a class="sidebar-sublink{% if current_bp == 'usuarios' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('usuarios.listar') }}">Listado</a></li>
+                    <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.crear' %} active{% endif %}" href="{{ url_for('usuarios.crear') }}">Nuevo usuario</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'licencias' %} active{% endif %}" href="{{ url_for('licencias.listar') }}">Licencias</a></li>
+                    {% if has_role('superadmin') %}
+                    <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Permisos</a></li>
+                    {% endif %}
+                    <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'auditorias' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Auditorías</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+          <ul class="sidebar-nav-list list-unstyled mt-auto">
+            <li>
+              <a class="sidebar-link" href="{{ url_for('auth.logout') }}">
+                <span class="sidebar-link-text">Salir</span>
+              </a>
+            </li>
+          </ul>
         </nav>
         {% else %}
-        <nav class="nav flex-column py-3">
-          <a class="nav-link" href="{{ url_for('auth.login') }}">Ingresar</a>
+        <nav class="sidebar-nav" aria-label="Menú principal">
+          <ul class="sidebar-nav-list list-unstyled mb-0">
+            <li><a class="sidebar-link" href="{{ url_for('auth.login') }}">Ingresar</a></li>
+          </ul>
         </nav>
         {% endif %}
       </aside>
@@ -64,12 +147,6 @@
                 <button class="btn btn-outline-secondary" type="submit">Buscar</button>
               </div>
             </form>
-            <a class="btn btn-outline-secondary profile-icon-button" href="{{ url_for('main.perfil') }}" aria-label="Ver perfil">
-              <svg class="profile-icon" viewBox="0 0 24 24" role="img" aria-hidden="true">
-                <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
-                <path d="M4 20c0-3.3 2.7-6 6-6h4c3.3 0 6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-              </svg>
-            </a>
             <div class="dropdown">
               {% set initials = ((current_user.nombre or current_user.username or '?')[:1]).upper() %}
               <button class="btn btn-outline-secondary d-flex align-items-center gap-2" type="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">

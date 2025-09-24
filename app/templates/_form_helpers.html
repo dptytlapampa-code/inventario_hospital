@@ -23,7 +23,7 @@
   {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=select_class|trim, extra_attrs=attrs) }}
 {%- endmacro %}
 
-{% macro render_lookup(field, hidden_field, endpoint, form_group_class='mb-3', label_class='form-label', placeholder='', params=None, required_params=None, reset_targets=None, requires_message=None, extra_attrs=None, allow_empty=False, empty_label='Sin definir') -%}
+{% macro render_lookup(field, hidden_field, endpoint, form_group_class='mb-3', label_class='form-label', placeholder='', params=None, required_params=None, reset_targets=None, requires_message=None, extra_attrs=None, allow_empty=False, empty_label='Sin definir', min_chars=2) -%}
   {% set attrs = {
     'class': 'form-control' ~ (' is-invalid' if field.errors else ''),
     'autocomplete': 'off',
@@ -31,6 +31,8 @@
     'data-lookup': 'true',
     'data-lookup-url': endpoint,
     'data-lookup-hidden': hidden_field.id,
+    'data-lookup-min-chars': min_chars,
+    'data-lookup-label': field.label.text,
   } %}
   {% if params %}
     {% set attrs = attrs | combine({'data-lookup-params': params|tojson}) %}
@@ -53,13 +55,12 @@
   <div class="{{ form_group_class }}">
     {{ field.label(class=label_class, for=field.id) }}
     <div class="lookup-control">
-      <div class="input-group">
+      <div class="input-group lookup-input-group">
         <input type="text" id="{{ field.id }}" name="{{ field.name }}" value="{{ field.data or '' }}"{% for key, value in attrs.items() if value is not none %} {{ key }}="{{ value|safe if 'data-' in key else value }}"{% endfor %}>
-        <button class="btn btn-outline-secondary" type="button" title="Mostrar todo" data-lookup-show-all>…</button>
-        <button class="btn btn-outline-secondary" type="button" title="Limpiar" data-lookup-clear>&times;</button>
+        <button class="btn btn-outline-secondary" type="button" title="Buscar en listado" data-lookup-show-all aria-label="Abrir listado de {{ field.label.text }}">…</button>
+        <button class="btn btn-outline-secondary" type="button" title="Limpiar" data-lookup-clear aria-label="Limpiar {{ field.label.text }}">&times;</button>
       </div>
       {{ hidden_field() }}
-      <div class="lookup-results list-group d-none" data-lookup-results role="listbox" aria-label="Opciones para {{ field.label.text }}"></div>
     </div>
     {% if field.description %}
       <div class="form-text">{{ field.description }}</div>

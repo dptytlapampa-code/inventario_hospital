@@ -49,13 +49,13 @@
             <a class="btn btn-sm btn-outline-primary" href="{{ url_for('usuarios.editar', usuario_id=usuario.id) }}">Editar</a>
             {% if has_role('superadmin') and usuario.id != current_user.id %}
             <form method="post" action="{{ url_for('usuarios.reset_password', usuario_id=usuario.id) }}" class="d-inline">
-              {{ csrf_token() }}
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-sm btn-outline-secondary" title="Restablecer contraseña">Reset</button>
             </form>
             {% endif %}
             {% if usuario.id != current_user.id %}
             <form method="post" action="{{ url_for('usuarios.cambiar_estado', usuario_id=usuario.id, accion='desactivar' if usuario.activo else 'activar') }}" class="d-inline">
-              {{ csrf_token() }}
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               {% if usuario.activo %}
               <button type="submit" class="btn btn-sm btn-outline-warning">Desactivar</button>
               {% else %}

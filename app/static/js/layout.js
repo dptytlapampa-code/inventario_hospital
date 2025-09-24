@@ -16,11 +16,13 @@
     backdrop.addEventListener('click', () => toggleSidebar(false));
   }
 
-  document.querySelectorAll('.app-sidebar .nav-link').forEach((link) => {
-    link.addEventListener('click', () => {
-      if (window.innerWidth < 992) {
-        toggleSidebar(false);
-      }
+  document
+    .querySelectorAll('.app-sidebar .sidebar-link, .app-sidebar .sidebar-sublink')
+    .forEach((link) => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth < 992) {
+          toggleSidebar(false);
+        }
+      });
     });
-  });
 })();
