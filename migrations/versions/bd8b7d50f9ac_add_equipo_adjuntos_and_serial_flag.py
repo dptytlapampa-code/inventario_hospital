@@ -13,9 +13,7 @@ branch_labels = None
 depends_on = None
 
 
-def _ensure_adjuntos_table() -> None:
-    bind = op.get_bind()
-    inspector = inspect(bind)
+def _ensure_adjuntos_table(inspector) -> None:
     tables = inspector.get_table_names()
     if "equipos_adjuntos" not in tables:
         op.create_table(
@@ -56,27 +54,43 @@ def _ensure_adjuntos_table() -> None:
 
 
 def upgrade():
-    op.add_column(
-        "equipos",
-        sa.Column(
-            "sin_numero_serie", sa.Boolean(), nullable=False, server_default=sa.false()
-        ),
-    )
-    _ensure_adjuntos_table()
-    with op.batch_alter_table("equipos", recreate="always") as batch:
-        batch.alter_column(
-            "sin_numero_serie",
-            existing_type=sa.Boolean(),
-            server_default=None,
+    bind = op.get_bind()
+    inspector = inspect(bind)
+
+    columns = {column["name"] for column in inspector.get_columns("equipos")}
+    added_column = False
+    if "sin_numero_serie" not in columns:
+        op.add_column(
+            "equipos",
+            sa.Column(
+                "sin_numero_serie",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.false(),
+            ),
         )
+        added_column = True
+
+    _ensure_adjuntos_table(inspector)
+
+    if added_column or "sin_numero_serie" in columns:
+        with op.batch_alter_table("equipos", recreate="always") as batch:
+            batch.alter_column(
+                "sin_numero_serie",
+                existing_type=sa.Boolean(),
+                server_default=None,
+            )
 
 
 def downgrade():
-    with op.batch_alter_table("equipos", recreate="always") as batch:
-        batch.drop_column("sin_numero_serie")
-
     bind = op.get_bind()
     inspector = inspect(bind)
+
+    columns = {column["name"] for column in inspector.get_columns("equipos")}
+    if "sin_numero_serie" in columns:
+        with op.batch_alter_table("equipos", recreate="always") as batch:
+            batch.drop_column("sin_numero_serie")
+
     columns = {column["name"] for column in inspector.get_columns("equipos_adjuntos")}
     if "file_size" in columns:
         with op.batch_alter_table("equipos_adjuntos", schema=None) as batch:
@@ -86,4 +100,6 @@ def downgrade():
     if "ix_equipos_adjuntos_equipo_id" in indexes:
         op.drop_index("ix_equipos_adjuntos_equipo_id", table_name="equipos_adjuntos")
 
-    op.drop_table("equipos_adjuntos")
+    tables = inspector.get_table_names()
+    if "equipos_adjuntos" in tables:
+        op.drop_table("equipos_adjuntos")
