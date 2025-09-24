@@ -17,8 +17,20 @@ class ActaForm(FlaskForm):
         validators=[DataRequired()],
     )
     hospital_id = SelectField("Hospital", coerce=int, validators=[DataRequired()])
-    servicio_id = SelectField("Servicio", coerce=int, validators=[Optional()])
-    oficina_id = SelectField("Oficina", coerce=int, validators=[Optional()])
+    servicio_id = SelectField(
+        "Servicio",
+        coerce=int,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Escriba para buscar un servicio"},
+    )
+    oficina_id = SelectField(
+        "Oficina",
+        coerce=int,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Seleccione un servicio para buscar oficinas"},
+    )
     equipos = SelectMultipleField("Equipos", coerce=int, validators=[DataRequired()])
     observaciones = TextAreaField("Observaciones", validators=[Optional(), Length(max=500)])
     submit = SubmitField("Generar acta")
@@ -26,15 +38,45 @@ class ActaForm(FlaskForm):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.hospital_id.choices = [(h.id, h.nombre) for h in Hospital.query.order_by(Hospital.nombre)]
-        self.servicio_id.choices = [(0, "- Seleccione -")] + [
-            (s.id, f"{s.hospital.nombre} / {s.nombre}") for s in Servicio.query.order_by(Servicio.nombre)
-        ]
-        self.oficina_id.choices = [(0, "- Seleccione -")] + [
-            (o.id, f"{o.hospital.nombre} / {o.nombre}") for o in Oficina.query.order_by(Oficina.nombre)
-        ]
+        self._preload_selected_servicio()
+        self._preload_selected_oficina()
         self.equipos.choices = [
             (e.id, f"{e.codigo or e.descripcion or e.id}") for e in Equipo.query.order_by(Equipo.descripcion)
         ]
+
+    def _preload_selected_servicio(self) -> None:
+        value = self.servicio_id.data or (self.servicio_id.raw_data[0] if self.servicio_id.raw_data else None)
+        if not value:
+            self.servicio_id.choices = []
+            return
+        try:
+            servicio_id = int(value)
+        except (TypeError, ValueError):
+            self.servicio_id.choices = []
+            return
+        servicio = Servicio.query.get(servicio_id)
+        if servicio:
+            label = f"{servicio.hospital.nombre} · {servicio.nombre}"
+            self.servicio_id.choices = [(servicio.id, label)]
+        else:
+            self.servicio_id.choices = []
+
+    def _preload_selected_oficina(self) -> None:
+        value = self.oficina_id.data or (self.oficina_id.raw_data[0] if self.oficina_id.raw_data else None)
+        if not value:
+            self.oficina_id.choices = []
+            return
+        try:
+            oficina_id = int(value)
+        except (TypeError, ValueError):
+            self.oficina_id.choices = []
+            return
+        oficina = Oficina.query.get(oficina_id)
+        if oficina:
+            label = f"{oficina.hospital.nombre} · {oficina.nombre}"
+            self.oficina_id.choices = [(oficina.id, label)]
+        else:
+            self.oficina_id.choices = []
 
 
 __all__ = ["ActaForm"]

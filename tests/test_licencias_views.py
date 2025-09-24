@@ -16,8 +16,8 @@ def test_listar_requires_authentication(client):
     assert "/auth/login" in resp.headers["Location"]
 
 
-def test_listar_forbidden_without_permission(client, tecnico_credentials):
-    login(client, **tecnico_credentials)
+def test_listar_forbidden_without_permission(client, gestor_credentials):
+    login(client, **gestor_credentials)
     resp = client.get("/licencias/listar")
     assert resp.status_code == 403
     page = resp.get_data(as_text=True)
@@ -28,6 +28,18 @@ def test_listar_accessible_with_permission(client, admin_credentials):
     login(client, **admin_credentials)
     resp = client.get("/licencias/listar")
     assert resp.status_code == 200
+
+
+def test_superadmin_cannot_request_license(client, superadmin_credentials):
+    login(client, **superadmin_credentials)
+    resp = client.get("/licencias/solicitar")
+    assert resp.status_code == 403
+
+
+def test_superadmin_post_license_forbidden(client, superadmin_credentials):
+    login(client, **superadmin_credentials)
+    resp = client.post("/licencias/solicitar", data={"tipo": "temporal"})
+    assert resp.status_code == 403
 
 
 def test_aprobar_requires_csrf_token_when_enabled(app, client, superadmin_credentials, data):

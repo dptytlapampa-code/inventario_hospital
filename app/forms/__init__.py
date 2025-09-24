@@ -9,6 +9,7 @@ from .insumo import InsumoForm
 from .licencia import LicenciaForm  # type: ignore F401 - legacy import
 from .login import LoginForm  # type: ignore F401 - legacy import
 from .permisos import PermisoForm
+from .usuario import UsuarioForm
 
 __all__ = [
     "ActaForm",
@@ -20,4 +21,5 @@ __all__ = [
     "LicenciaForm",
     "LoginForm",
     "PermisoForm",
+    "UsuarioForm",
 ]

@@ -23,6 +23,26 @@
   {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=select_class|trim, extra_attrs=attrs) }}
 {%- endmacro %}
 
+{% macro render_ajax_select(field, endpoint, form_group_class='mb-3', label_class='form-label', placeholder='Escriba para buscar…', input_class='form-select', multiple=None, depends_on=None, depends_message=None, min_chars=1, extra_attrs=None, class_='') -%}
+  {% set attrs = {
+    'data-control': 'tom-select',
+    'data-endpoint': endpoint,
+    'data-placeholder': placeholder,
+    'data-min-chars': min_chars,
+  } %}
+  {% if depends_on %}
+    {% set attrs = attrs | combine({'data-dependent-field': depends_on}) %}
+  {% endif %}
+  {% if depends_message %}
+    {% set attrs = attrs | combine({'data-dependent-message': depends_message}) %}
+  {% endif %}
+  {% if extra_attrs %}
+    {% set attrs = attrs | combine(extra_attrs) %}
+  {% endif %}
+  {% set select_class = (input_class ~ ' js-tom-select ' ~ class_) if class_ else (input_class ~ ' js-tom-select') %}
+  {{ render_select(field, form_group_class=form_group_class, label_class=label_class, input_class=select_class|trim, multiple=multiple, extra_attrs=attrs) }}
+{%- endmacro %}
+
 {% macro render_textarea(field, form_group_class='mb-3', label_class='form-label', input_class='form-control', rows=3, help_text=None, extra_attrs=None) -%}
   {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=input_class, rows=rows, help_text=help_text, extra_attrs=extra_attrs) }}
 {%- endmacro %}

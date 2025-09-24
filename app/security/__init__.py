@@ -2,5 +2,14 @@
 
 from .decorators import permissions_required, require_hospital_access, roles_required
 from .policy import Policy
+from .rbac import ROLE_POWER, has_role, require_roles
 
-__all__ = ["roles_required", "permissions_required", "require_hospital_access", "Policy"]
+__all__ = [
+    "roles_required",
+    "permissions_required",
+    "require_hospital_access",
+    "Policy",
+    "ROLE_POWER",
+    "has_role",
+    "require_roles",
+]

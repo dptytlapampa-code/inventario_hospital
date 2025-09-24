@@ -7,6 +7,8 @@ from typing import Iterable, TYPE_CHECKING
 from flask_login import UserMixin
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from werkzeug.security import check_password_hash as wz_check_password_hash
+from werkzeug.security import generate_password_hash as wz_generate_password_hash
 
 from app.extensions import bcrypt
 
@@ -28,6 +30,7 @@ class Usuario(Base, UserMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    apellido: Mapped[str | None] = mapped_column(String(120))
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     telefono: Mapped[str | None] = mapped_column(String(50))
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -58,23 +61,33 @@ class Usuario(Base, UserMixin):
         "Licencia", back_populates="reemplazo", foreign_keys="Licencia.reemplazo_id"
     )
 
-    def set_password(self, password: str) -> None:
-        """Hash and store ``password``."""
+    @property
+    def role(self) -> str | None:
+        """Return the normalized role name or ``None`` when missing."""
 
-        self.password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+        return self.rol.nombre.lower() if self.rol and self.rol.nombre else None
+
+    def set_password(self, password: str) -> None:
+        """Hash and store ``password`` using Werkzeug for new records."""
+
+        self.password_hash = wz_generate_password_hash(password)
 
     def check_password(self, password: str) -> bool:
         """Return True when ``password`` matches the stored hash."""
 
         if not self.password_hash:
             return False
-        return bcrypt.check_password_hash(self.password_hash, password)
+
+        # Legacy bcrypt hashes remain compatible for existing users.
+        if self.password_hash.startswith("$2"):
+            return bcrypt.check_password_hash(self.password_hash, password)
+        return wz_check_password_hash(self.password_hash, password)
 
     @property
     def roles(self) -> list[str]:
         """Return the user's role name for decorator checks."""
 
-        return [self.rol.nombre] if self.rol else []
+        return [self.role] if self.role else []
 
     @property
     def permissions(self) -> list[str]:
@@ -92,7 +105,10 @@ class Usuario(Base, UserMixin):
         return perms
 
     def has_role(self, *roles: str) -> bool:
-        return any(self.rol and self.rol.nombre == role for role in roles)
+        if not roles:
+            return False
+        current = self.role
+        return bool(current and any(current == role.lower() for role in roles))
 
     def has_permission(self, permiso: str) -> bool:
         return permiso in self.permissions

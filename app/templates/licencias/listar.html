@@ -21,9 +21,11 @@
     <div class="col-sm-3">
       <button type="submit" class="btn btn-outline-primary w-100">Filtrar</button>
     </div>
+    {% if not has_role('superadmin') %}
     <div class="col-sm-2 text-sm-end">
       <a class="btn btn-primary w-100" href="{{ url_for('licencias.solicitar') }}">Nueva solicitud</a>
     </div>
+    {% endif %}
   </form>
 </div>
 <div class="table-responsive bg-white rounded shadow-sm">
@@ -46,7 +48,7 @@
         <td class="text-capitalize">{{ normalize_enum_value(licencia.estado) }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('licencias.detalle', licencia_id=licencia.id) }}">Detalle</a>
-          {% if current_user.has_role('Superadmin') or current_user.has_role('Admin') %}
+          {% if has_role('superadmin', 'admin') %}
             {% if licencia.estado == estados.PENDIENTE %}
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('licencias.aprobar_rechazar', licencia_id=licencia.id) }}">Gestionar</a>
             {% else %}
