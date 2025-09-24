@@ -14,8 +14,13 @@
   </div>
 {%- endmacro %}
 
-{% macro render_select(field, form_group_class='mb-3', label_class='form-label', extra_attrs=None) -%}
-  {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class='form-select', extra_attrs=extra_attrs) }}
+{% macro render_select(field, form_group_class='mb-3', label_class='form-label', input_class='form-select', multiple=None, size=None, extra_attrs=None, class_=None) -%}
+  {% set select_class = input_class %}
+  {% if class_ %}
+    {% set select_class = input_class ~ ' ' ~ class_ %}
+  {% endif %}
+  {% set attrs = build_select_attrs(field, multiple=multiple, size=size, extra_attrs=extra_attrs) %}
+  {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=select_class|trim, extra_attrs=attrs) }}
 {%- endmacro %}
 
 {% macro render_textarea(field, form_group_class='mb-3', label_class='form-label', input_class='form-control', rows=3, help_text=None, extra_attrs=None) -%}

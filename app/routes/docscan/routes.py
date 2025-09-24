@@ -2,8 +2,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
 
-from flask import Blueprint, current_app, flash, g, redirect, render_template, request, send_file, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
@@ -13,14 +25,12 @@ from app.models import Docscan, Modulo
 from app.security import permissions_required, require_hospital_access
 from app.services.audit_service import log_action
 from sqlalchemy import or_
-from uuid import uuid4
 
 
 docscan_bp = Blueprint("docscan", __name__, url_prefix="/docscan")
 
-
 def _docscan_dir() -> Path:
-    base = Path(current_app.config.get("DOCSCAN_FOLDER", "uploads/docscan"))
+    base = Path(current_app.config["DOCSCAN_UPLOAD_FOLDER"])
     base.mkdir(parents=True, exist_ok=True)
     return base
 
@@ -100,5 +110,41 @@ def detalle(doc_id: int):
 @require_hospital_access(Modulo.DOCSCAN)
 def descargar(doc_id: int):
     documento = Docscan.query.get_or_404(doc_id)
-    file_path = Path(documento.path)
-    return send_file(file_path, as_attachment=True, download_name=documento.filename)
+    storage_dir = Path(current_app.config["DOCSCAN_UPLOAD_FOLDER"])
+    upload_root = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
+
+    stored_path = Path(documento.path) if documento.path else None
+    candidates: list[Path] = []
+    if stored_path and stored_path.name:
+        candidates.append(storage_dir / stored_path.name)
+    if stored_path:
+        if stored_path.is_absolute():
+            candidates.append(stored_path)
+        else:
+            candidates.append(Path(current_app.root_path).parent / stored_path)
+
+    selected_path: Path | None = None
+    for candidate in candidates:
+        if candidate.exists():
+            selected_path = candidate.resolve()
+            break
+
+    if not selected_path:
+        current_app.logger.warning(
+            "Archivo de docscan %s no encontrado en %s", documento.id, documento.path
+        )
+        flash("El archivo solicitado no está disponible.", "warning")
+        abort(404)
+
+    try:
+        selected_path.relative_to(upload_root)
+    except ValueError:
+        current_app.logger.warning(
+            "Ruta de docscan %s fuera del directorio permitido: %s", documento.id, selected_path
+        )
+        flash("El archivo solicitado no está disponible.", "warning")
+        abort(404)
+
+    return send_from_directory(
+        selected_path.parent, selected_path.name, as_attachment=True, download_name=documento.filename
+    )

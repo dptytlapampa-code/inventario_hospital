@@ -107,15 +107,31 @@ def detalle(licencia_id: int):
 def aprobar_rechazar(licencia_id: int):
     licencia = Licencia.query.get_or_404(licencia_id)
     form = AprobarRechazarForm()
-    if form.validate_on_submit():
-        if form.accion.data == "aprobar":
-            aprobar_licencia(licencia, current_user, comentario=form.comentario.data)
-            flash("Licencia aprobada", "success")
-        else:
-            rechazar_licencia(licencia, current_user, comentario=form.comentario.data)
-            flash("Licencia rechazada", "info")
-        log_action(usuario_id=current_user.id, accion=form.accion.data, modulo="licencias", tabla="licencias", registro_id=licencia.id)
+    if licencia.estado != EstadoLicencia.PENDIENTE:
+        flash("Solo se pueden gestionar licencias pendientes.", "warning")
         return redirect(url_for("licencias.detalle", licencia_id=licencia.id))
+    if form.validate_on_submit():
+        try:
+            if form.accion.data == "aprobar":
+                aprobar_licencia(licencia, current_user, comentario=form.comentario.data)
+                flash("Licencia aprobada", "success")
+            else:
+                rechazar_licencia(licencia, current_user, comentario=form.comentario.data)
+                flash("Licencia rechazada", "info")
+        except ValueError as exc:
+            current_app.logger.warning(
+                "No se pudo %s la licencia %s: %s", form.accion.data, licencia.id, exc
+            )
+            flash(str(exc), "warning")
+        else:
+            log_action(
+                usuario_id=current_user.id,
+                accion=form.accion.data,
+                modulo="licencias",
+                tabla="licencias",
+                registro_id=licencia.id,
+            )
+            return redirect(url_for("licencias.detalle", licencia_id=licencia.id))
     return render_template("licencias/aprobar_rechazar.html", form=form, licencia=licencia)
 
 

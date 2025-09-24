@@ -47,7 +47,11 @@
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('licencias.detalle', licencia_id=licencia.id) }}">Detalle</a>
           {% if current_user.has_role('Superadmin') or current_user.has_role('Admin') %}
-          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('licencias.aprobar_rechazar', licencia_id=licencia.id) }}">Gestionar</a>
+            {% if licencia.estado == estados.PENDIENTE %}
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('licencias.aprobar_rechazar', licencia_id=licencia.id) }}">Gestionar</a>
+            {% else %}
+              <button class="btn btn-sm btn-outline-secondary" type="button" disabled>Gestionada</button>
+            {% endif %}
           {% endif %}
         </td>
       </tr>

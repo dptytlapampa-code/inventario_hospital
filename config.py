@@ -31,7 +31,8 @@ class Config:
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
 
     UPLOAD_FOLDER: str = os.getenv("UPLOAD_FOLDER", _default_upload_dir())
-    DOCSCAN_FOLDER: str = os.getenv("DOCSCAN_FOLDER", _default_upload_dir())
+    ADJUNTOS_SUBFOLDER: str = os.getenv("ADJUNTOS_SUBFOLDER", "adjuntos")
+    DOCSCAN_SUBFOLDER: str = os.getenv("DOCSCAN_SUBFOLDER", "docscan")
     MAX_CONTENT_LENGTH: int = int(os.getenv("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
     ALLOWED_EXTENSIONS: set[str] = set(
         os.getenv("ALLOWED_EXTENSIONS", "pdf,jpg,jpeg,png").split(",")
