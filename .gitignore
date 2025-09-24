@@ -1,0 +1,5 @@
+# Generated at runtime to avoid committing binary assets
+app/static/favicon.ico
+
+# Bytecode caches
+__pycache__/

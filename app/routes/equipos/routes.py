@@ -1,7 +1,9 @@
 """Blueprint managing equipment inventory."""
 from __future__ import annotations
 
+from datetime import datetime, time
 from pathlib import Path
+from typing import Iterable
 from uuid import uuid4
 
 from flask import (
@@ -21,8 +23,15 @@ from sqlalchemy import or_
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
-from app.forms.equipo import EquipoAdjuntoForm, EquipoFiltroForm, EquipoForm
-from app.models import Equipo, EquipoAdjunto, EstadoEquipo, Modulo
+from app.forms.equipo import (
+    EquipoActaFiltroForm,
+    EquipoAdjuntoDeleteForm,
+    EquipoAdjuntoForm,
+    EquipoFiltroForm,
+    EquipoForm,
+    EquipoHistorialFiltroForm,
+)
+from app.models import Acta, ActaItem, Equipo, EquipoAdjunto, EquipoHistorial, EstadoEquipo, Modulo, TipoActa
 from app.security import permissions_required, require_hospital_access
 from app.services.audit_service import log_action
 from app.services.equipo_service import generate_internal_serial
@@ -76,9 +85,10 @@ def listar():
 def crear():
     form = EquipoForm()
     if form.validate_on_submit():
-        numero_serie = (form.numero_serie.data or "").strip() or None
         if form.sin_numero_serie.data:
             numero_serie = generate_internal_serial(db.session)
+        else:
+            numero_serie = (form.numero_serie.data or "").strip()
         equipo = Equipo(
             codigo=form.codigo.data or None,
             tipo=form.tipo.data,
@@ -116,16 +126,17 @@ def editar(equipo_id: int):
     if request.method == "GET":
         form.sin_numero_serie.data = equipo.sin_numero_serie
     if form.validate_on_submit():
-        numero_serie = (form.numero_serie.data or "").strip() or None
         if form.sin_numero_serie.data:
-            numero_serie = generate_internal_serial(db.session)
+            if not equipo.sin_numero_serie or not equipo.numero_serie:
+                equipo.numero_serie = generate_internal_serial(db.session)
+        else:
+            equipo.numero_serie = (form.numero_serie.data or "").strip()
         equipo.codigo = form.codigo.data or None
         equipo.tipo = form.tipo.data
         equipo.estado = form.estado.data
         equipo.descripcion = form.descripcion.data or None
         equipo.marca = form.marca.data or None
         equipo.modelo = form.modelo.data or None
-        equipo.numero_serie = numero_serie
         equipo.sin_numero_serie = bool(form.sin_numero_serie.data)
         equipo.hospital_id = form.hospital_id.data
         equipo.servicio_id = form.servicio_id.data or None
@@ -150,28 +161,65 @@ def editar(equipo_id: int):
 def detalle(equipo_id: int):
     equipo = Equipo.query.get_or_404(equipo_id)
     form_adjuntos = EquipoAdjuntoForm()
+    delete_form = EquipoAdjuntoDeleteForm()
+
+    historial_entries = sorted(
+        equipo.historial,
+        key=lambda item: item.fecha or datetime.min,
+        reverse=True,
+    )
+    historial_recent = historial_entries[:3]
+
+    acta_items: Iterable[ActaItem] = (
+        entry for entry in equipo.acta_items if entry.acta is not None
+    )
+    actas_sorted = sorted(
+        acta_items,
+        key=lambda entry: entry.acta.fecha if entry.acta and entry.acta.fecha else datetime.min,
+        reverse=True,
+    )
+    seen_actas: set[int] = set()
+    actas_unique = []
+    for entry in actas_sorted:
+        acta = entry.acta
+        if not acta or acta.id in seen_actas:
+            continue
+        seen_actas.add(acta.id)
+        actas_unique.append(acta)
+    actas_recent = actas_unique[:3]
+
+    archivos = sorted(
+        equipo.archivos,
+        key=lambda item: item.created_at or item.id,
+        reverse=True,
+    )
+
     return render_template(
         "equipos/detalle.html",
         equipo=equipo,
-        historial=equipo.historial[-10:],
-        actas=[item.acta for item in equipo.acta_items],
+        historial=historial_recent,
+        historial_total=len(historial_entries),
+        actas=actas_recent,
+        actas_total=len(actas_unique),
         adjuntos=equipo.adjuntos,
-        archivos=sorted(
-            equipo.archivos,
-            key=lambda item: item.created_at or item.id,
-            reverse=True,
-        ),
+        archivos=archivos,
         insumos=equipo.insumos,
         adjunto_form=form_adjuntos,
+        delete_form=delete_form,
+        max_upload_size=current_app.config.get("EQUIPOS_MAX_FILE_SIZE", 10 * 1024 * 1024),
     )
 
 
-def _ensure_upload_size(file_storage) -> bool:
+def _max_upload_size() -> int:
+    return int(current_app.config.get("EQUIPOS_MAX_FILE_SIZE", 10 * 1024 * 1024))
+
+
+def _compute_file_size(file_storage) -> int:
+    current_position = file_storage.stream.tell()
     file_storage.stream.seek(0, 2)
     size = file_storage.stream.tell()
-    file_storage.stream.seek(0)
-    max_size = 10 * 1024 * 1024
-    return size <= max_size
+    file_storage.stream.seek(current_position)
+    return size
 
 
 def _equipment_upload_dir(equipo_id: int) -> Path:
@@ -196,8 +244,14 @@ def subir_adjunto(equipo_id: int):
         return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
 
     file = form.archivo.data
-    if not _ensure_upload_size(file):
-        flash("El archivo supera el tamaño máximo permitido (10 MB).", "danger")
+    file_size = _compute_file_size(file)
+    max_size = _max_upload_size()
+    if file_size > max_size:
+        limit_mb = max_size / (1024 * 1024)
+        flash(
+            f"El archivo supera el tamaño máximo permitido ({limit_mb:.1f} MB).",
+            "danger",
+        )
         return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
 
     original_name = secure_filename(file.filename or "archivo")
@@ -213,6 +267,7 @@ def subir_adjunto(equipo_id: int):
         filepath=str(storage_path),
         mime_type=file.mimetype or "application/octet-stream",
         uploaded_by_id=current_user.id,
+        file_size=file_size,
     )
     db.session.add(adjunto)
     equipo.registrar_evento(current_user, "Adjunto", f"Archivo {original_name} cargado")
@@ -268,6 +323,10 @@ def descargar_adjunto(equipo_id: int, adjunto_id: int):
 @permissions_required("inventario:write")
 @require_hospital_access(Modulo.INVENTARIO)
 def eliminar_adjunto(equipo_id: int, adjunto_id: int):
+    form = EquipoAdjuntoDeleteForm()
+    if not form.validate_on_submit():
+        flash("No se pudo validar la solicitud. Actualice la página e intente nuevamente.", "danger")
+        return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
     adjunto = EquipoAdjunto.query.get_or_404(adjunto_id)
     if adjunto.equipo_id != equipo_id:
         abort(404)
@@ -294,3 +353,83 @@ def eliminar_adjunto(equipo_id: int, adjunto_id: int):
     )
     flash("Adjunto eliminado correctamente.", "success")
     return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
+
+
+@equipos_bp.route("/<int:equipo_id>/historial")
+@login_required
+@permissions_required("inventario:read")
+@require_hospital_access(Modulo.INVENTARIO)
+def historial_completo(equipo_id: int):
+    equipo = Equipo.query.get_or_404(equipo_id)
+    form = EquipoHistorialFiltroForm(request.args)
+
+    query = (
+        EquipoHistorial.query.filter(EquipoHistorial.equipo_id == equipo.id)
+        .order_by(EquipoHistorial.fecha.desc())
+    )
+
+    if form.validate():
+        if form.accion.data:
+            like = f"%{form.accion.data.strip()}%"
+            query = query.filter(
+                or_(
+                    EquipoHistorial.accion.ilike(like),
+                    EquipoHistorial.descripcion.ilike(like),
+                )
+            )
+        if form.fecha_desde.data:
+            inicio = datetime.combine(form.fecha_desde.data, time.min)
+            query = query.filter(EquipoHistorial.fecha >= inicio)
+        if form.fecha_hasta.data:
+            fin = datetime.combine(form.fecha_hasta.data, time.max)
+            query = query.filter(EquipoHistorial.fecha <= fin)
+
+    page = request.args.get("page", type=int, default=1)
+    per_page = current_app.config.get("DEFAULT_PAGE_SIZE", 20)
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    return render_template(
+        "equipos/historial.html",
+        equipo=equipo,
+        form=form,
+        registros=pagination.items,
+        pagination=pagination,
+    )
+
+
+@equipos_bp.route("/<int:equipo_id>/actas")
+@login_required
+@permissions_required("inventario:read")
+@require_hospital_access(Modulo.INVENTARIO)
+def actas_completas(equipo_id: int):
+    equipo = Equipo.query.get_or_404(equipo_id)
+    form = EquipoActaFiltroForm(request.args)
+
+    query = (
+        Acta.query.join(Acta.items)
+        .filter(ActaItem.equipo_id == equipo.id)
+        .order_by(Acta.fecha.desc())
+        .distinct()
+    )
+
+    if form.validate():
+        if form.tipo.data:
+            query = query.filter(Acta.tipo == TipoActa(form.tipo.data))
+        if form.fecha_desde.data:
+            inicio = datetime.combine(form.fecha_desde.data, time.min)
+            query = query.filter(Acta.fecha >= inicio)
+        if form.fecha_hasta.data:
+            fin = datetime.combine(form.fecha_hasta.data, time.max)
+            query = query.filter(Acta.fecha <= fin)
+
+    page = request.args.get("page", type=int, default=1)
+    per_page = current_app.config.get("DEFAULT_PAGE_SIZE", 20)
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    return render_template(
+        "equipos/actas.html",
+        equipo=equipo,
+        form=form,
+        actas=pagination.items,
+        pagination=pagination,
+    )

@@ -24,7 +24,7 @@ class Hospital(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nombre: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     codigo: Mapped[str | None] = mapped_column(String(20), unique=True)
-    direccion: Mapped[str | None] = mapped_column(String(255))
+    direccion: Mapped[str | None] = mapped_column(String(255), index=True)
     telefono: Mapped[str | None] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
@@ -60,7 +60,7 @@ class Servicio(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     descripcion: Mapped[str | None] = mapped_column(String(255))
     hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitales.id"), nullable=False)
 
@@ -82,7 +82,7 @@ class Oficina(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     piso: Mapped[str | None] = mapped_column(String(20))
     servicio_id: Mapped[int] = mapped_column(ForeignKey("servicios.id"), nullable=False)
     hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitales.id"), nullable=False)

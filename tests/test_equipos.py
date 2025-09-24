@@ -45,7 +45,7 @@ def test_equipo_generates_internal_serial(client, admin_credentials, data):
     nuevo = Equipo.query.order_by(Equipo.id.desc()).first()
     assert nuevo is not None
     assert nuevo.sin_numero_serie is True
-    assert nuevo.numero_serie and nuevo.numero_serie.startswith("SNV-")
+    assert nuevo.numero_serie and nuevo.numero_serie.startswith("EQ-")
 
 
 def test_equipo_requires_valid_hospital_lookup(client, admin_credentials, data):

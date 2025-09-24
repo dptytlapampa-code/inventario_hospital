@@ -172,6 +172,19 @@ body {
   cursor: pointer;
 }
 
+.avatar-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0d6efd;
+  color: #fff;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .object-fit-cover {
   object-fit: cover;
 }

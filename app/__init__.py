@@ -8,9 +8,15 @@ from typing import Any
 from flask import Flask, render_template
 
 from config import Config
+from app.assets import ensure_favicon
 from app.extensions import configure_logging, init_extensions, login_manager
 from app.security.rbac import has_role
-from app.utils import build_select_attrs, normalize_enum_value, render_input_field
+from app.utils import (
+    build_select_attrs,
+    humanize_bytes,
+    normalize_enum_value,
+    render_input_field,
+)
 
 
 def _combine_dicts(
@@ -59,8 +65,10 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     app.jinja_env.globals.setdefault("render_input_field", render_input_field)
     app.jinja_env.globals.setdefault("build_select_attrs", build_select_attrs)
     app.jinja_env.globals.setdefault("normalize_enum_value", normalize_enum_value)
+    app.jinja_env.globals.setdefault("humanize_bytes", humanize_bytes)
     app.jinja_env.globals.setdefault("has_role", has_role)
     app.jinja_env.filters.setdefault("enum_value", normalize_enum_value)
+    app.jinja_env.filters.setdefault("humanize_bytes", humanize_bytes)
     app.jinja_env.filters.setdefault("combine", _combine_dicts)
 
     from app.models.usuario import Usuario  # imported lazily to avoid circular imports
@@ -106,6 +114,11 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         app.register_blueprint(blueprint)
 
     app.add_url_rule("/", endpoint="index", view_func=app.view_functions["main.index"])
+
+    # Materialise the favicon lazily so we avoid storing binary blobs in the
+    # repository while still serving ``/static/favicon.ico`` and preventing the
+    # browser from issuing 404 requests for the asset.
+    ensure_favicon(app.static_folder)
 
     @app.errorhandler(401)
     def unauthorized(error):  # type: ignore[override]

@@ -23,7 +23,7 @@
   {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=select_class|trim, extra_attrs=attrs) }}
 {%- endmacro %}
 
-{% macro render_lookup(field, hidden_field, endpoint, form_group_class='mb-3', label_class='form-label', placeholder='', params=None, required_params=None, reset_targets=None, requires_message=None, extra_attrs=None) -%}
+{% macro render_lookup(field, hidden_field, endpoint, form_group_class='mb-3', label_class='form-label', placeholder='', params=None, required_params=None, reset_targets=None, requires_message=None, extra_attrs=None, allow_empty=False, empty_label='Sin definir') -%}
   {% set attrs = {
     'class': 'form-control' ~ (' is-invalid' if field.errors else ''),
     'autocomplete': 'off',
@@ -43,6 +43,9 @@
   {% endif %}
   {% if requires_message %}
     {% set attrs = attrs | combine({'data-lookup-required-message': requires_message}) %}
+  {% endif %}
+  {% if allow_empty %}
+    {% set attrs = attrs | combine({'data-lookup-allow-empty': 'true', 'data-lookup-empty-label': empty_label}) %}
   {% endif %}
   {% if extra_attrs %}
     {% set attrs = attrs | combine(extra_attrs) %}

@@ -6,7 +6,7 @@ from .adjunto import Adjunto, TipoAdjunto
 from .auditoria import Auditoria
 from .base import Base
 from .docscan import Docscan, TipoDocscan
-from .equipo import Equipo, EstadoEquipo, TipoEquipo
+from .equipo import Equipo, EquipoHistorial, EstadoEquipo, TipoEquipo
 from .equipo_adjunto import EquipoAdjunto
 from .hospital import Hospital, Oficina, Servicio
 from .insumo import Insumo, InsumoMovimiento, MovimientoTipo, equipo_insumos
@@ -26,6 +26,7 @@ __all__ = [
     "Docscan",
     "TipoDocscan",
     "Equipo",
+    "EquipoHistorial",
     "EstadoEquipo",
     "TipoEquipo",
     "EquipoAdjunto",
