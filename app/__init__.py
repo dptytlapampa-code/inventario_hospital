@@ -1,7 +1,9 @@
 """Application factory for the Inventario Hospital system."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from flask import Flask, render_template
 
@@ -9,6 +11,27 @@ from config import Config
 from app.extensions import configure_logging, init_extensions, login_manager
 from app.security.rbac import has_role
 from app.utils import build_select_attrs, normalize_enum_value, render_input_field
+
+
+def _combine_dicts(
+    value: Mapping[str, Any] | None, other: Mapping[str, Any] | None
+) -> dict[str, Any]:
+    """Return a new dict with the contents of ``value`` and ``other``.
+
+    The filter mirrors Jinja's ``combine`` filter from newer versions, keeping
+    the original dictionaries untouched and letting keys from ``other``
+    override those in ``value`` when they overlap.
+    """
+
+    combined: dict[str, Any] = {}
+    for mapping in (value, other):
+        if not mapping:
+            continue
+        try:
+            combined.update(mapping)
+        except (TypeError, ValueError):
+            combined.update(dict(mapping))
+    return combined
 
 
 def create_app(config_class: type[Config] | Config = Config) -> Flask:
@@ -37,6 +60,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     app.jinja_env.globals.setdefault("normalize_enum_value", normalize_enum_value)
     app.jinja_env.globals.setdefault("has_role", has_role)
     app.jinja_env.filters.setdefault("enum_value", normalize_enum_value)
+    app.jinja_env.filters.setdefault("combine", _combine_dicts)
 
     from app.models.usuario import Usuario  # imported lazily to avoid circular imports
 
