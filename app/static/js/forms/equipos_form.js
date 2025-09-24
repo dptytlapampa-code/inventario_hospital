@@ -1,12 +1,4 @@
 (function () {
-  function onReady(callback) {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', callback, { once: true });
-      return;
-    }
-    callback();
-  }
-
   function initSerialToggle() {
     const container = document.querySelector('[data-serial-container]');
     if (!container) {
@@ -54,6 +46,51 @@
     updateSerialState();
   }
 
+  function clearLookup(input) {
+    if (!input) {
+      return;
+    }
+    const hiddenId = input.dataset.lookupHidden;
+    if (hiddenId) {
+      const hidden = document.getElementById(hiddenId);
+      if (hidden && hidden.value) {
+        hidden.value = '';
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    input.dataset.lookupSkipNext = 'true';
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function toggleLookupAvailability(input, enabled) {
+    if (!input) {
+      return;
+    }
+    if (enabled) {
+      input.removeAttribute('disabled');
+    } else {
+      input.setAttribute('disabled', 'disabled');
+    }
+
+    const control = input.closest('.lookup-control');
+    if (!control) {
+      return;
+    }
+
+    const showAll = control.querySelector('[data-lookup-show-all]');
+    if (showAll) {
+      showAll.toggleAttribute('disabled', !enabled);
+    }
+
+    if (!enabled) {
+      const results = control.querySelector('[data-lookup-results]');
+      if (results) {
+        results.classList.add('d-none');
+      }
+    }
+  }
+
   function initLookupHierarchy() {
     const hospitalHidden = document.getElementById('hospital_id');
     const servicioHidden = document.getElementById('servicio_id');
@@ -74,80 +111,28 @@
 
     let previousHospital = hospitalHidden.value;
 
-    function clearLookup(input) {
-      if (!input) {
-        return;
-      }
-      const hidden = document.getElementById(input.dataset.lookupHidden || '');
-      if (hidden) {
-        hidden.value = '';
-        hidden.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      input.dataset.lookupSkipNext = 'true';
-      input.value = '';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    function toggleLookupAvailability(input, enabled) {
-      if (!input) {
-        return;
-      }
-
-      if (enabled) {
-        input.removeAttribute('disabled');
-      } else {
-        input.setAttribute('disabled', 'disabled');
-      }
-
-      const control = input.closest('.lookup-control');
-      if (!control) {
-        return;
-      }
-
-      const showAll = control.querySelector('[data-lookup-show-all]');
-      if (showAll) {
-        showAll.toggleAttribute('disabled', !enabled);
-      }
-
-      if (!enabled) {
-        const results = control.querySelector('[data-lookup-results]');
-        if (results) {
-          results.classList.add('d-none');
-        }
-      }
-    }
-
-    function updateServiceAvailability() {
-      toggleLookupAvailability(servicioInput, Boolean(hospitalHidden.value));
-    }
-
-    function updateOfficeAvailability() {
-      toggleLookupAvailability(oficinaInput, Boolean(servicioHidden.value));
-    }
-
     hospitalHidden.addEventListener('change', () => {
       if (hospitalHidden.value !== previousHospital) {
         clearLookup(servicioInput);
         clearLookup(oficinaInput);
         previousHospital = hospitalHidden.value;
       }
-      updateServiceAvailability();
-      updateOfficeAvailability();
+      toggleLookupAvailability(servicioInput, Boolean(hospitalHidden.value));
+      toggleLookupAvailability(oficinaInput, Boolean(servicioHidden.value));
     });
 
     servicioHidden.addEventListener('change', () => {
       if (!servicioHidden.value) {
         clearLookup(oficinaInput);
       }
-      updateOfficeAvailability();
+      toggleLookupAvailability(oficinaInput, Boolean(servicioHidden.value));
     });
 
-    // Initialise according to the current persisted values.
-    updateServiceAvailability();
-    updateOfficeAvailability();
+    toggleLookupAvailability(servicioInput, Boolean(hospitalHidden.value));
+    toggleLookupAvailability(oficinaInput, Boolean(servicioHidden.value));
   }
 
-  onReady(() => {
+  document.addEventListener('DOMContentLoaded', () => {
     initSerialToggle();
     initLookupHierarchy();
   });

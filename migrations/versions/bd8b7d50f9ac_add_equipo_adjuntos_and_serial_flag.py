@@ -13,53 +13,31 @@ branch_labels = None
 depends_on = None
 
 
-def _ensure_adjuntos_table(inspector) -> None:
-    tables = inspector.get_table_names()
-    if "equipos_adjuntos" not in tables:
-        op.create_table(
-            "equipos_adjuntos",
-            sa.Column("id", sa.Integer(), primary_key=True),
-            sa.Column("equipo_id", sa.Integer(), sa.ForeignKey("equipos.id"), nullable=False),
-            sa.Column("filename", sa.String(length=255), nullable=False),
-            sa.Column("filepath", sa.String(length=512), nullable=False),
-            sa.Column("mime_type", sa.String(length=120), nullable=False),
-            sa.Column("file_size", sa.Integer(), nullable=True),
-            sa.Column("uploaded_by_id", sa.Integer(), sa.ForeignKey("usuarios.id")),
-            sa.Column(
-                "created_at",
-                sa.DateTime(timezone=True),
-                server_default=sa.func.current_timestamp(),
-                nullable=False,
-            ),
-        )
-        op.create_index(
-            "ix_equipos_adjuntos_equipo_id",
-            "equipos_adjuntos",
-            ["equipo_id"],
-        )
-        return
-
-    columns = {column["name"] for column in inspector.get_columns("equipos_adjuntos")}
-    if "file_size" not in columns:
-        with op.batch_alter_table("equipos_adjuntos", schema=None) as batch:
-            batch.add_column(sa.Column("file_size", sa.Integer(), nullable=True))
-
-    indexes = {index["name"] for index in inspector.get_indexes("equipos_adjuntos")}
-    if "ix_equipos_adjuntos_equipo_id" not in indexes:
-        op.create_index(
-            "ix_equipos_adjuntos_equipo_id",
-            "equipos_adjuntos",
-            ["equipo_id"],
-        )
-
-
 def upgrade():
     bind = op.get_bind()
     inspector = inspect(bind)
 
-    columns = {column["name"] for column in inspector.get_columns("equipos")}
+    if not inspector.has_table("equipos_adjuntos"):
+        op.create_table(
+            "equipos_adjuntos",
+            sa.Column("id", sa.Integer, primary_key=True),
+            sa.Column("equipo_id", sa.Integer, sa.ForeignKey("equipos.id"), nullable=False),
+            sa.Column("filename", sa.String(255), nullable=False),
+            sa.Column("filepath", sa.String(512), nullable=False),
+            sa.Column("mime_type", sa.String(100)),
+            sa.Column("file_size", sa.Integer),
+            sa.Column("uploaded_by_id", sa.Integer, sa.ForeignKey("usuarios.id")),
+            sa.Column("created_at", sa.DateTime, server_default=sa.func.now()),
+        )
+    else:
+        columns = {column["name"] for column in inspector.get_columns("equipos_adjuntos")}
+        if "file_size" not in columns:
+            with op.batch_alter_table("equipos_adjuntos") as batch:
+                batch.add_column(sa.Column("file_size", sa.Integer, nullable=True))
+
+    equipo_columns = {column["name"] for column in inspector.get_columns("equipos")}
     added_column = False
-    if "sin_numero_serie" not in columns:
+    if "sin_numero_serie" not in equipo_columns:
         op.add_column(
             "equipos",
             sa.Column(
@@ -71,34 +49,28 @@ def upgrade():
         )
         added_column = True
 
-    _ensure_adjuntos_table(inspector)
-
-    if added_column or "sin_numero_serie" in columns:
-        with op.batch_alter_table("equipos", recreate="always") as batch:
-            batch.alter_column(
-                "sin_numero_serie",
-                existing_type=sa.Boolean(),
-                server_default=None,
-            )
+    with op.batch_alter_table("equipos", recreate="always") as batch:
+        batch.alter_column(
+            "sin_numero_serie",
+            existing_type=sa.Boolean(),
+            server_default=None,
+            existing_server_default=sa.false() if added_column else None,
+        )
 
 
 def downgrade():
-    bind = op.get_bind()
-    inspector = inspect(bind)
+    with op.batch_alter_table("equipos", recreate="always") as batch:
+        batch.alter_column(
+            "sin_numero_serie",
+            existing_type=sa.Boolean(),
+            server_default=sa.text("0"),
+        )
 
-    columns = {column["name"] for column in inspector.get_columns("equipos")}
-    if "sin_numero_serie" in columns:
-        with op.batch_alter_table("equipos", recreate="always") as batch:
-            batch.drop_column("sin_numero_serie")
-
+    inspector = inspect(op.get_bind())
     columns = {column["name"] for column in inspector.get_columns("equipos_adjuntos")}
     if "file_size" in columns:
-        with op.batch_alter_table("equipos_adjuntos", schema=None) as batch:
+        with op.batch_alter_table("equipos_adjuntos") as batch:
             batch.drop_column("file_size")
-
-    indexes = {index["name"] for index in inspector.get_indexes("equipos_adjuntos")}
-    if "ix_equipos_adjuntos_equipo_id" in indexes:
-        op.drop_index("ix_equipos_adjuntos_equipo_id", table_name="equipos_adjuntos")
 
     tables = inspector.get_table_names()
     if "equipos_adjuntos" in tables:

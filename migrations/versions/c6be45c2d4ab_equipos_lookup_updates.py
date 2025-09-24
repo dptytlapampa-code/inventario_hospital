@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from alembic import op
-import sqlalchemy as sa
 from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
@@ -13,13 +12,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    inspector = inspect(bind)
-
-    columns = {column["name"] for column in inspector.get_columns("equipos_adjuntos")}
-    if "file_size" not in columns:
-        with op.batch_alter_table("equipos_adjuntos", recreate="always") as batch_op:
-            batch_op.add_column(sa.Column("file_size", sa.Integer(), nullable=True))
+    inspector = inspect(op.get_bind())
 
     existing_indexes = {index["name"] for index in inspector.get_indexes("servicios")}
     if "ix_servicios_nombre" not in existing_indexes:
@@ -35,8 +28,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-    inspector = inspect(bind)
+    inspector = inspect(op.get_bind())
 
     existing_indexes = {index["name"] for index in inspector.get_indexes("hospitales")}
     if "ix_hospitales_direccion" in existing_indexes:
@@ -49,8 +41,3 @@ def downgrade() -> None:
     existing_indexes = {index["name"] for index in inspector.get_indexes("servicios")}
     if "ix_servicios_nombre" in existing_indexes:
         op.drop_index("ix_servicios_nombre", table_name="servicios")
-
-    columns = {column["name"] for column in inspector.get_columns("equipos_adjuntos")}
-    if "file_size" in columns:
-        with op.batch_alter_table("equipos_adjuntos", recreate="always") as batch_op:
-            batch_op.drop_column("file_size")
