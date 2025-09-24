@@ -27,7 +27,7 @@
       {% for permiso in permisos %}
       <tr>
         <td>{{ permiso.rol.nombre }}</td>
-        <td class="text-capitalize">{{ permiso.modulo.value }}</td>
+        <td class="text-capitalize">{{ normalize_enum_value(permiso.modulo) }}</td>
         <td>{{ permiso.hospital.nombre if permiso.hospital else 'Todos' }}</td>
         <td>{{ 'Sí' if permiso.can_read else 'No' }}</td>
         <td>{{ 'Sí' if permiso.can_write else 'No' }}</td>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Permiso denegado{% endblock %}
+{% block content %}
+  <div class="text-center py-5">
+    <h1 class="display-5 fw-bold text-warning">Permiso denegado</h1>
+    <p class="lead">No tiene permisos para acceder a esta página.</p>
+    <a class="btn btn-outline-primary" href="{{ url_for('main.index') }}">Volver al inicio</a>
+  </div>
+{% endblock %}

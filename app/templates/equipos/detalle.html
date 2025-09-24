@@ -21,7 +21,7 @@
     <div class="card h-100">
       <div class="card-body">
         <h6 class="text-muted">Tipo</h6>
-        <p class="mb-0 text-capitalize">{{ equipo.tipo.value.replace('_',' ') }}</p>
+        <p class="mb-0 text-capitalize">{{ normalize_enum_value(equipo.tipo).replace('_',' ') }}</p>
       </div>
     </div>
   </div>
@@ -29,7 +29,7 @@
     <div class="card h-100">
       <div class="card-body">
         <h6 class="text-muted">Estado</h6>
-        <p class="mb-0 text-capitalize">{{ equipo.estado.value.replace('_',' ') }}</p>
+        <p class="mb-0 text-capitalize">{{ normalize_enum_value(equipo.estado).replace('_',' ') }}</p>
       </div>
     </div>
   </div>
@@ -90,7 +90,7 @@
       <ul class="list-group list-group-flush">
         {% for adjunto in adjuntos %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ adjunto.filename }} ({{ adjunto.tipo.value }})</span>
+          <span>{{ adjunto.filename }} ({{ normalize_enum_value(adjunto.tipo) }})</span>
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>
         </li>
         {% else %}
@@ -123,7 +123,7 @@
       <ul class="list-group list-group-flush">
         {% for acta in actas %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ acta.tipo.value.title() }} - {{ acta.fecha.strftime('%d/%m/%Y') }}</span>
+          <span>{{ normalize_enum_value(acta.tipo)|title }} - {{ acta.fecha.strftime('%d/%m/%Y') }}</span>
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('actas.detalle', acta_id=acta.id) }}">Ver</a>
         </li>
         {% else %}

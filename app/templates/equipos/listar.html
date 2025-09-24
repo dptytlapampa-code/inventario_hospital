@@ -40,8 +40,8 @@
       <tr>
         <td>{{ equipo.codigo or '—' }}</td>
         <td>{{ equipo.descripcion or 'Sin descripción' }}</td>
-        <td class="text-capitalize">{{ equipo.tipo.value.replace('_',' ') }}</td>
-        <td class="text-capitalize">{{ equipo.estado.value.replace('_',' ') }}</td>
+        <td class="text-capitalize">{{ normalize_enum_value(equipo.tipo).replace('_',' ') }}</td>
+        <td class="text-capitalize">{{ normalize_enum_value(equipo.estado).replace('_',' ') }}</td>
         <td>{{ equipo.hospital.nombre }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('equipos.detalle', equipo_id=equipo.id) }}">Ver</a>

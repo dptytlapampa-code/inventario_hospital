@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db
@@ -11,6 +11,7 @@ from app.forms.login import LoginForm
 from app.models import Usuario
 from app.services.audit_service import log_action
 from app.services.licencia_service import usuario_con_licencia_activa
+from app.utils import is_safe_redirect_target
 
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -36,6 +37,11 @@ def login():
             db.session.commit()
             log_action(usuario_id=usuario.id, accion="login", modulo="auth")
             next_page = request.args.get("next")
+            if next_page and not is_safe_redirect_target(next_page):
+                current_app.logger.warning(
+                    "Intento de redirección no válida tras login: %s", next_page
+                )
+                next_page = None
             return redirect(next_page or url_for("main.index"))
     return render_template("auth/login.html", form=form)
 

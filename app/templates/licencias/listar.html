@@ -14,7 +14,7 @@
       <select id="estadoLicencia" class="form-select" name="estado">
         <option value="">Todos</option>
         {% for estado_op in estados %}
-          <option value="{{ estado_op.value }}"{% if estado_op.value == estado %} selected{% endif %}>{{ estado_op.value.title() }}</option>
+          <option value="{{ normalize_enum_value(estado_op) }}"{% if normalize_enum_value(estado_op) == estado %} selected{% endif %}>{{ normalize_enum_value(estado_op)|title }}</option>
         {% endfor %}
       </select>
     </div>
@@ -43,7 +43,7 @@
         <td>{{ licencia.usuario.nombre }}</td>
         <td>{{ licencia.hospital.nombre if licencia.hospital else '—' }}</td>
         <td>{{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} - {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</td>
-        <td class="text-capitalize">{{ licencia.estado.value }}</td>
+        <td class="text-capitalize">{{ normalize_enum_value(licencia.estado) }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('licencias.detalle', licencia_id=licencia.id) }}">Detalle</a>
           {% if current_user.has_role('Superadmin') or current_user.has_role('Admin') %}

@@ -7,8 +7,8 @@
     <p><strong>Empleado:</strong> {{ licencia.usuario.nombre }}</p>
     <p><strong>Hospital:</strong> {{ licencia.hospital.nombre if licencia.hospital else '—' }}</p>
     <p><strong>Período:</strong> {{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} - {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</p>
-    <p><strong>Tipo:</strong> {{ licencia.tipo.value.title() }}</p>
-    <p><strong>Estado:</strong> {{ licencia.estado.value }}</p>
+    <p><strong>Tipo:</strong> {{ normalize_enum_value(licencia.tipo)|title }}</p>
+    <p><strong>Estado:</strong> {{ normalize_enum_value(licencia.estado) }}</p>
     <p><strong>Motivo:</strong> {{ licencia.motivo }}</p>
     <p><strong>Comentario:</strong> {{ licencia.comentario or '—' }}</p>
     <p><strong>Reemplazo:</strong> {{ licencia.reemplazo.nombre if licencia.reemplazo else 'No requiere' }}</p>
