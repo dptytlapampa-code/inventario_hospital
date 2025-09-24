@@ -1,10 +1,13 @@
 """Application factory for the Inventario Hospital system."""
 from __future__ import annotations
 
-from flask import Flask
+from pathlib import Path
+
+from flask import Flask, render_template
 
 from config import Config
 from app.extensions import configure_logging, init_extensions, login_manager
+from app.utils import build_select_attrs, render_input_field
 
 
 def create_app(config_class: type[Config] | Config = Config) -> Flask:
@@ -16,12 +19,20 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     else:
         app.config.from_object(config_class)
 
+    upload_root = Path(app.config["UPLOAD_FOLDER"])
+    upload_root.mkdir(parents=True, exist_ok=True)
+    for key, folder in {
+        "ADJUNTOS_UPLOAD_FOLDER": upload_root / app.config.get("ADJUNTOS_SUBFOLDER", "adjuntos"),
+        "DOCSCAN_UPLOAD_FOLDER": upload_root / app.config.get("DOCSCAN_SUBFOLDER", "docscan"),
+    }.items():
+        folder.mkdir(parents=True, exist_ok=True)
+        app.config[key] = str(folder)
+
     configure_logging(app)
     init_extensions(app)
 
-    from app.utils import render_input_field
-
     app.jinja_env.globals.setdefault("render_input_field", render_input_field)
+    app.jinja_env.globals.setdefault("build_select_attrs", build_select_attrs)
 
     from app.models.usuario import Usuario  # imported lazily to avoid circular imports
 
@@ -62,6 +73,10 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         app.register_blueprint(blueprint)
 
     app.add_url_rule("/", endpoint="index", view_func=app.view_functions["main.index"])
+
+    @app.errorhandler(404)
+    def not_found(error):  # type: ignore[override]
+        return render_template("errors/404.html"), 404
 
     return app
 

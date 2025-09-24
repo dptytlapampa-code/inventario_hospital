@@ -39,4 +39,29 @@ def render_input_field(
     return Markup(field(**attrs))
 
 
-__all__ = ["render_input_field"]
+def build_select_attrs(
+    field: Any,
+    *,
+    multiple: bool | None = None,
+    size: int | None = None,
+    extra_attrs: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return a dictionary with normalized attributes for select fields."""
+
+    attrs: dict[str, Any] = dict(extra_attrs or {})
+    is_multiple_field = getattr(field, "type", "") in {
+        "SelectMultipleField",
+        "QuerySelectMultipleField",
+    }
+    if multiple is None:
+        multiple_flag = is_multiple_field
+    else:
+        multiple_flag = multiple
+    if multiple_flag:
+        attrs["multiple"] = "multiple"
+    if size:
+        attrs["size"] = size
+    return attrs
+
+
+__all__ = ["render_input_field", "build_select_attrs"]

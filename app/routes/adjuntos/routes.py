@@ -4,7 +4,18 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from flask import Blueprint, current_app, flash, g, redirect, render_template, request, send_file, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
@@ -17,9 +28,8 @@ from sqlalchemy import or_
 
 adjuntos_bp = Blueprint("adjuntos", __name__, url_prefix="/adjuntos")
 
-
 def _adjunto_dir() -> Path:
-    base = Path(current_app.config.get("UPLOAD_FOLDER", "uploads")) / "adjuntos"
+    base = Path(current_app.config["ADJUNTOS_UPLOAD_FOLDER"])
     base.mkdir(parents=True, exist_ok=True)
     return base
 
@@ -100,5 +110,41 @@ def detalle(adjunto_id: int):
 @require_hospital_access(Modulo.ADJUNTOS)
 def descargar(adjunto_id: int):
     adjunto = Adjunto.query.get_or_404(adjunto_id)
-    file_path = Path(adjunto.path)
-    return send_file(file_path, as_attachment=True, download_name=adjunto.filename)
+    storage_dir = Path(current_app.config["ADJUNTOS_UPLOAD_FOLDER"])
+    upload_root = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
+
+    stored_path = Path(adjunto.path) if adjunto.path else None
+    candidates: list[Path] = []
+    if stored_path and stored_path.name:
+        candidates.append(storage_dir / stored_path.name)
+    if stored_path:
+        if stored_path.is_absolute():
+            candidates.append(stored_path)
+        else:
+            candidates.append(Path(current_app.root_path).parent / stored_path)
+
+    selected_path: Path | None = None
+    for candidate in candidates:
+        if candidate.exists():
+            selected_path = candidate.resolve()
+            break
+
+    if not selected_path:
+        current_app.logger.warning(
+            "Archivo de adjunto %s no encontrado en %s", adjunto.id, adjunto.path
+        )
+        flash("El archivo del adjunto no está disponible.", "warning")
+        abort(404)
+
+    try:
+        selected_path.relative_to(upload_root)
+    except ValueError:
+        current_app.logger.warning(
+            "Ruta de adjunto %s fuera del directorio permitido: %s", adjunto.id, selected_path
+        )
+        flash("El archivo del adjunto no está disponible.", "warning")
+        abort(404)
+
+    return send_from_directory(
+        selected_path.parent, selected_path.name, as_attachment=True, download_name=adjunto.filename
+    )
