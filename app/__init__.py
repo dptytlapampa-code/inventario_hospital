@@ -7,7 +7,7 @@ from flask import Flask, render_template
 
 from config import Config
 from app.extensions import configure_logging, init_extensions, login_manager
-from app.utils import build_select_attrs, render_input_field
+from app.utils import build_select_attrs, normalize_enum_value, render_input_field
 
 
 def create_app(config_class: type[Config] | Config = Config) -> Flask:
@@ -33,6 +33,8 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
 
     app.jinja_env.globals.setdefault("render_input_field", render_input_field)
     app.jinja_env.globals.setdefault("build_select_attrs", build_select_attrs)
+    app.jinja_env.globals.setdefault("normalize_enum_value", normalize_enum_value)
+    app.jinja_env.filters.setdefault("enum_value", normalize_enum_value)
 
     from app.models.usuario import Usuario  # imported lazily to avoid circular imports
 
@@ -73,6 +75,14 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         app.register_blueprint(blueprint)
 
     app.add_url_rule("/", endpoint="index", view_func=app.view_functions["main.index"])
+
+    @app.errorhandler(401)
+    def unauthorized(error):  # type: ignore[override]
+        return render_template("errors/401.html"), 401
+
+    @app.errorhandler(403)
+    def forbidden(error):  # type: ignore[override]
+        return render_template("errors/403.html"), 403
 
     @app.errorhandler(404)
     def not_found(error):  # type: ignore[override]

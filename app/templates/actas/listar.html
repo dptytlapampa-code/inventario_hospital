@@ -26,7 +26,7 @@
       {% for acta in actas %}
       <tr>
         <td>{{ acta.numero or acta.id }}</td>
-        <td class="text-capitalize">{{ acta.tipo.value }}</td>
+        <td class="text-capitalize">{{ normalize_enum_value(acta.tipo) }}</td>
         <td>{{ acta.fecha.strftime('%d/%m/%Y') }}</td>
         <td>{{ acta.hospital.nombre if acta.hospital else '—' }}</td>
         <td>{{ acta.items|length }}</td>

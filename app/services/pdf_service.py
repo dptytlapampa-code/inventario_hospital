@@ -33,7 +33,7 @@ def render_pdf(template: str, context: dict[str, Any], output_path: Path) -> Pat
 def _load_acta(acta):
     """Ensure ``acta`` is attached to a session with eager relationships."""
 
-    from app.models import Acta  # imported lazily to avoid circular imports
+    from app.models import Acta, ActaItem  # imported lazily to avoid circular imports
 
     session = object_session(acta)
     if session is not None:
@@ -41,7 +41,7 @@ def _load_acta(acta):
 
     refreshed = (
         Acta.query.options(
-            selectinload(Acta.items).selectinload("equipo"),
+            selectinload(Acta.items).selectinload(ActaItem.equipo),
             selectinload(Acta.hospital),
             selectinload(Acta.servicio),
             selectinload(Acta.oficina),

@@ -25,7 +25,7 @@
       {% for doc in documentos %}
       <tr>
         <td>{{ doc.titulo }}</td>
-        <td class="text-capitalize">{{ doc.tipo.value }}</td>
+        <td class="text-capitalize">{{ normalize_enum_value(doc.tipo) }}</td>
         <td>{{ doc.hospital.nombre if doc.hospital else '—' }}</td>
         <td>{{ doc.uploaded_at.strftime('%d/%m/%Y') }}</td>
         <td class="text-end">

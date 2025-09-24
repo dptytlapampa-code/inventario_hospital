@@ -69,7 +69,7 @@
       <ul class="list-group list-group-flush">
         {% for movimiento in movimientos %}
         <li class="list-group-item">
-          <strong class="text-capitalize">{{ movimiento.tipo.value }}</strong>
+          <strong class="text-capitalize">{{ normalize_enum_value(movimiento.tipo) }}</strong>
           ({{ movimiento.cantidad }})
           {% if movimiento.equipo %}- {{ movimiento.equipo.descripcion or movimiento.equipo.codigo }}{% endif %}<br>
           <small class="text-muted">{{ movimiento.fecha }}{% if movimiento.usuario %} por {{ movimiento.usuario.nombre }}{% endif %}</small>
