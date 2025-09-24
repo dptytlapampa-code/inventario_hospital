@@ -172,6 +172,18 @@ body {
   cursor: pointer;
 }
 
+.profile-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+}
+
+.profile-icon {
+  width: 20px;
+  height: 20px;
+}
+
 .avatar-initials {
   display: inline-flex;
   align-items: center;

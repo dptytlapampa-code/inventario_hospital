@@ -21,6 +21,14 @@
     }
   }
 
+  function normalizeQuery(value) {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    const trimmed = value.trim();
+    return trimmed === '...' ? '' : trimmed;
+  }
+
   class LookupModal {
     constructor() {
       this.element = document.getElementById('lookupModal');
@@ -44,7 +52,8 @@
       this.pages = 0;
 
       const debouncedSearch = debounce(() => {
-        this.load(1, this.searchInput ? this.searchInput.value.trim() : '');
+        const currentValue = this.searchInput ? this.searchInput.value : '';
+        this.load(1, normalizeQuery(currentValue));
       }, 300);
       this.searchInput && this.searchInput.addEventListener('input', debouncedSearch);
 
@@ -223,15 +232,18 @@
 
     bindEvents() {
       this.input.addEventListener('input', () => {
-        const value = this.input.value.trim();
-        if (!value) {
+        if (this.input.dataset.lookupSkipNext === 'true') {
+          delete this.input.dataset.lookupSkipNext;
           this.reset();
           return;
         }
-        if (this.hidden) {
+        const rawValue = this.input.value || '';
+        const normalized = normalizeQuery(rawValue);
+        if (this.hidden && this.hidden.value) {
           this.hidden.value = '';
+          this.hidden.dispatchEvent(new Event('change', { bubbles: true }));
         }
-        this.debouncedSearch(value);
+        this.debouncedSearch(normalized);
       });
 
       this.input.addEventListener('focus', () => {
@@ -321,7 +333,7 @@
     async request(query, page = 1, params = {}) {
       const url = new URL(this.input.dataset.lookupUrl, window.location.origin);
       url.searchParams.set('page', page);
-      url.searchParams.set('q', query || '');
+      url.searchParams.set('q', normalizeQuery(query));
       Object.entries(params || {}).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           url.searchParams.set(key, value);
@@ -345,8 +357,7 @@
         this.showMessage(state.message || 'Seleccione una opción válida.');
         return;
       }
-      const value = query.trim();
-      const effectiveQuery = value || '';
+      const effectiveQuery = normalizeQuery(query);
       this.loading = true;
       this.showMessage('Buscando…', append);
       try {

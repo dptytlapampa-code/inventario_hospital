@@ -135,6 +135,22 @@ def search_oficinas_lookup():
             400,
         )
     servicio_id = request.args.get("servicio_id", type=int)
+    if not servicio_id:
+        _log_missing_dependency(
+            "api.search_oficinas_lookup", message="servicio_id es requerido"
+        )
+        return (
+            jsonify(
+                {
+                    "items": [],
+                    "page": 1,
+                    "pages": 0,
+                    "total": 0,
+                    "message": "Seleccione un servicio",
+                }
+            ),
+            400,
+        )
 
     query_value = _sanitize_query_param()
     page = request.args.get("page", type=int, default=1)
@@ -144,8 +160,7 @@ def search_oficinas_lookup():
         Oficina.query.filter(Oficina.hospital_id == hospital_id)
         .order_by(asc(Oficina.nombre))
     )
-    if servicio_id:
-        lookup = lookup.filter(Oficina.servicio_id == servicio_id)
+    lookup = lookup.filter(Oficina.servicio_id == servicio_id)
     if query_value:
         like = f"%{query_value}%"
         lookup = lookup.filter(Oficina.nombre.ilike(like))

@@ -123,6 +123,8 @@ Copia `.env.example` a `.env` y ajusta valores:
 
 ```
 FLASK_ENV=development
+FLASK_RUN_HOST=0.0.0.0
+FLASK_RUN_PORT=5000
 SECRET_KEY=change_me
 DATABASE_URL=postgresql://salud:Catrilo.20@localhost/inventario_hospital
 UPLOAD_FOLDER=./uploads
@@ -153,6 +155,8 @@ flask run                          # o python wsgi.py
 
 # Exponer en red local (LAN)
 export FLASK_RUN_HOST=0.0.0.0      # acceder vía http://<ip_local>:5000/
+export FLASK_RUN_PORT=5000         # ajustar si se usa otro puerto
+# Windows: permitir el puerto 5000/seleccionado en el Firewall
 ```
 
 ### 5.3 Con Docker
@@ -193,7 +197,7 @@ flask db upgrade
 
 El repositorio incluye una migración inicial con todas las tablas declaradas en `app/models`. El comando `flask db upgrade` tomará la URL configurada en `DATABASE_URL` (o el valor por defecto de `config.py`).
 
-La migración `c6be45c2d4ab_equipos_lookup_updates` añade el tamaño de archivo a `equipos_adjuntos` y crea índices de búsqueda sobre hospitales/servicios/oficinas. Se implementa con `op.batch_alter_table(..., recreate="always")` para mantener la compatibilidad con SQLite durante pruebas locales.
+Las migraciones relevantes (`bd8b7d50f9ac` y `c6be45c2d4ab`) utilizan `op.batch_alter_table(..., recreate="always")` y detección de columnas/índices existentes para mantener la compatibilidad con SQLite durante pruebas locales y asegurar la presencia de `equipos_adjuntos.file_size`.
 
 Seeds (`seeds/seed.py`): abre una sesión SQLAlchemy sobre `DATABASE_URL`, limpia los datos existentes y vuelve a poblar la base con hospitales (Lucio Molas, René Favaloro), usuarios base, permisos por módulo/hospital, inventario de ejemplo (equipos + insumos) y licencias en distintos estados:
 

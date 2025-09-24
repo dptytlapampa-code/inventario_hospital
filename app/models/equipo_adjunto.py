@@ -22,7 +22,7 @@ class EquipoAdjunto(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     equipo_id: Mapped[int] = mapped_column(ForeignKey("equipos.id"), nullable=False, index=True)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    filepath: Mapped[str] = mapped_column(String(255), nullable=False)
+    filepath: Mapped[str] = mapped_column(String(512), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(120), nullable=False)
     uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
     file_size: Mapped[int | None] = mapped_column(Integer)

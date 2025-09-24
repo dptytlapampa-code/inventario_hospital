@@ -1,7 +1,7 @@
 """Blueprint managing equipment inventory."""
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Iterable
 from uuid import uuid4
@@ -12,6 +12,7 @@ from flask import (
     current_app,
     flash,
     g,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -31,17 +32,50 @@ from app.forms.equipo import (
     EquipoForm,
     EquipoHistorialFiltroForm,
 )
-from app.models import Acta, ActaItem, Equipo, EquipoAdjunto, EquipoHistorial, EstadoEquipo, Modulo, TipoActa
+from app.models import (
+    Acta,
+    ActaItem,
+    Equipo,
+    EquipoAdjunto,
+    EquipoHistorial,
+    EstadoEquipo,
+    Modulo,
+    TipoActa,
+)
 from app.security import permissions_required, require_hospital_access
 from app.services.audit_service import log_action
 from app.services.equipo_service import generate_internal_serial
+from app.utils import normalize_enum_value
 
 
 equipos_bp = Blueprint("equipos", __name__, url_prefix="/equipos")
 
+MAX_REMOTE_PAGE_SIZE = 50
+
 
 def _paginar(query, page: int, per_page: int):
     return query.paginate(page=page, per_page=per_page, error_out=False)
+
+
+def _parse_limit(value: int | None, default: int = 10) -> int:
+    if not value or value <= 0:
+        return default
+    return min(value, MAX_REMOTE_PAGE_SIZE)
+
+
+def _parse_offset(value: int | None) -> int:
+    if not value or value < 0:
+        return 0
+    return value
+
+
+def _parse_iso_date(raw: str | None) -> date | None:
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
 
 
 @equipos_bp.route("/")
@@ -161,7 +195,6 @@ def editar(equipo_id: int):
 def detalle(equipo_id: int):
     equipo = Equipo.query.get_or_404(equipo_id)
     form_adjuntos = EquipoAdjuntoForm()
-    delete_form = EquipoAdjuntoDeleteForm()
 
     historial_entries = sorted(
         equipo.historial,
@@ -205,8 +238,141 @@ def detalle(equipo_id: int):
         archivos=archivos,
         insumos=equipo.insumos,
         adjunto_form=form_adjuntos,
-        delete_form=delete_form,
+        tipos_acta=list(TipoActa),
         max_upload_size=current_app.config.get("EQUIPOS_MAX_FILE_SIZE", 10 * 1024 * 1024),
+    )
+
+
+@equipos_bp.route("/<int:equipo_id>/historial/datos")
+@login_required
+@permissions_required("inventario:read")
+@require_hospital_access(Modulo.INVENTARIO)
+def historial_datos(equipo_id: int):
+    equipo = Equipo.query.get_or_404(equipo_id)
+
+    limit = _parse_limit(request.args.get("limit", type=int), default=10)
+    offset = _parse_offset(request.args.get("offset", type=int))
+    tipo = (request.args.get("tipo", "") or "").strip()
+    desde = _parse_iso_date(request.args.get("desde"))
+    hasta = _parse_iso_date(request.args.get("hasta"))
+
+    query = (
+        EquipoHistorial.query.filter(EquipoHistorial.equipo_id == equipo.id)
+        .order_by(EquipoHistorial.fecha.desc())
+    )
+    if tipo:
+        like = f"%{tipo}%"
+        query = query.filter(
+            or_(
+                EquipoHistorial.accion.ilike(like),
+                EquipoHistorial.descripcion.ilike(like),
+            )
+        )
+    if desde:
+        query = query.filter(
+            EquipoHistorial.fecha >= datetime.combine(desde, time.min)
+        )
+    if hasta:
+        query = query.filter(
+            EquipoHistorial.fecha <= datetime.combine(hasta, time.max)
+        )
+
+    total = query.count()
+    registros = query.offset(offset).limit(limit).all()
+
+    items = [
+        {
+            "id": registro.id,
+            "accion": registro.accion,
+            "descripcion": registro.descripcion,
+            "fecha": registro.fecha.isoformat() if registro.fecha else None,
+            "fecha_display": registro.fecha.strftime("%d/%m/%Y %H:%M")
+            if registro.fecha
+            else "",
+            "usuario": registro.usuario.nombre if registro.usuario else None,
+        }
+        for registro in registros
+    ]
+
+    next_offset = offset + limit if offset + limit < total else None
+    prev_offset = offset - limit if offset > 0 else None
+    if prev_offset is not None and prev_offset < 0:
+        prev_offset = 0
+
+    return jsonify(
+        {
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "next_offset": next_offset,
+            "previous_offset": prev_offset,
+        }
+    )
+
+
+@equipos_bp.route("/<int:equipo_id>/actas/datos")
+@login_required
+@permissions_required("inventario:read")
+@require_hospital_access(Modulo.INVENTARIO)
+def actas_datos(equipo_id: int):
+    equipo = Equipo.query.get_or_404(equipo_id)
+
+    limit = _parse_limit(request.args.get("limit", type=int), default=10)
+    offset = _parse_offset(request.args.get("offset", type=int))
+    tipo = (request.args.get("tipo") or "").strip()
+    desde = _parse_iso_date(request.args.get("desde"))
+    hasta = _parse_iso_date(request.args.get("hasta"))
+
+    query = (
+        Acta.query.join(Acta.items)
+        .filter(ActaItem.equipo_id == equipo.id)
+        .order_by(Acta.fecha.desc())
+        .distinct()
+    )
+
+    if tipo:
+        try:
+            tipo_enum = TipoActa(tipo)
+        except ValueError:
+            tipo_enum = None
+        if tipo_enum:
+            query = query.filter(Acta.tipo == tipo_enum)
+
+    if desde:
+        query = query.filter(Acta.fecha >= datetime.combine(desde, time.min))
+    if hasta:
+        query = query.filter(Acta.fecha <= datetime.combine(hasta, time.max))
+
+    total = query.count()
+    actas = query.offset(offset).limit(limit).all()
+
+    items = [
+        {
+            "id": acta.id,
+            "tipo": acta.tipo.value if acta.tipo else None,
+            "tipo_label": normalize_enum_value(acta.tipo) if acta.tipo else "",
+            "fecha": acta.fecha.isoformat() if acta.fecha else None,
+            "fecha_display": acta.fecha.strftime("%d/%m/%Y") if acta.fecha else "",
+            "url": url_for("actas.detalle", acta_id=acta.id),
+        }
+        for acta in actas
+    ]
+
+    next_offset = offset + limit if offset + limit < total else None
+    prev_offset = offset - limit if offset > 0 else None
+    if prev_offset is not None and prev_offset < 0:
+        prev_offset = 0
+
+    return jsonify(
+        {
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "next_offset": next_offset,
+            "previous_offset": prev_offset,
+        }
     )
 
 
