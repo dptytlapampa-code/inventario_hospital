@@ -35,7 +35,7 @@
         {% set usuarios_open = current_bp in ['usuarios', 'licencias', 'permisos'] %}
         {% set vista_actual = request.args.get('vista', 'hospitales') %}
         {% set filtro_insumos = request.args.get('criticos') %}
-        {% if has_role('superadmin') %}
+        {% if has_role('superadmin', 'admin') %}
         {% set licencias_url = url_for('licencias.gestion') %}
         {% else %}
         {% set licencias_url = url_for('licencias.mias') %}
@@ -78,11 +78,14 @@
                   <ul class="sidebar-subnav list-unstyled mb-0">
                     <li><a class="sidebar-sublink{% if current_bp == 'insumos' and not filtro_insumos %} active{% endif %}" href="{{ url_for('insumos.listar') }}">Listado</a></li>
                     <li><a class="sidebar-sublink{% if current_bp == 'insumos' and filtro_insumos %} active{% endif %}" href="{{ url_for('insumos.listar', criticos=1) }}">Críticos</a></li>
+                    {% if current_user.has_permission('insumos:write') %}
                     <li><a class="sidebar-sublink{% if current_endpoint == 'insumos.crear' %} active{% endif %}" href="{{ url_for('insumos.crear') }}">Nuevo</a></li>
+                    {% endif %}
                   </ul>
                 </div>
               </div>
             </div>
+            {% if has_role('admin', 'superadmin') %}
             <div class="accordion-item">
               <h2 class="accordion-header" id="accordionUbicaciones">
                 <button class="accordion-button{% if not ubicaciones_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUbicaciones" aria-expanded="{{ 'true' if ubicaciones_open else 'false' }}" aria-controls="collapseUbicaciones">
@@ -99,7 +102,6 @@
                 </div>
               </div>
             </div>
-            {% if has_role('admin', 'superadmin') %}
             <div class="accordion-item">
               <h2 class="accordion-header" id="accordionUsuarios">
                 <button class="accordion-button{% if not usuarios_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUsuarios" aria-expanded="{{ 'true' if usuarios_open else 'false' }}" aria-controls="collapseUsuarios">
@@ -111,11 +113,9 @@
                   <ul class="sidebar-subnav list-unstyled mb-0">
                     <li><a class="sidebar-sublink{% if current_bp == 'usuarios' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('usuarios.listar') }}">Listado</a></li>
                     <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.crear' %} active{% endif %}" href="{{ url_for('usuarios.crear') }}">Nuevo usuario</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'licencias' %} active{% endif %}" href="{{ licencias_url }}">Licencias</a></li>
-                    {% if has_role('superadmin') %}
                     <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Permisos</a></li>
-                    {% endif %}
                     <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'auditorias' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Auditorías</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'licencias' %} active{% endif %}" href="{{ url_for('licencias.gestion') }}">Licencias (gestión)</a></li>
                   </ul>
                 </div>
               </div>

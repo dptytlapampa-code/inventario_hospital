@@ -269,6 +269,10 @@ body {
   color: var(--color-success);
 }
 
+.kpi-variation--down {
+  color: var(--color-danger);
+}
+
 .kpi-variation--steady {
   color: var(--color-muted);
 }

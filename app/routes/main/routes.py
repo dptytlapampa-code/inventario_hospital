@@ -6,9 +6,8 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.forms.usuario import PerfilForm
-from app.models import Equipo, EstadoEquipo, EstadoLicencia, Hospital, Insumo, Licencia
 from app.models.usuario import ThemePreference
-from app.services.dashboard_service import collect_dashboard_metrics
+from app.services.dashboard_service import collect_dashboard_metrics, collect_license_history
 
 main_bp = Blueprint("main", __name__)
 
@@ -16,27 +15,25 @@ main_bp = Blueprint("main", __name__)
 @main_bp.route("/")
 @login_required
 def index() -> str:
-    metrics = collect_dashboard_metrics()
-    return render_template("main/index.html", metrics=metrics)
+    metrics = collect_dashboard_metrics(current_user)
+    licencias_chart = collect_license_history(current_user)
+    return render_template("main/index.html", metrics=metrics, licencias_chart=licencias_chart)
 
 
 @main_bp.route("/dashboard")
 @login_required
 def dashboard() -> str:
-    metrics = collect_dashboard_metrics()
+    metrics = collect_dashboard_metrics(current_user)
+    licencias_chart = collect_license_history(current_user)
 
-    licencias_por_mes: dict[str, int] = {}
-    for licencia in Licencia.query.filter(Licencia.estado == EstadoLicencia.APROBADA):
-        key = licencia.fecha_inicio.strftime("%Y-%m")
-        licencias_por_mes[key] = licencias_por_mes.get(key, 0) + 1
-    labels = sorted(licencias_por_mes.keys())
-    licencias_chart = {"labels": labels, "values": [licencias_por_mes[label] for label in labels]}
+    role_template = {
+        "superadmin": "main/dashboard_superadmin.html",
+        "admin": "main/dashboard_admin.html",
+        "tecnico": "main/dashboard_tecnico.html",
+    }
+    template = role_template.get((current_user.role or "").lower(), "main/dashboard_tecnico.html")
 
-    return render_template(
-        "main/dashboard.html",
-        metrics=metrics,
-        licencias_chart=licencias_chart,
-    )
+    return render_template(template, metrics=metrics, licencias_chart=licencias_chart)
 
 
 @main_bp.route("/perfil", methods=["GET", "POST"])

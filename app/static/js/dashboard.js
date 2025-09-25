@@ -15,7 +15,12 @@
   function updateUpdatedAt(text) {
     const container = document.querySelector('[data-dashboard-updated]');
     if (container) {
-      container.textContent = `Actualizado: ${text}`;
+      const label = container.querySelector('[data-dashboard-updated-label]');
+      if (label) {
+        label.textContent = text;
+      } else {
+        container.textContent = `Actualizado: ${text}`;
+      }
     }
   }
 
@@ -31,13 +36,17 @@
       }
       valueEl.textContent = formatNumber(kpi.value);
       const delta = kpi.delta || 0;
-      variationEl.classList.remove('kpi-variation--up', 'kpi-variation--steady');
+      variationEl.classList.remove('kpi-variation--up', 'kpi-variation--steady', 'kpi-variation--down');
       const icon = variationEl.querySelector('.kpi-trend-icon');
       const deltaValue = variationEl.querySelector('.kpi-trend-value');
       if (delta > 0) {
         variationEl.classList.add('kpi-variation--up');
         if (icon) icon.textContent = '▲';
         if (deltaValue) deltaValue.textContent = `+${formatNumber(delta)}`;
+      } else if (delta < 0) {
+        variationEl.classList.add('kpi-variation--down');
+        if (icon) icon.textContent = '▼';
+        if (deltaValue) deltaValue.textContent = `-${formatNumber(Math.abs(delta))}`;
       } else {
         variationEl.classList.add('kpi-variation--steady');
         if (icon) icon.textContent = '→';
@@ -69,6 +78,35 @@
               <div class="text-muted small">Mínimo ${formatNumber(item.stock_minimo)} · Faltan ${formatNumber(faltante)}</div>
             </div>
             <span class="status-badge status-badge--danger">${formatNumber(item.stock)}</span>
+          </li>
+        `;
+      })
+      .join('');
+  }
+
+  function renderLicensesToday(payload) {
+    const totalBadge = document.querySelector('[data-licenses-total]');
+    const listContainer = document.querySelector('[data-licenses-list]');
+    if (totalBadge) {
+      totalBadge.textContent = formatNumber((payload && payload.total) || 0);
+    }
+    if (!listContainer) {
+      return;
+    }
+    const items = (payload && payload.items) || [];
+    if (!items.length) {
+      listContainer.innerHTML = '<li class="list-group-item text-muted">Sin licencias registradas para hoy.</li>';
+      return;
+    }
+    listContainer.innerHTML = items
+      .map((item) => {
+        const hasta = item.hasta || '—';
+        const hospital = item.hospital || 'Sin hospital';
+        const tipo = item.tipo || '';
+        return `
+          <li class="list-group-item">
+            <div class="fw-semibold">${item.nombre || '—'}</div>
+            <div class="text-muted small">${hospital} · hasta ${hasta}${tipo ? ` · ${tipo}` : ''}</div>
           </li>
         `;
       })
@@ -220,6 +258,7 @@
     }
     renderKpis(metrics.kpis || []);
     renderCritical(metrics.critical_supplies || []);
+    renderLicensesToday(metrics.licenses_today || {});
     updateUpdatedAt(metrics.generated_at_display || '—');
     if (!charts.equipment_state) {
       renderCharts(metrics);
@@ -233,6 +272,7 @@
     if (Object.keys(initial).length) {
       renderKpis(initial.kpis || []);
       renderCritical(initial.critical_supplies || []);
+      renderLicensesToday(initial.licenses_today || {});
       renderCharts(initial);
       updateUpdatedAt(initial.generated_at_display || '—');
     }
