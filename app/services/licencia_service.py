@@ -1,7 +1,7 @@
 """Business logic helpers for license workflow."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
 from sqlalchemy import select
 
@@ -17,9 +17,6 @@ def crear_licencia(
     fecha_inicio: date,
     fecha_fin: date,
     motivo: str,
-    comentario: str | None,
-    requires_replacement: bool,
-    reemplazo_id: int | None,
 ) -> Licencia:
     """Create and persist a new ``Licencia`` instance."""
 
@@ -30,9 +27,6 @@ def crear_licencia(
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,
         motivo=motivo,
-        comentario=comentario,
-        requires_replacement=requires_replacement,
-        reemplazo_id=reemplazo_id,
     )
     db.session.add(licencia)
     db.session.flush()
@@ -44,7 +38,7 @@ def licencias_superpuestas(usuario_id: int, inicio: date, fin: date, exclude_id:
 
     query = (
         select(Licencia)
-        .where(Licencia.usuario_id == usuario_id)
+        .where(Licencia.user_id == usuario_id)
         .where(Licencia.estado == EstadoLicencia.APROBADA)
         .where(Licencia.fecha_inicio <= fin)
         .where(Licencia.fecha_fin >= inicio)
@@ -60,7 +54,7 @@ def usuario_con_licencia_activa(usuario_id: int, fecha: date | None = None) -> b
     fecha = fecha or date.today()
     query = (
         select(Licencia)
-        .where(Licencia.usuario_id == usuario_id)
+        .where(Licencia.user_id == usuario_id)
         .where(Licencia.estado == EstadoLicencia.APROBADA)
         .where(Licencia.fecha_inicio <= fecha)
         .where(Licencia.fecha_fin >= fecha)
@@ -68,20 +62,18 @@ def usuario_con_licencia_activa(usuario_id: int, fecha: date | None = None) -> b
     return db.session.execute(query).first() is not None
 
 
-def aprobar_licencia(licencia: Licencia, aprobador: Usuario, comentario: str | None = None) -> Licencia:
+def aprobar_licencia(licencia: Licencia, aprobador: Usuario) -> Licencia:
     """Approve ``licencia`` ensuring no overlaps."""
 
-    if licencias_superpuestas(licencia.usuario_id, licencia.fecha_inicio, licencia.fecha_fin, licencia.id):
+    if licencias_superpuestas(licencia.user_id, licencia.fecha_inicio, licencia.fecha_fin, licencia.id):
         raise ValueError("Ya existe una licencia aprobada que se superpone")
     licencia.aprobar(aprobador)
-    if comentario:
-        licencia.comentario = comentario
     db.session.commit()
     return licencia
 
 
-def rechazar_licencia(licencia: Licencia, aprobador: Usuario, comentario: str | None = None) -> Licencia:
-    licencia.rechazar(aprobador, comentario)
+def rechazar_licencia(licencia: Licencia, aprobador: Usuario) -> Licencia:
+    licencia.rechazar(aprobador)
     db.session.commit()
     return licencia
 
@@ -93,7 +85,8 @@ def cancelar_licencia(licencia: Licencia, usuario: Usuario) -> Licencia:
 
 
 def enviar_licencia(licencia: Licencia) -> Licencia:
-    licencia.enviar_pendiente()
+    if licencia.estado != EstadoLicencia.SOLICITADA:
+        raise ValueError("La licencia ya fue procesada")
     db.session.commit()
     return licencia
 

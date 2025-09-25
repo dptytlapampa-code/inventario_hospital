@@ -49,7 +49,7 @@
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('licencias.detalle', licencia_id=licencia.id) }}">Detalle</a>
           {% if has_role('superadmin', 'admin') %}
-            {% if licencia.estado == estados.PENDIENTE %}
+            {% if licencia.estado == estados.SOLICITADA %}
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('licencias.aprobar_rechazar', licencia_id=licencia.id) }}">Gestionar</a>
             {% else %}
               <button class="btn btn-sm btn-outline-secondary" type="button" disabled>Gestionada</button>

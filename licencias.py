@@ -51,10 +51,7 @@ class Licencia:
     fecha_inicio: date
     fecha_fin: date
     motivo: str = ""
-    comentario: Optional[str] = None
-    requires_replacement: bool = False
-    reemplazo_id: Optional[int] = None
-    estado: EstadoLicencia = field(default=EstadoLicencia.BORRADOR, init=False)
+    estado: EstadoLicencia = field(default=EstadoLicencia.SOLICITADA, init=False)
 
     def __post_init__(self) -> None:
         if self.fecha_fin < self.fecha_inicio:
@@ -67,15 +64,12 @@ class Licencia:
                 raise TraslapeError("La licencia se superpone con otra aprobada")
 
     def enviar_pendiente(self) -> None:
-        if self.estado != EstadoLicencia.BORRADOR:
-            raise ValueError("Solo se puede enviar una licencia en borrador")
-        self.estado = EstadoLicencia.PENDIENTE
+        if self.estado != EstadoLicencia.SOLICITADA:
+            raise ValueError("La licencia ya fue procesada")
 
     def aprobar(self) -> None:
-        if self.estado not in (EstadoLicencia.PENDIENTE, EstadoLicencia.BORRADOR):
-            raise ValueError("Solo se puede aprobar una licencia pendiente o en borrador")
-        if self.requires_replacement and self.reemplazo_id is None:
-            raise ValueError("Debe asignar un reemplazo antes de aprobar")
+        if self.estado != EstadoLicencia.SOLICITADA:
+            raise ValueError("Solo se puede aprobar una licencia solicitada")
         self._verificar_traslape()
         self.estado = EstadoLicencia.APROBADA
         LICENCIAS_APROBADAS.setdefault(self.usuario_id, []).append(
@@ -83,17 +77,14 @@ class Licencia:
         )
 
     def rechazar(self) -> None:
-        if self.estado != EstadoLicencia.PENDIENTE:
-            raise ValueError("Solo se puede rechazar una licencia pendiente")
+        if self.estado != EstadoLicencia.SOLICITADA:
+            raise ValueError("Solo se puede rechazar una licencia solicitada")
         self.estado = EstadoLicencia.RECHAZADA
 
     def cancelar(self) -> None:
-        if self.estado not in (EstadoLicencia.BORRADOR, EstadoLicencia.PENDIENTE):
-            raise ValueError("Solo se puede cancelar licencias pendientes o en borrador")
+        if self.estado not in (EstadoLicencia.SOLICITADA, EstadoLicencia.APROBADA):
+            raise ValueError("Solo se puede cancelar licencias solicitadas o aprobadas")
         self.estado = EstadoLicencia.CANCELADA
-
-    def asignar_reemplazo(self, usuario_id: int) -> None:
-        self.reemplazo_id = usuario_id
 
     @property
     def dias_habiles(self) -> int:

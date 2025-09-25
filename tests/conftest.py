@@ -169,13 +169,10 @@ def _populate_database() -> dict[str, object]:
     licencia = crear_licencia(
         usuario=admin,
         hospital_id=hospital.id,
-        tipo=TipoLicencia.TEMPORAL,
+        tipo=TipoLicencia.VACACIONES,
         fecha_inicio=date.today() + timedelta(days=1),
         fecha_fin=date.today() + timedelta(days=5),
         motivo="Trámite personal",
-        comentario=None,
-        requires_replacement=False,
-        reemplazo_id=None,
     )
     enviar_licencia(licencia)
 
