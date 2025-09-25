@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Iterable, TYPE_CHECKING
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from werkzeug.security import check_password_hash as wz_check_password_hash
 from werkzeug.security import generate_password_hash as wz_generate_password_hash
@@ -13,6 +14,14 @@ from werkzeug.security import generate_password_hash as wz_generate_password_has
 from app.extensions import bcrypt
 
 from .base import Base
+
+
+class ThemePreference(str, Enum):
+    """Available theme options for the UI."""
+
+    LIGHT = "light"
+    DARK = "dark"
+    SYSTEM = "system"
 
 if TYPE_CHECKING:  # pragma: no cover
     from .hospital import Hospital, Oficina, Servicio
@@ -39,6 +48,12 @@ class Usuario(Base, UserMixin):
     hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
     servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
     oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
+    theme_pref: Mapped[ThemePreference] = mapped_column(
+        SAEnum(ThemePreference, name="theme_preference"),
+        default=ThemePreference.SYSTEM,
+        server_default=ThemePreference.SYSTEM.value,
+        nullable=False,
+    )
     ultimo_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
@@ -137,4 +152,4 @@ class Usuario(Base, UserMixin):
         self.rol.permisos = list(permisos)
 
 
-__all__ = ["Usuario"]
+__all__ = ["Usuario", "ThemePreference"]

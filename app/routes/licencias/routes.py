@@ -1,16 +1,20 @@
-"""License management views."""
+"""Views for the licenses workflow."""
 from __future__ import annotations
 
-from calendar import monthrange
 from datetime import date
 
-from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
-from app.forms.licencia import AprobarRechazarForm, CalendarioFiltroForm, LicenciaForm
-from app.models import EstadoLicencia, Licencia, Modulo, TipoLicencia, Usuario
-from app.security import permissions_required, require_hospital_access
+from app.forms.licencia import (
+    GestionLicenciasFiltroForm,
+    LicenciaAccionForm,
+    LicenciaForm,
+    LicenciaRechazoForm,
+    MisLicenciasFiltroForm,
+)
+from app.models import EstadoLicencia, Hospital, Licencia, TipoLicencia, Usuario
 from app.services.audit_service import log_action
 from app.services.licencia_service import (
     aprobar_licencia,
@@ -20,163 +24,294 @@ from app.services.licencia_service import (
     rechazar_licencia,
 )
 
-
 licencias_bp = Blueprint("licencias", __name__, url_prefix="/licencias")
 
 
-@licencias_bp.route("/solicitar", methods=["GET", "POST"])
+def _require_role(*roles: str) -> None:
+    if not current_user.has_role(*roles):
+        abort(403)
+
+
+def _estado_badge(estado: EstadoLicencia) -> str:
+    return {
+        EstadoLicencia.SOLICITADA: "secondary",
+        EstadoLicencia.APROBADA: "success",
+        EstadoLicencia.RECHAZADA: "danger",
+        EstadoLicencia.CANCELADA: "warning",
+    }.get(estado, "secondary")
+
+
+@licencias_bp.route("/mias")
 @login_required
-@permissions_required("licencias:write")
-@require_hospital_access(Modulo.LICENCIAS)
-def solicitar():
-    if current_user.role == "superadmin":
-        flash("El superadministrador no puede solicitar licencias.", "warning")
-        return render_template("errors/403.html"), 403
+def mias() -> str:
+    """List the licenses belonging to the current user."""
 
-    form = LicenciaForm()
-    if form.validate_on_submit():
-        licencia = crear_licencia(
-            usuario=current_user,
-            hospital_id=current_user.hospital_id,
-            tipo=TipoLicencia(form.tipo.data),
-            fecha_inicio=form.fecha_inicio.data,
-            fecha_fin=form.fecha_fin.data,
-            motivo=form.motivo.data,
-        )
-        enviar_licencia(licencia)
-        flash("Solicitud enviada", "success")
-        log_action(usuario_id=current_user.id, accion="solicitar", modulo="licencias", tabla="licencias", registro_id=licencia.id)
-        return redirect(url_for("licencias.listar"))
-    return render_template("licencias/solicitar.html", form=form)
+    _require_role("admin", "tecnico")
 
+    form = MisLicenciasFiltroForm(request.args, meta={"csrf": False})
+    form.estado.choices = [("", "Todos")] + [
+        (estado.value, estado.name.title()) for estado in EstadoLicencia
+    ]
+    form.tipo.choices = [("", "Todos")] + [
+        (tipo.value, tipo.name.title()) for tipo in TipoLicencia
+    ]
 
-@licencias_bp.route("/listar")
-@login_required
-@permissions_required("licencias:read")
-@require_hospital_access(Modulo.LICENCIAS)
-def listar():
-    estado = request.args.get("estado")
-    buscar = request.args.get("q", "")
-    page = request.args.get("page", type=int, default=1)
-    per_page = current_app.config.get("DEFAULT_PAGE_SIZE", 20)
+    form.validate()
 
-    query = Licencia.query.order_by(Licencia.created_at.desc())
-    allowed = getattr(g, "allowed_hospitals", set())
-    if allowed:
-        query = query.filter(Licencia.hospital_id.in_(allowed))
-    elif current_user.role != "superadmin":
-        query = query.filter(Licencia.user_id == current_user.id)
+    query = Licencia.query.filter(Licencia.user_id == current_user.id)
 
-    if estado:
+    if form.estado.data:
         try:
-            estado_enum = EstadoLicencia(estado)
+            estado = EstadoLicencia(form.estado.data)
         except ValueError:
             flash("Estado de licencia desconocido", "warning")
         else:
-            query = query.filter(Licencia.estado == estado_enum)
+            query = query.filter(Licencia.estado == estado)
 
-    if buscar:
-        like = f"%{buscar}%"
-        query = query.join(Licencia.usuario).filter(
-            or_(Usuario.nombre.ilike(like), Usuario.email.ilike(like))
-        )
+    if form.tipo.data:
+        try:
+            tipo = TipoLicencia(form.tipo.data)
+        except ValueError:
+            flash("Tipo de licencia desconocido", "warning")
+        else:
+            query = query.filter(Licencia.tipo == tipo)
 
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    if form.fecha_desde.data:
+        query = query.filter(Licencia.fecha_fin >= form.fecha_desde.data)
+    if form.fecha_hasta.data:
+        query = query.filter(Licencia.fecha_inicio <= form.fecha_hasta.data)
+
+    page = request.args.get("page", type=int, default=1)
+    per_page = request.args.get("per_page", type=int, default=10)
+    pagination = (
+        query.order_by(Licencia.created_at.desc())
+        .options(joinedload(Licencia.hospital), joinedload(Licencia.decisor))
+        .paginate(page=page, per_page=per_page, error_out=False)
+    )
+
+    cancel_form = LicenciaAccionForm()
+
     return render_template(
-        "licencias/listar.html",
-        licencias=pagination.items,
+        "licencias/mias.html",
+        form=form,
         pagination=pagination,
-        estado=estado,
-        buscar=buscar,
-        estados=EstadoLicencia,
+        badge_for=_estado_badge,
+        cancel_form=cancel_form,
+        EstadoLicencia=EstadoLicencia,
     )
 
 
-@licencias_bp.route("/<int:licencia_id>/detalle")
+@licencias_bp.route("/nueva", methods=["GET", "POST"])
 @login_required
-@permissions_required("licencias:read")
-@require_hospital_access(Modulo.LICENCIAS)
-def detalle(licencia_id: int):
-    licencia = Licencia.query.get_or_404(licencia_id)
-    return render_template("licencias/detalle.html", licencia=licencia)
+def nueva() -> str:
+    """Display the license request form for technicians and admins."""
 
+    _require_role("admin", "tecnico")
 
-@licencias_bp.route("/<int:licencia_id>/aprobar", methods=["GET", "POST"])
-@login_required
-@permissions_required("licencias:write")
-@require_hospital_access(Modulo.LICENCIAS)
-def aprobar_rechazar(licencia_id: int):
-    licencia = Licencia.query.get_or_404(licencia_id)
-    form = AprobarRechazarForm()
-    if licencia.estado != EstadoLicencia.SOLICITADA:
-        flash("Solo se pueden gestionar licencias solicitadas.", "warning")
-        return redirect(url_for("licencias.detalle", licencia_id=licencia.id))
+    form = LicenciaForm()
+
+    hospitales = Hospital.query.order_by(Hospital.nombre).all()
+    form.hospital_id.choices = [(0, "Sin hospital asignado")] + [
+        (hospital.id, hospital.nombre) for hospital in hospitales
+    ]
+    if request.method == "GET" and current_user.hospital_id:
+        form.hospital_id.data = current_user.hospital_id
+
     if form.validate_on_submit():
-        try:
-            if form.accion.data == "aprobar":
-                aprobar_licencia(licencia, current_user)
-                flash("Licencia aprobada", "success")
-            else:
-                rechazar_licencia(licencia, current_user)
-                flash("Licencia rechazada", "info")
-        except ValueError as exc:
-            current_app.logger.warning(
-                "No se pudo %s la licencia %s: %s", form.accion.data, licencia.id, exc
-            )
-            flash(str(exc), "warning")
-        else:
-            log_action(
-                usuario_id=current_user.id,
-                accion=form.accion.data,
-                modulo="licencias",
-                tabla="licencias",
-                registro_id=licencia.id,
-            )
-            return redirect(url_for("licencias.detalle", licencia_id=licencia.id))
-    return render_template("licencias/aprobar_rechazar.html", form=form, licencia=licencia)
-
-
-@licencias_bp.route("/<int:licencia_id>/cancelar", methods=["POST"])
-@login_required
-@permissions_required("licencias:write")
-@require_hospital_access(Modulo.LICENCIAS)
-def cancelar(licencia_id: int):
-    licencia = Licencia.query.get_or_404(licencia_id)
-    cancelar_licencia(licencia, current_user)
-    flash("Licencia cancelada", "warning")
-    log_action(usuario_id=current_user.id, accion="cancelar", modulo="licencias", tabla="licencias", registro_id=licencia.id)
-    return redirect(url_for("licencias.listar"))
-
-
-@licencias_bp.route("/calendario", methods=["GET", "POST"])
-@login_required
-@permissions_required("licencias:read")
-@require_hospital_access(Modulo.LICENCIAS)
-def calendario():
-    form = CalendarioFiltroForm(request.args)
-    query = Licencia.query.filter(Licencia.estado == EstadoLicencia.APROBADA)
-    allowed = getattr(g, "allowed_hospitals", set())
-    if allowed:
-        query = query.filter(Licencia.hospital_id.in_(allowed))
-    elif current_user.role != "superadmin":
-        query = query.filter(Licencia.user_id == current_user.id)
-
-    if form.validate() and form.mes.data:
-        inicio_mes = form.mes.data.replace(day=1)
-        _, last_day = monthrange(inicio_mes.year, inicio_mes.month)
-        fin_mes = inicio_mes.replace(day=last_day)
-        query = query.filter(
-            Licencia.fecha_inicio <= fin_mes, Licencia.fecha_fin >= inicio_mes
+        hospital_id = form.hospital_id.data or None
+        licencia = crear_licencia(
+            usuario=current_user,
+            hospital_id=hospital_id,
+            tipo=TipoLicencia(form.tipo.data),
+            fecha_inicio=form.fecha_inicio.data,
+            fecha_fin=form.fecha_fin.data,
+            motivo=form.motivo.data.strip(),
         )
 
-    licencias = query.order_by(Licencia.fecha_inicio).all()
-    eventos = [
-        {
-            "title": licencia.usuario.nombre,
-            "start": licencia.fecha_inicio.isoformat(),
-            "end": licencia.fecha_fin.isoformat(),
-            "estado": licencia.estado.value,
-        }
-        for licencia in licencias
+        overlapping = (
+            Licencia.query.filter(Licencia.user_id == current_user.id)
+            .filter(Licencia.id != licencia.id)
+            .filter(Licencia.estado != EstadoLicencia.CANCELADA)
+            .filter(Licencia.fecha_inicio <= form.fecha_fin.data)
+            .filter(Licencia.fecha_fin >= form.fecha_inicio.data)
+            .all()
+        )
+        if overlapping:
+            flash(
+                "La solicitud se superpone con otras licencias registradas.",
+                "warning",
+            )
+
+        enviar_licencia(licencia)
+        flash("Solicitud de licencia enviada", "success")
+        log_action(
+            usuario_id=current_user.id,
+            accion="solicitar",
+            modulo="licencias",
+            tabla="licencias",
+            registro_id=licencia.id,
+        )
+        return redirect(url_for("licencias.mias"))
+
+    return render_template("licencias/nueva.html", form=form)
+
+
+@licencias_bp.route("/gestion")
+@login_required
+def gestion() -> str:
+    """Superadmin management dashboard for license requests."""
+
+    _require_role("superadmin")
+
+    form = GestionLicenciasFiltroForm(request.args, meta={"csrf": False})
+    form.estado.choices = [("", "Todos")] + [
+        (estado.value, estado.name.title()) for estado in EstadoLicencia
     ]
-    return render_template("licencias/calendario.html", form=form, eventos=eventos)
+
+    usuarios = (
+        Usuario.query.order_by(Usuario.nombre, Usuario.apellido)
+        .with_entities(Usuario.id, Usuario.nombre, Usuario.apellido)
+        .all()
+    )
+    form.usuario_id.choices = [("", "Todos los usuarios")] + [
+        (
+            str(usuario.id),
+            f"{usuario.nombre} {usuario.apellido or ''}".strip(),
+        )
+        for usuario in usuarios
+    ]
+
+    hospitales = Hospital.query.order_by(Hospital.nombre).all()
+    form.hospital_id.choices = [("", "Todos los hospitales")] + [
+        (str(hospital.id), hospital.nombre) for hospital in hospitales
+    ]
+
+    form.validate()
+
+    query = (
+        Licencia.query.options(
+            joinedload(Licencia.usuario),
+            joinedload(Licencia.hospital),
+            joinedload(Licencia.decisor),
+        )
+        .order_by(Licencia.created_at.desc())
+    )
+
+    if form.usuario_id.data:
+        query = query.filter(Licencia.user_id == form.usuario_id.data)
+    if form.hospital_id.data:
+        query = query.filter(Licencia.hospital_id == form.hospital_id.data)
+    if form.estado.data:
+        try:
+            estado = EstadoLicencia(form.estado.data)
+        except ValueError:
+            flash("Estado de licencia desconocido", "warning")
+        else:
+            query = query.filter(Licencia.estado == estado)
+    if form.fecha_desde.data:
+        query = query.filter(Licencia.fecha_fin >= form.fecha_desde.data)
+    if form.fecha_hasta.data:
+        query = query.filter(Licencia.fecha_inicio <= form.fecha_hasta.data)
+
+    page = request.args.get("page", type=int, default=1)
+    per_page = request.args.get("per_page", type=int, default=20)
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    aprobar_form = LicenciaAccionForm()
+    cancelar_form = LicenciaAccionForm()
+    rechazo_form = LicenciaRechazoForm()
+
+    return render_template(
+        "licencias/gestion.html",
+        form=form,
+        pagination=pagination,
+        badge_for=_estado_badge,
+        aprobar_form=aprobar_form,
+        cancelar_form=cancelar_form,
+        rechazo_form=rechazo_form,
+        EstadoLicencia=EstadoLicencia,
+    )
+
+
+def _get_licencia_or_404(licencia_id: int) -> Licencia:
+    licencia = Licencia.query.get_or_404(licencia_id)
+    return licencia
+
+
+@licencias_bp.post("/<int:licencia_id>/aprobar")
+@login_required
+def aprobar(licencia_id: int):
+    _require_role("superadmin")
+    form = LicenciaAccionForm()
+    if not form.validate_on_submit():
+        abort(400)
+
+    licencia = _get_licencia_or_404(licencia_id)
+    try:
+        aprobar_licencia(licencia, current_user)
+        flash("Licencia aprobada", "success")
+    except ValueError as exc:  # pragma: no cover - defensive
+        flash(str(exc), "warning")
+    else:
+        log_action(
+            usuario_id=current_user.id,
+            accion="aprobar",
+            modulo="licencias",
+            tabla="licencias",
+            registro_id=licencia.id,
+        )
+    return redirect(request.referrer or url_for("licencias.gestion"))
+
+
+@licencias_bp.post("/<int:licencia_id>/rechazar")
+@login_required
+def rechazar(licencia_id: int):
+    _require_role("superadmin")
+    form = LicenciaRechazoForm()
+    if not form.validate_on_submit():
+        abort(400)
+
+    licencia = _get_licencia_or_404(licencia_id)
+    try:
+        rechazar_licencia(licencia, current_user, form.motivo_rechazo.data)
+        flash("Licencia rechazada", "info")
+    except ValueError as exc:  # pragma: no cover - defensive
+        flash(str(exc), "warning")
+    else:
+        log_action(
+            usuario_id=current_user.id,
+            accion="rechazar",
+            modulo="licencias",
+            tabla="licencias",
+            registro_id=licencia.id,
+        )
+    return redirect(request.referrer or url_for("licencias.gestion"))
+
+
+@licencias_bp.post("/<int:licencia_id>/cancelar")
+@login_required
+def cancelar(licencia_id: int):
+    licencia = _get_licencia_or_404(licencia_id)
+
+    if current_user.has_role("superadmin"):
+        actor = current_user
+    elif current_user.id == licencia.user_id and licencia.estado == EstadoLicencia.SOLICITADA:
+        actor = current_user
+    else:
+        abort(403)
+
+    form = LicenciaAccionForm()
+    if not form.validate_on_submit():
+        abort(400)
+
+    cancelar_licencia(licencia, actor)
+    flash("Licencia cancelada", "warning")
+    log_action(
+        usuario_id=current_user.id,
+        accion="cancelar",
+        modulo="licencias",
+        tabla="licencias",
+        registro_id=licencia.id,
+    )
+    destino = "licencias.gestion" if current_user.has_role("superadmin") else "licencias.mias"
+    return redirect(request.referrer or url_for(destino))

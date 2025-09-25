@@ -58,6 +58,7 @@ class Licencia(Base):
         server_default=EstadoLicencia.SOLICITADA.value,
         nullable=False,
     )
+    motivo_rechazo: Mapped[str | None] = mapped_column(Text())
     decidido_por: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
     decidido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
@@ -100,7 +101,7 @@ class Licencia(Base):
         self.decisor = aprobador
         self.decidido_en = fecha or datetime.utcnow()
 
-    def rechazar(self, aprobador: "Usuario") -> None:
+    def rechazar(self, aprobador: "Usuario", motivo: str | None = None) -> None:
         """Reject the license request."""
 
         if self.estado != EstadoLicencia.SOLICITADA:
@@ -108,6 +109,7 @@ class Licencia(Base):
         self.estado = EstadoLicencia.RECHAZADA
         self.decisor = aprobador
         self.decidido_en = datetime.utcnow()
+        self.motivo_rechazo = (motivo or "").strip() or None
 
     def cancelar(self, usuario: "Usuario") -> None:
         """Cancel the license request."""

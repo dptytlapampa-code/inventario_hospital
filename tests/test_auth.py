@@ -1,6 +1,3 @@
-"""Authentication flow tests."""
-from __future__ import annotations
-
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -27,21 +24,21 @@ def test_login_failure(client, superadmin_credentials):
 
 
 def test_login_redirect_contains_next_when_protected_view_accessed(client):
-    resp = client.get("/licencias/listar")
+    resp = client.get("/licencias/gestion")
     assert resp.status_code == 302
     parsed = urlparse(resp.headers["Location"])
     assert parsed.path == "/auth/login"
     query = parse_qs(parsed.query)
-    assert query.get("next") == ["/licencias/listar"]
+    assert query.get("next") == ["/licencias/gestion"]
 
 
 def test_logout_flow(client, superadmin_credentials):
-    resp = client.get("/licencias/listar")
+    resp = client.get("/licencias/gestion")
     assert resp.status_code == 302
     assert "/auth/login" in resp.headers["Location"]
 
     login(client, **superadmin_credentials)
-    resp = client.get("/licencias/listar")
+    resp = client.get("/licencias/gestion")
     assert resp.status_code == 200
 
     resp = client.get("/auth/logout", follow_redirects=False)

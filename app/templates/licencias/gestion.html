@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_select, render_field %}
+{% from "_pagination.html" import render_pagination %}
+
+{% block title %}Gestión de licencias{% endblock %}
+{% block header_title %}Gestión de licencias{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+  <div class="card-body">
+    <form class="row g-3 align-items-end" method="get" action="{{ url_for('licencias.gestion') }}">
+      <div class="col-12 col-lg-3">
+        {{ render_select(form.usuario_id, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-select form-select-sm') }}
+      </div>
+      <div class="col-12 col-lg-3">
+        {{ render_select(form.hospital_id, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-select form-select-sm') }}
+      </div>
+      <div class="col-6 col-lg-2">
+        {{ render_select(form.estado, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-select form-select-sm') }}
+      </div>
+      <div class="col-6 col-lg-2">
+        {{ render_field(form.fecha_desde, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-control form-control-sm', input_type='date') }}
+      </div>
+      <div class="col-6 col-lg-2">
+        {{ render_field(form.fecha_hasta, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-control form-control-sm', input_type='date') }}
+      </div>
+      <div class="col-12 col-lg-2 d-flex gap-2">
+        {{ form.submit(class_='btn btn-primary btn-sm flex-grow-1') }}
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('licencias.gestion') }}">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if pagination.items %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Usuario</th>
+            <th scope="col">Hospital</th>
+            <th scope="col">Período</th>
+            <th scope="col">Tipo</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Detalle</th>
+            <th scope="col" class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for licencia in pagination.items %}
+          <tr>
+            <td class="fw-semibold">#{{ licencia.id }}</td>
+            <td>
+              <div class="fw-semibold">{{ licencia.usuario.nombre }} {{ licencia.usuario.apellido or '' }}</div>
+              <div class="text-muted small">{{ licencia.usuario.email }}</div>
+            </td>
+            <td>{{ licencia.hospital.nombre if licencia.hospital else '—' }}</td>
+            <td>{{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} – {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</td>
+            <td>{{ normalize_enum_value(licencia.tipo) }}</td>
+            <td>
+              <span class="badge bg-{{ badge_for(licencia.estado) }}">{{ normalize_enum_value(licencia.estado) }}</span>
+              {% if licencia.decisor %}
+              <div class="small text-muted mt-1">{{ licencia.decisor.nombre }}{% if licencia.decidido_en %}, {{ licencia.decidido_en.strftime('%d/%m/%Y %H:%M') }}{% endif %}</div>
+              {% endif %}
+            </td>
+            <td class="text-wrap">
+              <div class="small text-muted">Motivo</div>
+              <div>{{ licencia.motivo }}</div>
+              {% if licencia.motivo_rechazo %}
+              <div class="small text-muted mt-2">Motivo de rechazo</div>
+              <div class="text-danger">{{ licencia.motivo_rechazo }}</div>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <div class="d-flex flex-column gap-2 align-items-end">
+                {% if licencia.estado == EstadoLicencia.SOLICITADA %}
+                <form method="post" action="{{ url_for('licencias.aprobar', licencia_id=licencia.id) }}" class="d-inline">
+                  {{ aprobar_form.csrf_token }}
+                  <button type="submit" class="btn btn-success btn-sm">Aprobar</button>
+                </form>
+                <div class="w-100">
+                  <button class="btn btn-outline-danger btn-sm w-100" type="button" data-bs-toggle="collapse" data-bs-target="#rechazo-{{ licencia.id }}" aria-expanded="false" aria-controls="rechazo-{{ licencia.id }}">
+                    Rechazar
+                  </button>
+                  <div class="collapse mt-2" id="rechazo-{{ licencia.id }}">
+                    <form method="post" action="{{ url_for('licencias.rechazar', licencia_id=licencia.id) }}">
+                      {{ rechazo_form.csrf_token }}
+                      <label class="form-label small fw-semibold" for="motivo-rechazo-{{ licencia.id }}">Motivo (opcional)</label>
+                      <textarea class="form-control form-control-sm" id="motivo-rechazo-{{ licencia.id }}" name="motivo_rechazo" rows="3" placeholder="Motivo de rechazo"></textarea>
+                      <button type="submit" class="btn btn-danger btn-sm mt-2">Confirmar rechazo</button>
+                    </form>
+                  </div>
+                </div>
+                {% endif %}
+                {% if licencia.estado in [EstadoLicencia.SOLICITADA, EstadoLicencia.APROBADA] %}
+                <form method="post" action="{{ url_for('licencias.cancelar', licencia_id=licencia.id) }}" class="d-inline">
+                  {{ cancelar_form.csrf_token }}
+                  <button type="submit" class="btn btn-outline-warning btn-sm">Cancelar</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ render_pagination(pagination) }}
+    {% else %}
+    <p class="mb-0 text-muted">No hay solicitudes de licencia para los filtros seleccionados.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

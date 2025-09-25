@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_select, render_field %}
+{% from "_pagination.html" import render_pagination %}
+
+{% block title %}Mis licencias{% endblock %}
+{% block header_title %}Mis licencias{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+  <div class="card-body">
+    <form class="row g-3 align-items-end" method="get" action="{{ url_for('licencias.mias') }}">
+      <div class="col-12 col-md-3">
+        {{ render_select(form.estado, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-select form-select-sm') }}
+      </div>
+      <div class="col-12 col-md-3">
+        {{ render_select(form.tipo, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-select form-select-sm') }}
+      </div>
+      <div class="col-6 col-md-2">
+        {{ render_field(form.fecha_desde, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-control form-control-sm', input_type='date') }}
+      </div>
+      <div class="col-6 col-md-2">
+        {{ render_field(form.fecha_hasta, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-control form-control-sm', input_type='date') }}
+      </div>
+      <div class="col-12 col-md-2 d-flex gap-2">
+        {{ form.submit(class_='btn btn-primary btn-sm flex-grow-1') }}
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('licencias.mias') }}">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if pagination.items %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th scope="col">Tipo</th>
+            <th scope="col">Período</th>
+            <th scope="col">Hospital</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Detalle</th>
+            <th scope="col" class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for licencia in pagination.items %}
+          <tr>
+            <td class="fw-semibold">{{ normalize_enum_value(licencia.tipo) }}</td>
+            <td>
+              <div>{{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} – {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</div>
+              <div class="text-muted small">{{ licencia.dias_habiles() }} días hábiles</div>
+            </td>
+            <td>{{ licencia.hospital.nombre if licencia.hospital else '—' }}</td>
+            <td>
+              <span class="badge bg-{{ badge_for(licencia.estado) }}">{{ normalize_enum_value(licencia.estado) }}</span>
+            </td>
+            <td class="text-wrap">
+              <div class="small text-muted">Motivo</div>
+              <div>{{ licencia.motivo }}</div>
+              {% if licencia.motivo_rechazo %}
+              <div class="small text-muted mt-2">Motivo de rechazo</div>
+              <div class="text-danger">{{ licencia.motivo_rechazo }}</div>
+              {% endif %}
+              {% if licencia.decisor %}
+              <div class="small text-muted mt-2">Decidido por {{ licencia.decisor.nombre }}{% if licencia.decidido_en %} el {{ licencia.decidido_en.strftime('%d/%m/%Y %H:%M') }}{% endif %}</div>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if licencia.estado == EstadoLicencia.SOLICITADA %}
+              <form method="post" action="{{ url_for('licencias.cancelar', licencia_id=licencia.id) }}" class="d-inline">
+                {{ cancel_form.csrf_token }}
+                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Cancelar la solicitud?');">Cancelar</button>
+              </form>
+              {% elif licencia.estado == EstadoLicencia.CANCELADA %}
+              <span class="text-muted">Sin acciones</span>
+              {% else %}
+              <span class="text-muted">Sin acciones</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ render_pagination(pagination) }}
+    {% else %}
+    <p class="mb-0 text-muted">Aún no registraste solicitudes de licencia.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
