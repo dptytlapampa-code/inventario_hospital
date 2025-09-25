@@ -6,10 +6,11 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, String, Text, func
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
-from .insumo import equipo_insumos
+from .insumo import EquipoInsumo
 
 if TYPE_CHECKING:  # pragma: no cover
     from .acta import ActaItem
@@ -85,8 +86,11 @@ class Equipo(Base):
     hospital: Mapped["Hospital"] = relationship("Hospital", back_populates="equipos")
     servicio: Mapped["Servicio | None"] = relationship("Servicio")
     oficina: Mapped["Oficina | None"] = relationship("Oficina", back_populates="equipos")
-    insumos: Mapped[list["Insumo"]] = relationship(
-        "Insumo", secondary=equipo_insumos, back_populates="equipos"
+    insumo_asignaciones: Mapped[list["EquipoInsumo"]] = relationship(
+        "EquipoInsumo", back_populates="equipo", cascade="all, delete-orphan"
+    )
+    insumos = association_proxy(
+        "insumo_asignaciones", "insumo", creator=lambda insumo: EquipoInsumo(insumo=insumo)
     )
     acta_items: Mapped[list["ActaItem"]] = relationship("ActaItem", back_populates="equipo")
     adjuntos: Mapped[list["Adjunto"]] = relationship("Adjunto", back_populates="equipo")

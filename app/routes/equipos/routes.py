@@ -31,6 +31,7 @@ from app.forms.equipo import (
     EquipoFiltroForm,
     EquipoForm,
     EquipoHistorialFiltroForm,
+    EquipoInsumoForm,
 )
 from app.models import (
     Acta,
@@ -38,11 +39,15 @@ from app.models import (
     Equipo,
     EquipoAdjunto,
     EquipoHistorial,
+    EquipoInsumo,
     EstadoEquipo,
+    Insumo,
     Modulo,
+    MovimientoTipo,
     TipoActa,
 )
 from app.security import permissions_required, require_hospital_access
+from app.services import insumo_service
 from app.services.audit_service import log_action
 from app.services.equipo_service import generate_internal_serial
 from app.utils import normalize_enum_value
@@ -195,6 +200,7 @@ def editar(equipo_id: int):
 def detalle(equipo_id: int):
     equipo = Equipo.query.get_or_404(equipo_id)
     form_adjuntos = EquipoAdjuntoForm()
+    insumo_form = EquipoInsumoForm()
 
     historial_entries = sorted(
         equipo.historial,
@@ -202,6 +208,12 @@ def detalle(equipo_id: int):
         reverse=True,
     )
     historial_recent = historial_entries[:3]
+    asignaciones = sorted(
+        equipo.insumo_asignaciones,
+        key=lambda item: item.fecha or datetime.min,
+        reverse=True,
+    )
+    puede_vincular = current_user.has_permission("inventario:write")
 
     acta_items: Iterable[ActaItem] = (
         entry for entry in equipo.acta_items if entry.acta is not None
@@ -236,11 +248,76 @@ def detalle(equipo_id: int):
         actas_total=len(actas_unique),
         adjuntos=equipo.adjuntos,
         archivos=archivos,
-        insumos=equipo.insumos,
+        asignaciones=asignaciones,
+        insumo_form=insumo_form,
+        insumo_lookup_params={"hospital_id": equipo.hospital_id},
+        puede_vincular=puede_vincular,
         adjunto_form=form_adjuntos,
         tipos_acta=list(TipoActa),
         max_upload_size=current_app.config.get("EQUIPOS_MAX_FILE_SIZE", 10 * 1024 * 1024),
     )
+
+
+@equipos_bp.route("/<int:equipo_id>/insumos", methods=["POST"])
+@login_required
+@permissions_required("inventario:write")
+@require_hospital_access(Modulo.INVENTARIO)
+def vincular_insumo(equipo_id: int):
+    equipo = Equipo.query.get_or_404(equipo_id)
+    form = EquipoInsumoForm()
+    if not form.validate_on_submit():
+        flash("No se pudo vincular el insumo", "danger")
+        return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
+
+    insumo: Insumo = form.insumo  # type: ignore[assignment]
+    cantidad = form.cantidad.data or 0
+    comentario = form.comentario.data or None
+    fecha = form.fecha.data
+    descripcion = f"{cantidad} × {insumo.nombre}"
+    if comentario:
+        descripcion = f"{descripcion} — {comentario}"  # noqa: RUF001 - em dash for readability
+
+    try:
+        insumo_service.registrar_movimiento(
+            insumo=insumo,
+            tipo=MovimientoTipo.EGRESO,
+            cantidad=cantidad,
+            usuario=current_user,
+            equipo_id=equipo.id,
+            motivo="Asignación a equipo",
+            observaciones=comentario,
+            commit=False,
+        )
+        asignacion = EquipoInsumo(
+            equipo=equipo,
+            insumo=insumo,
+            cantidad=cantidad,
+            comentario=comentario,
+        )
+        if fecha:
+            asignacion.fecha = datetime.combine(fecha, time.min)
+        db.session.add(asignacion)
+        equipo.registrar_evento(current_user, "Asignación de insumo", descripcion)
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
+    except Exception:  # pragma: no cover - unexpected failure logged for debugging
+        db.session.rollback()
+        current_app.logger.exception("No se pudo vincular el insumo al equipo", extra={"equipo_id": equipo.id})
+        flash("No se pudo vincular el insumo", "danger")
+        return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
+
+    log_action(
+        usuario_id=current_user.id,
+        accion="vincular_insumo",
+        modulo="inventario",
+        tabla="equipo_insumos",
+        registro_id=asignacion.id,
+    )
+    flash("Insumo vinculado correctamente", "success")
+    return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
 
 
 @equipos_bp.route("/<int:equipo_id>/historial/datos")

@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import json
 
-from flask import current_app, jsonify, request
-from flask_login import login_required
+from flask import abort, current_app, jsonify, request
+from flask_login import current_user, login_required
 from sqlalchemy import asc, or_
 
-from app.models import Hospital, Insumo, Oficina, Servicio
+from app.models import Hospital, Insumo, Modulo, Oficina, Servicio
 
 from . import api_bp
 
@@ -241,7 +241,13 @@ def search_insumos():
     page = request.args.get("page", type=int, default=1)
     per_page = _get_page_size()
 
-    search = Insumo.query.order_by(asc(Insumo.nombre))
+    hospital_id = request.args.get("hospital_id", type=int)
+    if hospital_id:
+        allowed = current_user.allowed_hospital_ids(Modulo.INSUMOS.value)
+        if allowed and hospital_id not in allowed:
+            abort(403)
+
+    search = Insumo.query.filter(Insumo.stock > 0).order_by(asc(Insumo.nombre))
     if query_value:
         like = f"%{query_value}%"
         search = search.filter(Insumo.nombre.ilike(like))

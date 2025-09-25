@@ -8,7 +8,7 @@ from flask import redirect, render_template, request, url_for
 from flask_login import current_user
 
 
-ROLE_POWER: list[str] = ["visor", "gestor", "admin", "superadmin"]
+ROLE_POWER: list[str] = ["visor", "tecnico", "admin", "superadmin"]
 
 
 def _normalize_roles(roles: Iterable[str]) -> list[str]:

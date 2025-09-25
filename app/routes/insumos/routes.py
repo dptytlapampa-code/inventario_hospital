@@ -1,7 +1,7 @@
 """Blueprint for consumable management."""
 from __future__ import annotations
 
-from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
@@ -127,35 +127,57 @@ def editar(insumo_id: int):
 @require_hospital_access(Modulo.INSUMOS)
 def detalle(insumo_id: int):
     insumo = Insumo.query.get_or_404(insumo_id)
-    movimiento_form = MovimientoForm()
+    allow_ingresos = current_user.has_permission("insumos:write")
+    movimiento_form = MovimientoForm(allow_ingresos=allow_ingresos)
     return render_template(
         "insumos/detalle.html",
         insumo=insumo,
         movimientos=insumo.movimientos[-20:],
         movimiento_form=movimiento_form,
+        puede_ingresar=allow_ingresos,
     )
 
 
 @insumos_bp.route("/<int:insumo_id>/movimiento", methods=["POST"])
 @login_required
-@permissions_required("insumos:write")
 @require_hospital_access(Modulo.INSUMOS)
 def registrar_movimiento(insumo_id: int):
     insumo = Insumo.query.get_or_404(insumo_id)
-    form = MovimientoForm()
+    allow_ingresos = current_user.has_permission("insumos:write")
+    rol_actual = (current_user.rol.nombre or "") if current_user.rol else ""
+    is_tecnico = rol_actual.lower() == "tecnico"
+    if not allow_ingresos and not is_tecnico:
+        abort(403)
+
+    form = MovimientoForm(allow_ingresos=allow_ingresos)
+    if not allow_ingresos:
+        requested_tipo = request.form.get("tipo")
+        if requested_tipo and requested_tipo != MovimientoTipo.EGRESO.value:
+            flash("Solo puede registrar egresos de stock", "danger")
+            return redirect(url_for("insumos.detalle", insumo_id=insumo.id))
     if form.validate_on_submit():
+        movimiento_tipo = MovimientoTipo(form.tipo.data)
+        if not allow_ingresos and movimiento_tipo is not MovimientoTipo.EGRESO:
+            flash("Solo puede registrar egresos de stock", "danger")
+            return redirect(url_for("insumos.detalle", insumo_id=insumo.id))
+
         equipo_id = form.equipo_id.data or None
         if equipo_id == 0:
             equipo_id = None
-        movimiento = insumo_service.registrar_movimiento(
-            insumo=insumo,
-            tipo=MovimientoTipo(form.tipo.data),
-            cantidad=form.cantidad.data,
-            usuario=current_user,
-            equipo_id=equipo_id,
-            motivo=form.motivo.data,
-            observaciones=form.observaciones.data,
-        )
+        try:
+            movimiento = insumo_service.registrar_movimiento(
+                insumo=insumo,
+                tipo=movimiento_tipo,
+                cantidad=form.cantidad.data,
+                usuario=current_user,
+                equipo_id=equipo_id,
+                motivo=form.motivo.data,
+                observaciones=form.observaciones.data,
+            )
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("insumos.detalle", insumo_id=insumo.id))
         log_action(
             usuario_id=current_user.id,
             accion="movimiento",

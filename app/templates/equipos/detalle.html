@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_form_helpers.html' import render_field, render_lookup, render_textarea %}
 {% block title %}Detalle de equipo{% endblock %}
 {% block content %}
 {% set tipo_label = normalize_enum_value(equipo.tipo).replace('_', ' ') %}
@@ -85,17 +86,51 @@
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-header">Insumos asociados</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Insumos asociados</span>
+        {% if puede_vincular %}
+        <span class="badge bg-light text-dark">Stock disponible</span>
+        {% endif %}
+      </div>
       <ul class="list-group list-group-flush">
-        {% for insumo in insumos %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ insumo.nombre }}</span>
-          <span class="badge bg-secondary">Stock: {{ insumo.stock }}</span>
+        {% for asignacion in asignaciones %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+              <a class="fw-semibold text-decoration-none" href="{{ url_for('insumos.detalle', insumo_id=asignacion.insumo.id) }}">{{ asignacion.insumo.nombre }}</a>
+              <div class="text-muted small">
+                Asignado el {{ asignacion.fecha.strftime('%d/%m/%Y %H:%M') if asignacion.fecha else '—' }}
+                · Stock restante: {{ asignacion.insumo.stock }}
+              </div>
+              {% if asignacion.comentario %}
+              <div class="text-muted small">{{ asignacion.comentario }}</div>
+              {% endif %}
+            </div>
+            <div class="text-end">
+              <span class="badge bg-primary fs-6">{{ asignacion.cantidad }}</span>
+              {% if asignacion.insumo.unidad_medida %}
+              <div class="text-muted small">{{ asignacion.insumo.unidad_medida }}</div>
+              {% endif %}
+            </div>
+          </div>
         </li>
         {% else %}
         <li class="list-group-item text-muted">Sin insumos vinculados.</li>
         {% endfor %}
       </ul>
+      {% if puede_vincular %}
+      <div class="card-body border-top">
+        <h6 class="mb-3">Agregar insumo</h6>
+        <form method="post" action="{{ url_for('equipos.vincular_insumo', equipo_id=equipo.id) }}" novalidate>
+          {{ insumo_form.hidden_tag() }}
+          {{ render_lookup(insumo_form.insumo_busqueda, insumo_form.insumo_id, url_for('api.search_insumos'), params=insumo_lookup_params, placeholder='Buscar insumo por nombre…') }}
+          {{ render_field(insumo_form.cantidad, input_class='form-control', min_value=1) }}
+          {{ render_field(insumo_form.fecha, input_class='form-control', input_type='date') }}
+          {{ render_textarea(insumo_form.comentario, rows=2) }}
+          <button class="btn btn-sm btn-primary" type="submit">{{ insumo_form.submit.label.text }}</button>
+        </form>
+      </div>
+      {% endif %}
     </div>
   </div>
   <div class="col-md-6">

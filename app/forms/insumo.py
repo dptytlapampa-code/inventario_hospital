@@ -46,8 +46,12 @@ class MovimientoForm(FlaskForm):
     observaciones = TextAreaField("Observaciones", validators=[Optional(), Length(max=500)])
     submit = SubmitField("Registrar movimiento")
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, allow_ingresos: bool = True, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        if not allow_ingresos:
+            self.tipo.choices = [(MovimientoTipo.EGRESO.value, "Egreso")]
+            if not self.tipo.data:
+                self.tipo.data = MovimientoTipo.EGRESO.value
         self.equipo_id.choices = [(0, "N/A")] + [
             (e.id, f"{e.codigo or e.descripcion or e.id}") for e in Equipo.query.order_by(Equipo.descripcion)
         ]

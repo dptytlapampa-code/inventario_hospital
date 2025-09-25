@@ -11,12 +11,12 @@ from app.models import (
     EstadoEquipo,
     EstadoLicencia,
     Equipo,
+    EquipoInsumo,
     Hospital,
     Insumo,
     Licencia,
     TipoEquipo,
     Usuario,
-    equipo_insumos,
 )
 from app.utils.scope import ScopeValue, get_user_hospital_scope
 
@@ -38,19 +38,22 @@ def _insumo_scope_filter(scope: ScopeValue):
         return None
     if not scope:
         return false()
+    association_table = EquipoInsumo.__table__
     associated = (
         select(1)
-        .select_from(equipo_insumos.join(Equipo, equipo_insumos.c.equipo_id == Equipo.id))
+        .select_from(
+            association_table.join(Equipo, association_table.c.equipo_id == Equipo.id)
+        )
         .where(
-            equipo_insumos.c.insumo_id == Insumo.id,
+            association_table.c.insumo_id == Insumo.id,
             Equipo.hospital_id.in_(scope),
         )
         .exists()
     )
     any_association = (
         select(1)
-        .select_from(equipo_insumos)
-        .where(equipo_insumos.c.insumo_id == Insumo.id)
+        .select_from(association_table)
+        .where(association_table.c.insumo_id == Insumo.id)
         .exists()
     )
     return or_(associated, ~any_association)

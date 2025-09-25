@@ -34,11 +34,15 @@ class Usuario(Base, UserMixin):
     """Authenticated system user."""
 
     __tablename__ = "usuarios"
-    __table_args__ = (UniqueConstraint("username", name="uq_usuario_username"),)
+    __table_args__ = (
+        UniqueConstraint("username", name="uq_usuario_username"),
+        UniqueConstraint("dni", name="uq_usuario_dni"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    dni: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     apellido: Mapped[str | None] = mapped_column(String(120))
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     telefono: Mapped[str | None] = mapped_column(String(50))

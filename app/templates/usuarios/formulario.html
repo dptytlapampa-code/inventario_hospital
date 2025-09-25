@@ -11,7 +11,8 @@
       {{ render_field(form.nombre, form_group_class='col-12 col-md-6', placeholder='Nombre') }}
       {{ render_field(form.apellido, form_group_class='col-12 col-md-6', placeholder='Apellido') }}
       {{ render_field(form.email, form_group_class='col-12 col-md-6', placeholder='usuario@hospital.gob.ar') }}
-      {{ render_field(form.username, form_group_class='col-12 col-md-6', placeholder='Nombre de usuario') }}
+      {{ render_field(form.dni, form_group_class='col-12 col-md-6', placeholder='Documento nacional de identidad', extra_attrs={'data-unique-field': 'dni'}) }}
+      {{ render_field(form.username, form_group_class='col-12 col-md-6', placeholder='Nombre de usuario', extra_attrs={'data-unique-field': 'username'}) }}
       {{ render_select(form.rol_id, form_group_class='col-12 col-md-6') }}
       <div class="col-12 col-md-6 d-flex align-items-center">
         {{ render_checkbox(form.activo, form_group_class='form-check mb-0') }}
@@ -37,4 +38,115 @@
     <a class="btn btn-outline-secondary" href="{{ url_for('usuarios.listar') }}">Cancelar</a>
   </div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.querySelector('form');
+      if (!form) {
+        return;
+      }
+      const inputs = Array.from(form.querySelectorAll('[data-unique-field]'));
+      if (!inputs.length) {
+        return;
+      }
+
+      const currentId = {{ usuario.id if usuario else 'null' }};
+      const endpoint = '{{ url_for("api.users_check") }}';
+      let debounceTimer = null;
+      let controller = null;
+
+      const ensureFeedback = (input) => {
+        let feedback = input.closest('.mb-3, .form-group, .col-12')?.querySelector('[data-live-feedback="' + input.dataset.uniqueField + '"]');
+        if (!feedback) {
+          feedback = document.createElement('div');
+          feedback.className = 'invalid-feedback d-none';
+          feedback.dataset.liveFeedback = input.dataset.uniqueField;
+          const container = input.closest('.mb-3, .form-group, .col-12, .col-md-6');
+          if (container) {
+            container.appendChild(feedback);
+          } else {
+            input.parentElement?.appendChild(feedback);
+          }
+        }
+        return feedback;
+      };
+
+      const setDuplicateState = (input, duplicate, message) => {
+        const feedback = ensureFeedback(input);
+        if (duplicate) {
+          feedback.textContent = message;
+          feedback.classList.remove('d-none');
+          feedback.classList.add('d-block');
+          input.classList.add('is-invalid');
+          input.dataset.liveInvalid = 'true';
+        } else {
+          feedback.textContent = '';
+          feedback.classList.remove('d-block');
+          feedback.classList.add('d-none');
+          if (input.dataset.liveInvalid === 'true') {
+            input.classList.remove('is-invalid');
+            delete input.dataset.liveInvalid;
+          }
+        }
+      };
+
+      const performCheck = async () => {
+        const payload = new URLSearchParams();
+        let hasQuery = false;
+        inputs.forEach((input) => {
+          const value = input.value.trim();
+          if (value) {
+            payload.append(input.dataset.uniqueField, value);
+            hasQuery = true;
+          }
+        });
+        if (!hasQuery) {
+          inputs.forEach((input) => setDuplicateState(input, false, ''));
+          return;
+        }
+        if (currentId) {
+          payload.append('exclude_id', currentId);
+        }
+        if (controller) {
+          controller.abort();
+        }
+        controller = new AbortController();
+        try {
+          const response = await fetch(`${endpoint}?${payload.toString()}`, { signal: controller.signal });
+          if (!response.ok) {
+            throw new Error('No se pudo verificar la disponibilidad');
+          }
+          const data = await response.json();
+          inputs.forEach((input) => {
+            const flag = input.dataset.uniqueField;
+            if (flag === 'username') {
+              setDuplicateState(input, Boolean(data.exists_username), 'El nombre de usuario ya está en uso');
+            } else if (flag === 'dni') {
+              setDuplicateState(input, Boolean(data.exists_dni), 'El DNI ya está registrado');
+            }
+          });
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            return;
+          }
+          console.error(error);
+        }
+      };
+
+      const scheduleCheck = () => {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+        debounceTimer = setTimeout(performCheck, 300);
+      };
+
+      inputs.forEach((input) => {
+        input.addEventListener('input', scheduleCheck);
+        input.addEventListener('blur', performCheck);
+      });
+    });
+  </script>
 {% endblock %}

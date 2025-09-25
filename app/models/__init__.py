@@ -9,7 +9,7 @@ from .docscan import Docscan, TipoDocscan
 from .equipo import Equipo, EquipoHistorial, EstadoEquipo, TipoEquipo
 from .equipo_adjunto import EquipoAdjunto
 from .hospital import Hospital, Oficina, Servicio
-from .insumo import Insumo, InsumoMovimiento, MovimientoTipo, equipo_insumos
+from .insumo import EquipoInsumo, Insumo, InsumoMovimiento, MovimientoTipo
 from .licencia import Licencia, TipoLicencia, EstadoLicencia
 from .permisos import Modulo, Permiso
 from .rol import Rol
@@ -36,7 +36,7 @@ __all__ = [
     "Insumo",
     "InsumoMovimiento",
     "MovimientoTipo",
-    "equipo_insumos",
+    "EquipoInsumo",
     "Licencia",
     "TipoLicencia",
     "EstadoLicencia",

@@ -8,17 +8,19 @@ from flask_wtf.file import FileAllowed, FileField, FileRequired
 from wtforms import (
     BooleanField,
     DateField,
+    IntegerField,
     HiddenField,
     SelectField,
     StringField,
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Length, Optional
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 from app.models import (
     EstadoEquipo,
     Hospital,
+    Insumo,
     Oficina,
     Servicio,
     TipoActa,
@@ -215,6 +217,38 @@ class EquipoAdjuntoDeleteForm(FlaskForm):
     submit = SubmitField("Eliminar")
 
 
+class EquipoInsumoForm(FlaskForm):
+    """Form to associate insumos to an equipment entry."""
+
+    insumo_busqueda = StringField(
+        "Insumo",
+        validators=[DataRequired(), Length(max=160)],
+        description="Busque por nombre de insumo",
+    )
+    insumo_id = HiddenField(validators=[DataRequired()])
+    cantidad = IntegerField("Cantidad", validators=[DataRequired(), NumberRange(min=1)])
+    fecha = DateField("Fecha", validators=[Optional()])
+    comentario = TextAreaField("Comentario", validators=[Optional(), Length(max=500)])
+    submit = SubmitField("Agregar insumo")
+
+    def validate(self, extra_validators=None):  # type: ignore[override]
+        if not super().validate(extra_validators=extra_validators):
+            return False
+        try:
+            insumo_id = int(self.insumo_id.data)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            self.insumo_busqueda.errors.append("Seleccione un insumo válido")
+            return False
+        insumo = Insumo.query.get(insumo_id)
+        if not insumo:
+            self.insumo_busqueda.errors.append("Seleccione un insumo válido")
+            return False
+        self.insumo_busqueda.data = insumo.nombre
+        self.insumo_id.data = str(insumo_id)
+        self.insumo = insumo  # type: ignore[attr-defined]
+        return True
+
+
 class EquipoHistorialFiltroForm(FlaskForm):
     """Filter historical entries for an equipment."""
 
@@ -268,6 +302,7 @@ __all__ = [
     "EquipoFiltroForm",
     "EquipoAdjuntoForm",
     "EquipoAdjuntoDeleteForm",
+    "EquipoInsumoForm",
     "EquipoHistorialFiltroForm",
     "EquipoActaFiltroForm",
 ]

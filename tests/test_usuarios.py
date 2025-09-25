@@ -25,3 +25,29 @@ def test_usuarios_create_accessible_for_admin(client, admin_credentials):
     login(client, **admin_credentials)
     resp = client.get("/usuarios/crear")
     assert resp.status_code == 200
+
+
+def test_api_users_check_detects_duplicates(client, admin_credentials, data):
+    login(client, **admin_credentials)
+    resp = client.get(
+        "/api/users/check",
+        query_string={"username": "admin", "dni": data["admin"].dni},
+    )
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload == {"exists_username": True, "exists_dni": True}
+
+
+def test_api_users_check_excludes_current_user(client, admin_credentials, data):
+    login(client, **admin_credentials)
+    resp = client.get(
+        "/api/users/check",
+        query_string={
+            "username": "admin",
+            "dni": data["admin"].dni,
+            "exclude_id": data["admin"].id,
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload == {"exists_username": False, "exists_dni": False}

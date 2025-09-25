@@ -24,7 +24,7 @@ from app.models.auditoria import Auditoria
 from app.models.docscan import Docscan, TipoDocscan
 from app.models.equipo import Equipo, EquipoHistorial, EstadoEquipo, TipoEquipo
 from app.models.hospital import Hospital, Oficina, Servicio
-from app.models.insumo import Insumo, InsumoMovimiento, MovimientoTipo, equipo_insumos
+from app.models.insumo import EquipoInsumo, Insumo, InsumoMovimiento, MovimientoTipo
 from app.models.licencia import EstadoLicencia, Licencia, TipoLicencia
 from app.models.permisos import Modulo, Permiso
 from app.models.rol import Rol
@@ -52,7 +52,7 @@ def reset_tables(session: Session) -> None:
     session.execute(delete(Auditoria))
     session.execute(delete(Permiso))
     session.execute(delete(Licencia))
-    session.execute(delete(equipo_insumos))
+    session.execute(delete(EquipoInsumo))
     session.execute(delete(Equipo))
     session.execute(delete(Insumo))
     session.execute(delete(Oficina))
@@ -135,6 +135,7 @@ def create_users(session: Session, ctx: dict[str, object]) -> dict[str, Usuario]
         "superadmin": Usuario(
             username="superadmin",
             nombre="Super Administrador",
+            dni="20000000",
             email="superadmin@salud.gob.ar",
             rol=roles["superadmin"],
             password_hash=hashed_password(),
@@ -142,6 +143,7 @@ def create_users(session: Session, ctx: dict[str, object]) -> dict[str, Usuario]
         "admin_molas": Usuario(
             username="admin_molas",
             nombre="Admin Molas",
+            dni="20000001",
             email="admin.molas@salud.gob.ar",
             rol=roles["admin"],
             hospital=hospitales[0],
@@ -150,6 +152,7 @@ def create_users(session: Session, ctx: dict[str, object]) -> dict[str, Usuario]
         "admin_favaloro": Usuario(
             username="admin_favaloro",
             nombre="Admin Favaloro",
+            dni="20000002",
             email="admin.favaloro@salud.gob.ar",
             rol=roles["admin"],
             hospital=hospitales[1],
@@ -158,6 +161,7 @@ def create_users(session: Session, ctx: dict[str, object]) -> dict[str, Usuario]
         "tecnico_molas": Usuario(
             username="tecnico_molas",
             nombre="Tecnico Molas",
+            dni="20000003",
             email="tecnico.molas@salud.gob.ar",
             rol=roles["tecnico"],
             hospital=hospitales[0],
@@ -166,6 +170,7 @@ def create_users(session: Session, ctx: dict[str, object]) -> dict[str, Usuario]
         "tecnico_favaloro": Usuario(
             username="tecnico_favaloro",
             nombre="Tecnico Favaloro",
+            dni="20000004",
             email="tecnico.favaloro@salud.gob.ar",
             rol=roles["tecnico"],
             hospital=hospitales[1],
@@ -174,6 +179,7 @@ def create_users(session: Session, ctx: dict[str, object]) -> dict[str, Usuario]
         "lector": Usuario(
             username="consulta",
             nombre="Usuario Lectura",
+            dni="20000005",
             email="lectura@salud.gob.ar",
             rol=roles["lectura"],
             hospital=hospitales[0],
@@ -328,8 +334,22 @@ def create_inventory(session: Session, ctx: dict[str, object], usuarios: dict[st
     session.add_all(insumos)
     session.flush()
 
-    equipos[0].insumos.append(insumos[1])
-    equipos[1].insumos.append(insumos[0])
+    session.add_all(
+        [
+            EquipoInsumo(
+                equipo=equipos[0],
+                insumo=insumos[1],
+                cantidad=3,
+                comentario="Cableado inicial",
+            ),
+            EquipoInsumo(
+                equipo=equipos[1],
+                insumo=insumos[0],
+                cantidad=1,
+                comentario="Cartucho instalado",
+            ),
+        ]
+    )
 
     movimiento = InsumoMovimiento(
         insumo=insumos[0],

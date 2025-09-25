@@ -16,8 +16,14 @@ def registrar_movimiento(
     equipo_id: int | None = None,
     motivo: str | None = None,
     observaciones: str | None = None,
+    commit: bool = True,
 ) -> InsumoMovimiento:
-    """Create a movement adjusting stock accordingly."""
+    """Create a movement adjusting stock accordingly.
+
+    When ``commit`` is ``False`` the caller becomes responsible for finalising the
+    transaction. This is useful when the stock update must be coordinated with
+    other writes (e.g. vincular un insumo a un equipo) to guarantee atomicity.
+    """
 
     if cantidad <= 0:
         raise ValueError("La cantidad debe ser mayor a cero")
@@ -35,9 +41,10 @@ def registrar_movimiento(
         observaciones=observaciones,
     )
     db.session.add(movimiento)
-    db.session.commit()
-    db.session.refresh(movimiento)
-    db.session.expunge(movimiento)
+    if commit:
+        db.session.commit()
+        db.session.refresh(movimiento)
+        db.session.expunge(movimiento)
     return movimiento
 
 

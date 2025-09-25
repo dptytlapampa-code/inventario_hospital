@@ -6,17 +6,16 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    Column,
     DateTime,
     Enum as SAEnum,
     ForeignKey,
     Integer,
     Numeric,
     String,
-    Table,
     Text,
     func,
 )
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -24,14 +23,6 @@ from .base import Base
 if TYPE_CHECKING:  # pragma: no cover
     from .equipo import Equipo
     from .usuario import Usuario
-
-
-equipo_insumos = Table(
-    "equipo_insumos",
-    Base.metadata,
-    Column("equipo_id", ForeignKey("equipos.id"), primary_key=True),
-    Column("insumo_id", ForeignKey("insumos.id"), primary_key=True),
-)
 
 
 class MovimientoTipo(str, Enum):
@@ -64,8 +55,11 @@ class Insumo(Base):
         nullable=False,
     )
 
-    equipos: Mapped[list["Equipo"]] = relationship(
-        "Equipo", secondary=equipo_insumos, back_populates="insumos"
+    asignaciones: Mapped[list["EquipoInsumo"]] = relationship(
+        "EquipoInsumo", back_populates="insumo", cascade="all, delete-orphan"
+    )
+    equipos = association_proxy(
+        "asignaciones", "equipo", creator=lambda equipo: EquipoInsumo(equipo=equipo)
     )
     movimientos: Mapped[list["InsumoMovimiento"]] = relationship(
         "InsumoMovimiento", back_populates="insumo", cascade="all, delete-orphan"
@@ -104,4 +98,29 @@ class InsumoMovimiento(Base):
     equipo: Mapped["Equipo | None"] = relationship("Equipo")
 
 
-__all__ = ["Insumo", "InsumoMovimiento", "MovimientoTipo", "equipo_insumos"]
+class EquipoInsumo(Base):
+    """Association between equipment and consumables."""
+
+    __tablename__ = "equipo_insumos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    equipo_id: Mapped[int] = mapped_column(ForeignKey("equipos.id"), nullable=False)
+    insumo_id: Mapped[int] = mapped_column(ForeignKey("insumos.id"), nullable=False)
+    cantidad: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    fecha: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
+    )
+    comentario: Mapped[str | None] = mapped_column(Text())
+
+    equipo: Mapped["Equipo"] = relationship(
+        "Equipo", back_populates="insumo_asignaciones"
+    )
+    insumo: Mapped["Insumo"] = relationship("Insumo", back_populates="asignaciones")
+
+
+__all__ = [
+    "Insumo",
+    "InsumoMovimiento",
+    "MovimientoTipo",
+    "EquipoInsumo",
+]
