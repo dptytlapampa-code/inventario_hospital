@@ -20,6 +20,12 @@ class LicenciaForm(FlaskForm):
     )
     fecha_inicio = DateField("Fecha de inicio", validators=[DataRequired()])
     fecha_fin = DateField("Fecha de fin", validators=[DataRequired()])
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=int,
+        validators=[Optional()],
+        description="Opcional si la licencia está asociada a un hospital específico.",
+    )
     motivo = TextAreaField("Motivo", validators=[DataRequired(), Length(max=500)])
     submit = SubmitField("Enviar solicitud")
 
@@ -46,4 +52,70 @@ class CalendarioFiltroForm(FlaskForm):
     submit = SubmitField("Filtrar")
 
 
-__all__ = ["LicenciaForm", "AprobarRechazarForm", "CalendarioFiltroForm"]
+class MisLicenciasFiltroForm(FlaskForm):
+    """Basic filters for the "mis licencias" listing."""
+
+    estado = SelectField(
+        "Estado",
+        choices=[],
+        validators=[Optional()],
+        description="Filtrar por estado actual de la solicitud.",
+    )
+    tipo = SelectField(
+        "Tipo",
+        choices=[],
+        validators=[Optional()],
+        description="Filtrar por tipo de licencia.",
+    )
+    fecha_desde = DateField("Desde", validators=[Optional()])
+    fecha_hasta = DateField("Hasta", validators=[Optional()])
+    submit = SubmitField("Aplicar filtros")
+
+
+class GestionLicenciasFiltroForm(FlaskForm):
+    """Filters for the superadmin management board."""
+
+    usuario_id = SelectField(
+        "Usuario",
+        coerce=lambda value: int(value) if value else None,
+        choices=[],
+        validators=[Optional()],
+    )
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=lambda value: int(value) if value else None,
+        choices=[],
+        validators=[Optional()],
+    )
+    estado = SelectField("Estado", choices=[], validators=[Optional()])
+    fecha_desde = DateField("Desde", validators=[Optional()])
+    fecha_hasta = DateField("Hasta", validators=[Optional()])
+    submit = SubmitField("Aplicar filtros")
+
+
+class LicenciaAccionForm(FlaskForm):
+    """Simple action form that only carries the CSRF token."""
+
+    submit = SubmitField()
+
+
+class LicenciaRechazoForm(FlaskForm):
+    """Form used to capture an optional rejection reason."""
+
+    motivo_rechazo = TextAreaField(
+        "Motivo de rechazo",
+        validators=[Optional(), Length(max=500)],
+        description="Se enviará al solicitante junto con la notificación de rechazo.",
+    )
+    submit = SubmitField("Confirmar rechazo")
+
+
+__all__ = [
+    "LicenciaForm",
+    "AprobarRechazarForm",
+    "CalendarioFiltroForm",
+    "MisLicenciasFiltroForm",
+    "GestionLicenciasFiltroForm",
+    "LicenciaAccionForm",
+    "LicenciaRechazoForm",
+]

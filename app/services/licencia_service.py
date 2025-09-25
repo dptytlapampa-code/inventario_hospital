@@ -72,8 +72,10 @@ def aprobar_licencia(licencia: Licencia, aprobador: Usuario) -> Licencia:
     return licencia
 
 
-def rechazar_licencia(licencia: Licencia, aprobador: Usuario) -> Licencia:
-    licencia.rechazar(aprobador)
+def rechazar_licencia(
+    licencia: Licencia, aprobador: Usuario, motivo: str | None = None
+) -> Licencia:
+    licencia.rechazar(aprobador, motivo)
     db.session.commit()
     return licencia
 

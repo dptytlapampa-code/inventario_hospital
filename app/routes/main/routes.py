@@ -1,12 +1,13 @@
 """Main blueprint containing dashboard views."""
 from __future__ import annotations
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.forms.usuario import PerfilForm
 from app.models import Equipo, EstadoEquipo, EstadoLicencia, Hospital, Insumo, Licencia
+from app.models.usuario import ThemePreference
 from app.services.dashboard_service import collect_dashboard_metrics
 
 main_bp = Blueprint("main", __name__)
@@ -58,3 +59,17 @@ def perfil() -> str:
         form.email.data = current_user.email
         form.telefono.data = current_user.telefono
     return render_template("usuarios/perfil.html", form=form)
+
+
+@main_bp.post("/preferencias/tema")
+@login_required
+def actualizar_tema() -> str:
+    payload = request.get_json(silent=True) or {}
+    theme = payload.get("theme")
+    valid_values = {pref.value for pref in ThemePreference}
+    if theme not in valid_values:
+        abort(400, description="Preferencia de tema inválida")
+
+    current_user.theme_pref = ThemePreference(theme)
+    db.session.commit()
+    return jsonify({"status": "ok", "theme": theme})

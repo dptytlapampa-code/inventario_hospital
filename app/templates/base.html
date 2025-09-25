@@ -1,5 +1,10 @@
 <!doctype html>
-<html lang="es">
+{% set theme_pref = current_user.theme_pref.value if current_user.is_authenticated else 'system' %}
+{% set theme_initial = 'dark' if theme_pref == 'dark' else 'light' %}
+{% if theme_pref == 'system' %}
+  {% set theme_initial = 'light' %}
+{% endif %}
+<html lang="es" data-theme-pref="{{ theme_pref }}" data-bs-theme="{{ theme_initial }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -30,6 +35,11 @@
         {% set usuarios_open = current_bp in ['usuarios', 'licencias', 'permisos'] %}
         {% set vista_actual = request.args.get('vista', 'hospitales') %}
         {% set filtro_insumos = request.args.get('criticos') %}
+        {% if has_role('superadmin') %}
+        {% set licencias_url = url_for('licencias.gestion') %}
+        {% else %}
+        {% set licencias_url = url_for('licencias.mias') %}
+        {% endif %}
         <nav class="sidebar-nav" aria-label="Menú principal">
           <ul class="sidebar-nav-list list-unstyled mb-0">
             <li>
@@ -101,7 +111,7 @@
                   <ul class="sidebar-subnav list-unstyled mb-0">
                     <li><a class="sidebar-sublink{% if current_bp == 'usuarios' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('usuarios.listar') }}">Listado</a></li>
                     <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.crear' %} active{% endif %}" href="{{ url_for('usuarios.crear') }}">Nuevo usuario</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'licencias' %} active{% endif %}" href="{{ url_for('licencias.listar') }}">Licencias</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'licencias' %} active{% endif %}" href="{{ licencias_url }}">Licencias</a></li>
                     {% if has_role('superadmin') %}
                     <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Permisos</a></li>
                     {% endif %}
@@ -153,6 +163,15 @@
               </button>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
                 <li><a class="dropdown-item" href="{{ url_for('main.perfil') }}">Mi perfil</a></li>
+                <li><a class="dropdown-item" href="{{ licencias_url }}">Licencias</a></li>
+                <li><span class="dropdown-header">Cambiar tema</span></li>
+                <li class="px-3 pb-2">
+                  <div class="btn-group btn-group-sm w-100" role="group" aria-label="Cambiar tema">
+                    <button type="button" class="btn btn-outline-secondary" data-theme-option="light">Claro</button>
+                    <button type="button" class="btn btn-outline-secondary" data-theme-option="dark">Oscuro</button>
+                    <button type="button" class="btn btn-outline-secondary" data-theme-option="system">Sistema</button>
+                  </div>
+                </li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Cerrar sesión</a></li>
               </ul>
@@ -179,6 +198,7 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/layout.js') }}"></script>
     <script src="{{ url_for('static', filename='js/lookups.js') }}"></script>
     <script src="{{ url_for('static', filename='js/forms/autocomplete.js') }}"></script>
