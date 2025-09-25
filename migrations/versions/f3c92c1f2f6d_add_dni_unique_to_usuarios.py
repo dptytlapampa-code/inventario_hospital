@@ -18,7 +18,7 @@ usuarios_table = sa.table(
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("usuarios", schema=None) as batch_op:
+    with op.batch_alter_table("usuarios", schema=None, recreate="always") as batch_op:
         batch_op.add_column(sa.Column("dni", sa.String(length=20), nullable=True))
 
     bind = op.get_bind()
@@ -31,14 +31,14 @@ def upgrade() -> None:
             .values(dni=generated_dni)
         )
 
-    with op.batch_alter_table("usuarios", schema=None) as batch_op:
+    with op.batch_alter_table("usuarios", schema=None, recreate="always") as batch_op:
         batch_op.alter_column("dni", existing_type=sa.String(length=20), nullable=False)
         batch_op.create_unique_constraint("uq_usuario_dni", ["dni"])
         batch_op.create_unique_constraint("uq_usuario_username", ["username"])
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("usuarios", schema=None) as batch_op:
+    with op.batch_alter_table("usuarios", schema=None, recreate="always") as batch_op:
         batch_op.drop_constraint("uq_usuario_username", type_="unique")
         batch_op.drop_constraint("uq_usuario_dni", type_="unique")
         batch_op.drop_column("dni")

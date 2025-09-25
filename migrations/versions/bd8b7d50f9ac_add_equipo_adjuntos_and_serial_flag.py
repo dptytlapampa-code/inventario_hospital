@@ -43,7 +43,7 @@ def _ensure_adjuntos_table() -> None:
 
     columns = {column["name"] for column in inspector.get_columns("equipos_adjuntos")}
     if "file_size" not in columns:
-        with op.batch_alter_table("equipos_adjuntos", schema=None) as batch:
+        with op.batch_alter_table("equipos_adjuntos", schema=None, recreate="always") as batch:
             batch.add_column(sa.Column("file_size", sa.Integer(), nullable=True))
 
     indexes = {index["name"] for index in inspector.get_indexes("equipos_adjuntos")}
@@ -56,12 +56,15 @@ def _ensure_adjuntos_table() -> None:
 
 
 def upgrade():
-    op.add_column(
-        "equipos",
-        sa.Column(
-            "sin_numero_serie", sa.Boolean(), nullable=False, server_default=sa.false()
-        ),
-    )
+    with op.batch_alter_table("equipos", recreate="always") as batch:
+        batch.add_column(
+            sa.Column(
+                "sin_numero_serie",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.false(),
+            )
+        )
     _ensure_adjuntos_table()
     with op.batch_alter_table("equipos", recreate="always") as batch:
         batch.alter_column(
@@ -79,7 +82,7 @@ def downgrade():
     inspector = inspect(bind)
     columns = {column["name"] for column in inspector.get_columns("equipos_adjuntos")}
     if "file_size" in columns:
-        with op.batch_alter_table("equipos_adjuntos", schema=None) as batch:
+        with op.batch_alter_table("equipos_adjuntos", schema=None, recreate="always") as batch:
             batch.drop_column("file_size")
 
     indexes = {index["name"] for index in inspector.get_indexes("equipos_adjuntos")}

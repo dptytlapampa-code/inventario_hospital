@@ -5,6 +5,7 @@ from datetime import datetime
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
+from sqlalchemy import inspect
 
 from app.extensions import db
 from app.forms.login import LoginForm
@@ -58,6 +59,10 @@ def logout():
 
 @auth_bp.before_app_request
 def validar_licencia():
+    engine = db.engine
+    inspector = inspect(engine)
+    if not inspector.has_table("usuarios") or not inspector.has_table("licencias"):
+        return None
     if not current_user.is_authenticated:
         return None
     if usuario_con_licencia_activa(current_user.id):
