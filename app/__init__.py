@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from flask import Flask, render_template
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from config import Config
 from app.assets import ensure_favicon
-from app.extensions import configure_logging, init_extensions, login_manager
+from app.extensions import configure_logging, db, init_extensions, login_manager
 from app.security.rbac import has_role
 from app.utils import (
     build_select_attrs,
@@ -78,9 +80,15 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         if not user_id:
             return None
         try:
-            return Usuario.query.get(int(user_id))
+            user_pk = int(user_id)
         except (ValueError, TypeError):  # pragma: no cover - defensive
             return None
+        stmt = (
+            select(Usuario)
+            .options(joinedload(Usuario.rol))
+            .where(Usuario.id == user_pk)
+        )
+        return db.session.execute(stmt).scalar_one_or_none()
 
     from app.routes.actas import actas_bp
     from app.routes.adjuntos import adjuntos_bp

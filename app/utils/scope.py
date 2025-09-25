@@ -21,13 +21,15 @@ def get_user_hospital_scope(user: Usuario | AnonymousUserMixin | None) -> ScopeV
     if user is None or not getattr(user, "is_authenticated", False):
         return []
 
-    role = (getattr(user, "role", None) or "").lower()
-    if role == "superadmin":
+    rol = getattr(user, "rol", None)
+    role_name = (getattr(rol, "nombre", None) or "").lower()
+    if role_name == "superadmin":
         return "todos"
 
     allowed = set()
-    if hasattr(user, "allowed_hospital_ids"):
-        allowed.update(user.allowed_hospital_ids(None))
+    allowed_method = getattr(user, "allowed_hospital_ids", None)
+    if callable(allowed_method):
+        allowed.update(int(value) for value in allowed_method(None))
 
     if getattr(user, "hospital_id", None):
         allowed.add(int(user.hospital_id))
