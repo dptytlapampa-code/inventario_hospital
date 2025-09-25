@@ -1,7 +1,11 @@
 {% extends 'base.html' %}
-{% block title %}Inicio{% endblock %}
+{% block title %}Dashboard{% endblock %}
+{% block header_title %}Dashboard general{% endblock %}
+{% block header_subtitle %}
+<span class="text-muted">Acceso completo a {{ metrics.scope.summary }}</span>
+{% endblock %}
 {% block content %}
-  {% with show_dashboard_link=true %}
+  {% with show_home_link=true %}
     {% include 'main/_dashboard_common.html' %}
   {% endwith %}
 {% endblock %}
