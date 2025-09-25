@@ -2,7 +2,8 @@
   const POLL_INTERVAL = 60000;
   let refreshTimer = null;
   let eventSource = null;
-  let charts = {};
+  const charts = {};
+  let latestMetrics = {};
 
   function getContext(id) {
     const canvas = document.getElementById(id);
@@ -13,15 +14,97 @@
     return new Intl.NumberFormat('es-AR').format(value || 0);
   }
 
-  function updateUpdatedAt(text) {
-    const container = document.querySelector('[data-dashboard-updated]');
-    if (container) {
-      const label = container.querySelector('[data-dashboard-updated-label]');
-      if (label) {
-        label.textContent = text;
-      } else {
-        container.textContent = `Actualizado: ${text}`;
+  function getThemeContext() {
+    const styles = getComputedStyle(document.documentElement);
+    const textColor = styles.getPropertyValue('--bs-body-color').trim() || '#212529';
+    const gridColor = styles.getPropertyValue('--bs-border-color-translucent').trim() || 'rgba(0, 0, 0, 0.1)';
+    const paletteVars = ['--bs-primary', '--bs-success', '--bs-warning', '--bs-danger', '--bs-info', '--bs-indigo', '--bs-pink'];
+    const fallback = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#20c997', '#6610f2', '#d63384'];
+    const baseColors = paletteVars.map((variable, index) => styles.getPropertyValue(variable).trim() || fallback[index]);
+    return { styles, textColor, gridColor, baseColors };
+  }
+
+  function colorWithAlpha(color, alpha) {
+    if (!color || alpha >= 1) {
+      return color;
+    }
+    if (color.startsWith('#')) {
+      let hex = color.slice(1);
+      if (hex.length === 3) {
+        hex = hex.split('').map((char) => char + char).join('');
       }
+      if (hex.length >= 6) {
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+    }
+    if (color.startsWith('rgb')) {
+      const parts = color.replace(/rgba?\(|\)/g, '').split(',');
+      const [r = 0, g = 0, b = 0] = parts.map((value) => parseInt(value, 10));
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    return color;
+  }
+
+  function paletteWithAlpha(colors, alpha) {
+    return colors.map((color) => colorWithAlpha(color, alpha));
+  }
+
+  function mergeOptions(base, overrides) {
+    const output = { ...base };
+    Object.keys(overrides || {}).forEach((key) => {
+      const baseValue = base[key];
+      const overrideValue = overrides[key];
+      if (
+        baseValue &&
+        overrideValue &&
+        typeof baseValue === 'object' &&
+        typeof overrideValue === 'object' &&
+        !Array.isArray(baseValue) &&
+        !Array.isArray(overrideValue)
+      ) {
+        output[key] = mergeOptions(baseValue, overrideValue);
+      } else {
+        output[key] = overrideValue;
+      }
+    });
+    return output;
+  }
+
+  function buildChartOptions(theme, overrides = {}) {
+    const base = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: theme.textColor },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: theme.gridColor },
+          ticks: { color: theme.textColor },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: theme.gridColor },
+          ticks: { color: theme.textColor },
+        },
+      },
+    };
+    if (!overrides || typeof overrides !== 'object') {
+      return base;
+    }
+    return mergeOptions(base, overrides);
+  }
+
+  function updateUpdatedAt(text) {
+    const label = document.getElementById('last-updated');
+    if (label) {
+      label.textContent = `Actualizado: ${text}`;
     }
   }
 
@@ -56,11 +139,12 @@
     });
   }
 
-  function renderCritical(list) {
+  function renderCritical(list, total) {
     const container = document.querySelector('[data-critical-list]');
     const totalBadge = document.querySelector('[data-critical-total]');
     if (totalBadge) {
-      totalBadge.textContent = formatNumber(list.length);
+      const totalValue = typeof total === 'number' ? total : list.length;
+      totalBadge.textContent = formatNumber(totalValue);
     }
     if (!container) {
       return;
@@ -71,14 +155,27 @@
     }
     container.innerHTML = list
       .map((item) => {
-        const faltante = item.faltante || Math.max((item.stock_minimo || 0) - (item.stock || 0), 0);
+        const minimo = item.stock_minimo || 0;
+        const stock = item.stock || 0;
+        const faltante = item.faltante || Math.max(minimo - stock, 0);
+        const coverageRaw = typeof item.coverage_percent === 'number' ? item.coverage_percent : minimo > 0 ? (stock / minimo) * 100 : 0;
+        const coverage = Math.max(0, Math.min(100, Math.round(coverageRaw)));
         return `
-          <li class="list-group-item d-flex justify-content-between align-items-start">
-            <div>
-              <div class="fw-semibold">${item.nombre}</div>
-              <div class="text-muted small">Mínimo ${formatNumber(item.stock_minimo)} · Faltan ${formatNumber(faltante)}</div>
+          <li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <div class="fw-semibold">${item.nombre}</div>
+                <div class="text-body-secondary small">Stock actual ${formatNumber(stock)} · Mínimo ${formatNumber(minimo)}</div>
+              </div>
+              <span class="badge rounded-pill text-bg-danger-subtle text-danger-emphasis">Faltan ${formatNumber(faltante)}</span>
             </div>
-            <span class="status-badge status-badge--danger">${formatNumber(item.stock)}</span>
+            <div class="progress mt-3" style="height: 0.45rem;" role="progressbar" aria-valuenow="${coverage}" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-bar bg-danger" style="width: ${coverage}%"></div>
+            </div>
+            <div class="d-flex justify-content-between small text-body-secondary mt-2">
+              <span>Cobertura ${coverage}%</span>
+              <span>Disponible ${formatNumber(stock)}</span>
+            </div>
           </li>
         `;
       })
@@ -107,23 +204,11 @@
         return `
           <li class="list-group-item">
             <div class="fw-semibold">${item.nombre || '—'}</div>
-            <div class="text-muted small">${hospital} · hasta ${hasta}${tipo ? ` · ${tipo}` : ''}</div>
+            <div class="text-body-secondary small">${hospital} · hasta ${hasta}${tipo ? ` · ${tipo}` : ''}</div>
           </li>
         `;
       })
       .join('');
-  }
-
-  function palette() {
-    return [
-      '#2563eb',
-      '#16a34a',
-      '#f59f00',
-      '#d9480f',
-      '#0ca678',
-      '#845ef7',
-      '#f783ac',
-    ];
   }
 
   function createChart(key, config) {
@@ -134,19 +219,17 @@
     if (charts[key]) {
       charts[key].destroy();
     }
+    const dataset = {
+      label: config.label,
+      data: config.data,
+      borderWidth: 1,
+      ...(config.dataset || {}),
+    };
     charts[key] = new window.Chart(ctx, {
       type: config.type,
       data: {
         labels: config.labels,
-        datasets: [
-          {
-            label: config.label,
-            data: config.data,
-            backgroundColor: config.backgroundColor || palette(),
-            borderColor: config.borderColor || palette(),
-            borderWidth: 1,
-          },
-        ],
+        datasets: [dataset],
       },
       options: config.options || {},
     });
@@ -161,22 +244,22 @@
     }
     chart.data.labels = config.labels;
     chart.data.datasets[0].data = config.data;
-    if (config.backgroundColor) {
-      chart.data.datasets[0].backgroundColor = config.backgroundColor;
+    if (config.dataset) {
+      Object.assign(chart.data.datasets[0], config.dataset);
+    }
+    if (config.options) {
+      chart.options = mergeOptions(chart.options || {}, config.options);
     }
     chart.update();
   }
 
   function renderCharts(metrics) {
+    const theme = getThemeContext();
     const stateData = metrics.charts.equipment_state || { labels: [], values: [] };
     const typeData = metrics.charts.equipment_type || { labels: [], values: [] };
     const stockData = metrics.charts.insumo_stock || { labels: [], values: [] };
-
-    const baseOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } },
-    };
+    const doughnutOptions = buildChartOptions(theme);
+    delete doughnutOptions.scales;
 
     createChart('equipment_state', {
       elementId: 'chartEquipmentState',
@@ -184,7 +267,11 @@
       label: 'Equipos',
       labels: stateData.labels,
       data: stateData.values,
-      options: baseOptions,
+      dataset: {
+        backgroundColor: theme.baseColors,
+        borderColor: paletteWithAlpha(theme.baseColors, 0.85),
+      },
+      options: doughnutOptions,
     });
 
     createChart('equipment_type', {
@@ -193,13 +280,15 @@
       label: 'Equipos',
       labels: typeData.labels,
       data: typeData.values,
-      options: {
-        ...baseOptions,
+      dataset: {
+        backgroundColor: paletteWithAlpha(theme.baseColors, 0.7),
+        borderColor: theme.baseColors,
+      },
+      options: buildChartOptions(theme, {
         scales: {
           x: { ticks: { autoSkip: false, maxRotation: 0 } },
-          y: { beginAtZero: true },
         },
-      },
+      }),
     });
 
     createChart('insumo_stock', {
@@ -208,35 +297,52 @@
       label: 'Stock',
       labels: stockData.labels,
       data: stockData.values,
-      backgroundColor: palette().map((color) => `${color}CC`),
-      options: {
-        ...baseOptions,
+      dataset: {
+        backgroundColor: paletteWithAlpha(theme.baseColors, 0.7),
+        borderColor: theme.baseColors,
+      },
+      options: buildChartOptions(theme, {
         scales: {
           x: { ticks: { autoSkip: false } },
-          y: { beginAtZero: true },
         },
-      },
+      }),
     });
   }
 
   function refreshCharts(metrics) {
+    const chartsData = metrics.charts || {};
+    const stateData = chartsData.equipment_state || { labels: [], values: [] };
+    const typeData = chartsData.equipment_type || { labels: [], values: [] };
+    const stockData = chartsData.insumo_stock || { labels: [], values: [] };
+    const theme = getThemeContext();
     updateChart('equipment_state', {
       elementId: 'chartEquipmentState',
-      labels: metrics.charts.equipment_state.labels,
-      data: metrics.charts.equipment_state.values,
+      labels: stateData.labels,
+      data: stateData.values,
+      dataset: {
+        backgroundColor: theme.baseColors,
+        borderColor: paletteWithAlpha(theme.baseColors, 0.85),
+      },
     });
 
     updateChart('equipment_type', {
       elementId: 'chartEquipmentType',
-      labels: metrics.charts.equipment_type.labels,
-      data: metrics.charts.equipment_type.values,
+      labels: typeData.labels,
+      data: typeData.values,
+      dataset: {
+        backgroundColor: paletteWithAlpha(theme.baseColors, 0.7),
+        borderColor: theme.baseColors,
+      },
     });
 
     updateChart('insumo_stock', {
       elementId: 'chartInsumoStock',
-      labels: metrics.charts.insumo_stock.labels,
-      data: metrics.charts.insumo_stock.values,
-      backgroundColor: palette().map((color) => `${color}CC`),
+      labels: stockData.labels,
+      data: stockData.values,
+      dataset: {
+        backgroundColor: paletteWithAlpha(theme.baseColors, 0.7),
+        borderColor: theme.baseColors,
+      },
     });
   }
 
@@ -316,8 +422,9 @@
     if (!metrics) {
       return;
     }
+    latestMetrics = metrics;
     renderKpis(metrics.kpis || []);
-    renderCritical(metrics.critical_supplies || []);
+    renderCritical(metrics.critical_supplies || [], metrics.critical_supplies_total);
     renderLicensesToday(metrics.licenses_today || {});
     updateUpdatedAt(metrics.generated_at_display || '—');
     if (!charts.equipment_state) {
@@ -329,9 +436,10 @@
 
   function init() {
     const initial = window.dashboardMetrics || {};
+    latestMetrics = initial;
     if (Object.keys(initial).length) {
       renderKpis(initial.kpis || []);
-      renderCritical(initial.critical_supplies || []);
+      renderCritical(initial.critical_supplies || [], initial.critical_supplies_total);
       renderLicensesToday(initial.licenses_today || {});
       renderCharts(initial);
       updateUpdatedAt(initial.generated_at_display || '—');
@@ -344,6 +452,13 @@
   }
 
   document.addEventListener('DOMContentLoaded', init);
+
+  document.addEventListener('theme:changed', () => {
+    if (!Object.keys(charts).length || !Object.keys(latestMetrics || {}).length) {
+      return;
+    }
+    renderCharts(latestMetrics);
+  });
 
   window.addEventListener('beforeunload', () => {
     stopPolling();

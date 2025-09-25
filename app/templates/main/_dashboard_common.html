@@ -1,10 +1,37 @@
-<div class="dashboard-updated text-muted small mb-3" data-dashboard-updated>
-  Actualizado: <span data-dashboard-updated-label>{{ metrics.generated_at_display }}</span>
-  {% if show_dashboard_link %}
-  <span class="ms-2"><a class="link-secondary" href="{{ url_for('main.dashboard') }}">Ver dashboard completo</a></span>
-  {% elif show_home_link %}
-  <span class="ms-2"><a class="link-secondary" href="{{ url_for('main.index') }}">Volver al inicio</a></span>
+{% set kpi_icons = {
+  'equipos': '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 3v2M12 19v2M4.22 6.22l1.42 1.42M18.36 18.36l1.42 1.42M3 12h2M19 12h2M4.22 17.78l1.42-1.42M18.36 5.64l1.42-1.42" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  'insumos': '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 8.5 12 5l7.5 3.5-7.5 3.5-7.5-3.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.5 8.5v7l7.5 3.5 7.5-3.5v-7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 12l7.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+  'hospitales': '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 8v8M8 12h8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  'licencias_hoy': '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.5 15.5 12.5 17.5 15.5 13.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  'licencias_pendientes': '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 13v3.5M12 18.5v.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+} %}
+{% set heading_title = dashboard_title | default('Dashboard general') %}
+{% if dashboard_subtitle is defined %}
+  {% set heading_subtitle = dashboard_subtitle %}
+{% else %}
+  {% if metrics.scope and metrics.scope.type == 'todos' %}
+    {% set heading_subtitle = 'Acceso completo a <strong>todos los hospitales</strong>' %}
+  {% elif metrics.scope and metrics.scope.hospitales %}
+    {% set heading_subtitle = 'Hospitales asignados: <strong>' ~ metrics.scope.summary ~ '</strong>' %}
+  {% else %}
+    {% set heading_subtitle = 'Sin hospitales asignados' %}
   {% endif %}
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ heading_title }}</h1>
+    <small class="text-body-secondary">{{ heading_subtitle | safe }}</small>
+    {% if show_home_link %}
+    <div class="mt-2">
+      <a class="link-body-secondary small" href="{{ url_for('main.index') }}">Volver al inicio</a>
+    </div>
+    {% endif %}
+  </div>
+  <small class="text-body-secondary d-flex align-items-center gap-2">
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm0-1a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Z"/><path fill="currentColor" d="M7.5 4.75a.5.5 0 0 1 1 0v2.69l1.86 1.11a.5.5 0 0 1-.5.86l-2.25-1.35a.5.5 0 0 1-.25-.43Z"/></svg>
+    <span id="last-updated">Actualizado: {{ metrics.generated_at_display }}</span>
+  </small>
 </div>
 
 {% if metrics.scope %}
@@ -22,9 +49,12 @@
 <div class="row g-3" data-dashboard-kpis>
   {% for kpi in metrics.kpis %}
   <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card kpi-card" data-kpi-card="{{ kpi.key }}">
+    <div class="card bg-body text-body kpi-card" data-kpi-card="{{ kpi.key }}">
       <div class="card-body">
-        <span class="text-muted text-uppercase small">{{ kpi.label }}</span>
+        <div class="kpi-label text-body-secondary small">
+          <span class="kpi-icon" aria-hidden="true">{{ kpi_icons.get(kpi.key)|default('')|safe }}</span>
+          <span>{{ kpi.label }}</span>
+        </div>
         <div class="display-6 fw-bold" data-kpi-value>{{ kpi.value }}</div>
         <div class="kpi-variation{% if kpi.delta > 0 %} kpi-variation--up{% elif kpi.delta < 0 %} kpi-variation--down{% else %} kpi-variation--steady{% endif %}" data-kpi-variation>
           <span class="kpi-trend-icon">
@@ -33,7 +63,7 @@
           <span class="kpi-trend-value">
             {% if kpi.delta > 0 %}+{{ kpi.delta }}{% elif kpi.delta < 0 %}{{ kpi.delta }}{% else %}0{% endif %}
           </span>
-          <span class="text-muted">últimos 7 días{% if kpi.key == 'licencias_hoy' %} / variación diaria{% endif %}</span>
+          <span class="text-body-secondary">últimos 7 días{% if kpi.key == 'licencias_hoy' %} / variación diaria{% endif %}</span>
         </div>
       </div>
     </div>
@@ -43,7 +73,7 @@
 
 <div class="row g-3 mt-1">
   <div class="col-lg-6">
-    <div class="card h-100">
+    <div class="card bg-body text-body h-100">
       <div class="card-header">Distribución de equipos por estado</div>
       <div class="card-body">
         <canvas id="chartEquipmentState" height="220" aria-label="Gráfico de equipos por estado" role="img"></canvas>
@@ -51,7 +81,7 @@
     </div>
   </div>
   <div class="col-lg-6">
-    <div class="card h-100">
+    <div class="card bg-body text-body h-100">
       <div class="card-header">Equipos por tipo</div>
       <div class="card-body">
         <canvas id="chartEquipmentType" height="220" aria-label="Gráfico de equipos por tipo" role="img"></canvas>
@@ -62,7 +92,7 @@
 
 <div class="row g-3 mt-1">
   <div class="col-lg-7">
-    <div class="card h-100">
+    <div class="card bg-body text-body h-100">
       <div class="card-header">Stock de insumos por categoría</div>
       <div class="card-body">
         <canvas id="chartInsumoStock" height="220" aria-label="Gráfico de stock de insumos" role="img"></canvas>
@@ -70,20 +100,29 @@
     </div>
   </div>
   <div class="col-lg-5 d-flex flex-column gap-3">
-    <div class="card h-100">
+    <div class="card bg-body text-body h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>Alertas de stock crítico</span>
-        <span class="badge bg-danger-subtle text-danger-emphasis" data-critical-total>{{ metrics.critical_supplies|length }}</span>
+        <span class="badge text-bg-danger-subtle text-danger-emphasis" data-critical-total>{{ metrics.critical_supplies_total or metrics.critical_supplies|length }}</span>
       </div>
       <div class="card-body">
-        <ul class="list-group list-group-flush" data-critical-list>
+        <ul class="list-group list-group-flush critical-list" data-critical-list>
           {% for item in metrics.critical_supplies %}
-          <li class="list-group-item d-flex justify-content-between align-items-start">
-            <div>
-              <div class="fw-semibold">{{ item.nombre }}</div>
-              <div class="text-muted small">Mínimo {{ item.stock_minimo }} · Faltan {{ item.faltante }}</div>
+          <li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <div class="fw-semibold">{{ item.nombre }}</div>
+                <div class="text-body-secondary small">Stock actual {{ item.stock }} · Mínimo {{ item.stock_minimo }}</div>
+              </div>
+              <span class="badge rounded-pill text-bg-danger-subtle text-danger-emphasis">Faltan {{ item.faltante }}</span>
             </div>
-            <span class="status-badge status-badge--danger">{{ item.stock }}</span>
+            <div class="progress mt-3" style="height: 0.45rem;" role="progressbar" aria-valuenow="{{ item.coverage_percent }}" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-bar bg-danger" style="width: {{ item.coverage_percent }}%"></div>
+            </div>
+            <div class="d-flex justify-content-between small text-body-secondary mt-2">
+              <span>Cobertura {{ item.coverage_percent }}%</span>
+              <span>Disponible {{ item.stock }}</span>
+            </div>
           </li>
           {% else %}
           <li class="list-group-item text-muted">Sin insumos en alerta.</li>
@@ -91,7 +130,7 @@
         </ul>
       </div>
     </div>
-    <div class="card h-100">
+    <div class="card bg-body text-body h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>Personas en licencia hoy</span>
         <span class="badge bg-primary-subtle text-primary-emphasis" data-licenses-total>{{ metrics.licenses_today.total }}</span>
@@ -101,7 +140,7 @@
           {% for item in metrics.licenses_today['items'] %}
           <li class="list-group-item">
             <div class="fw-semibold">{{ item.nombre }}</div>
-            <div class="text-muted small">{{ item.hospital }} · hasta {{ item.hasta }} · {{ item.tipo }}</div>
+            <div class="text-body-secondary small">{{ item.hospital }} · hasta {{ item.hasta }} · {{ item.tipo }}</div>
           </li>
           {% else %}
           <li class="list-group-item text-muted">Sin licencias registradas para hoy.</li>
@@ -109,12 +148,5 @@
         </ul>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="card mt-3">
-  <div class="card-header">Licencias aprobadas por mes</div>
-  <div class="card-body">
-    <canvas id="licenseChart" height="220" aria-label="Gráfico de licencias aprobadas" role="img"></canvas>
   </div>
 </div>

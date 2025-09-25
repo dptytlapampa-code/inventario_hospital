@@ -1,9 +1,11 @@
 <!doctype html>
-{% set theme_pref = current_user.theme_pref.value if current_user.is_authenticated else 'system' %}
-{% set theme_initial = 'dark' if theme_pref == 'dark' else 'light' %}
-{% if theme_pref == 'system' %}
-  {% set theme_initial = 'light' %}
+{% set raw_theme_pref = current_user.theme_pref.value if current_user.is_authenticated else 'light' %}
+{% if raw_theme_pref == 'system' %}
+  {% set theme_pref = 'dark' %}
+{% else %}
+  {% set theme_pref = raw_theme_pref %}
 {% endif %}
+{% set theme_initial = 'dark' if theme_pref == 'dark' else 'light' %}
 <html lang="es" data-theme-pref="{{ theme_pref }}" data-bs-theme="{{ theme_initial }}">
   <head>
     <meta charset="utf-8">
@@ -147,9 +149,11 @@
             <button class="btn btn-outline-secondary d-lg-none" type="button" data-sidebar-toggle>
               <span class="navbar-toggler-icon"></span>
             </button>
-            <div>
-              <h1 class="h5 mb-0">{% block header_title %}{{ self.title() }}{% endblock %}</h1>
-              {% block header_subtitle %}{% endblock %}
+            <div class="flex-grow-1">
+              {% block header_content %}
+                <h1 class="h5 mb-0">{% block header_title %}{{ self.title() }}{% endblock %}</h1>
+                {% block header_subtitle %}{% endblock %}
+              {% endblock %}
             </div>
           </div>
           {% if current_user.is_authenticated %}
@@ -172,7 +176,6 @@
                   <div class="btn-group btn-group-sm w-100" role="group" aria-label="Cambiar tema">
                     <button type="button" class="btn btn-outline-secondary" data-theme-option="light">Claro</button>
                     <button type="button" class="btn btn-outline-secondary" data-theme-option="dark">Oscuro</button>
-                    <button type="button" class="btn btn-outline-secondary" data-theme-option="system">Sistema</button>
                   </div>
                 </li>
                 <li><hr class="dropdown-divider"></li>

@@ -1,17 +1,13 @@
 {% extends 'base.html' %}
 {% block title %}Inicio{% endblock %}
 {% block content %}
-  {% with show_dashboard_link=true %}
-    {% include 'main/_dashboard_common.html' %}
-  {% endwith %}
+  {% include 'main/_dashboard_common.html' %}
 {% endblock %}
 {% block scripts %}
   {{ super() }}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     window.dashboardMetrics = {{ metrics|tojson }};
-    window.licensesData = {{ licencias_chart|tojson }};
   </script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/pages/license_chart.js') }}"></script>
 {% endblock %}

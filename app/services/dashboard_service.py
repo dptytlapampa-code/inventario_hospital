@@ -99,7 +99,7 @@ def _format_date(value: date | None) -> str:
     return value.strftime("%d/%m/%Y")
 
 
-def collect_dashboard_metrics(user, top_supplies: int = 8) -> dict[str, object]:
+def collect_dashboard_metrics(user, top_supplies: int = 5) -> dict[str, object]:
     """Assemble counts and chart payloads for the dashboard respecting scope."""
 
     now = datetime.utcnow()
@@ -254,26 +254,45 @@ def collect_dashboard_metrics(user, top_supplies: int = 8) -> dict[str, object]:
     critical_query = db.session.query(Insumo)
     if insumo_filter is not None:
         critical_query = critical_query.filter(insumo_filter)
-    critical_items = [
-        (
-            insumo,
-            max(int(insumo.stock_minimo or 0) - int(insumo.stock or 0), 0),
+    critical_rows: list[dict[str, object]] = []
+    for insumo in critical_query.filter(
+        Insumo.stock_minimo > 0,
+        Insumo.stock <= Insumo.stock_minimo,
+    ).all():
+        stock_minimo = int(insumo.stock_minimo or 0)
+        stock_actual = int(insumo.stock or 0)
+        faltante = max(stock_minimo - stock_actual, 0)
+        coverage = 0
+        if stock_minimo > 0:
+            coverage = max(min(round((stock_actual / stock_minimo) * 100), 100), 0)
+        critical_rows.append(
+            {
+                "insumo": insumo,
+                "faltante": faltante,
+                "stock": stock_actual,
+                "stock_minimo": stock_minimo,
+                "coverage": coverage,
+            }
         )
-        for insumo in critical_query.filter(
-            Insumo.stock_minimo > 0,
-            Insumo.stock <= Insumo.stock_minimo,
-        ).all()
-    ]
-    critical_items.sort(key=lambda item: (-item[1], item[0].nombre))
+
+    critical_rows.sort(
+        key=lambda item: (
+            item["coverage"],
+            -int(item["faltante"]),
+            item["insumo"].nombre,
+        )
+    )
+    critical_total = len(critical_rows)
     critical_supplies = [
         {
-            "id": insumo.id,
-            "nombre": insumo.nombre,
-            "stock": int(insumo.stock or 0),
-            "stock_minimo": int(insumo.stock_minimo or 0),
-            "faltante": int(faltante),
+            "id": row["insumo"].id,
+            "nombre": row["insumo"].nombre,
+            "stock": row["stock"],
+            "stock_minimo": row["stock_minimo"],
+            "faltante": row["faltante"],
+            "coverage_percent": int(row["coverage"]),
         }
-        for insumo, faltante in critical_items[:top_supplies]
+        for row in critical_rows[:top_supplies]
     ]
 
     return {
@@ -317,23 +336,9 @@ def collect_dashboard_metrics(user, top_supplies: int = 8) -> dict[str, object]:
             "insumo_stock": insumo_stock,
         },
         "critical_supplies": critical_supplies,
+        "critical_supplies_total": critical_total,
         "licenses_today": licenses_today_payload,
         "scope": scope_info,
     }
 
-
-def collect_license_history(user) -> dict[str, list[int] | list[str]]:
-    """Return aggregated license approvals per month respecting scope."""
-
-    scope = get_user_hospital_scope(user)
-    query = db.session.query(Licencia.fecha_inicio).filter(Licencia.estado == EstadoLicencia.APROBADA)
-    query = _apply_license_scope(query, scope)
-    counts: dict[str, int] = {}
-    for (fecha_inicio,) in query.all():
-        key = fecha_inicio.strftime("%Y-%m")
-        counts[key] = counts.get(key, 0) + 1
-    labels = sorted(counts.keys())
-    return {"labels": labels, "values": [counts[label] for label in labels]}
-
-
-__all__ = ["collect_dashboard_metrics", "collect_license_history"]
+__all__ = ["collect_dashboard_metrics"]
