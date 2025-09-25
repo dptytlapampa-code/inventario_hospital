@@ -1,47 +1,332 @@
 {% extends 'base.html' %}
-{% from '_pagination.html' import render_pagination %}
-{% block title %}Permisos{% endblock %}
+{% block title %}Permisos por usuario{% endblock %}
+{% block header_title %}Permisos por usuario{% endblock %}
 {% block content %}
-<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
-  <h1 class="h3 mb-0">Permisos</h1>
-  <form class="d-flex gap-2" method="get">
-    <input class="form-control" name="q" value="{{ buscar }}" placeholder="Buscar por rol, hospital o módulo" />
-    <button class="btn btn-outline-primary" type="submit">Buscar</button>
-    <a class="btn btn-primary" href="{{ url_for('permisos.crear') }}">Nuevo permiso</a>
-  </form>
+<div class="card">
+  <div class="card-body">
+    <div class="mb-4">
+      <label for="user-select" class="form-label">Usuario</label>
+      <select id="user-select" class="form-select">
+        {% for usuario in page_data.usuarios %}
+        <option value="{{ usuario.id }}"{% if usuario.id == page_data.selected_user_id %} selected{% endif %}>{{ usuario.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div id="permissions-alert" class="alert d-none" role="alert"></div>
+    <div class="permission-step mb-4">
+      <h2 class="h5 mb-2">1. Hospitales asignados</h2>
+      <p class="text-muted small mb-2">Seleccione los hospitales donde el usuario tendrá acceso. "Todos los hospitales" aplica permisos globales.</p>
+      <select id="hospitals-select" class="form-select" multiple size="6">
+        {% for hospital in page_data.hospitales %}
+        <option value="{{ hospital.id }}">{{ hospital.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="permission-step mb-4">
+      <h2 class="h5 mb-2">2. Módulos disponibles</h2>
+      <p class="text-muted small mb-3">Active las acciones permitidas para cada módulo. Las opciones se aplican a todos los hospitales seleccionados.</p>
+      <div class="table-responsive">
+        <table class="table align-middle" data-module-table>
+          <thead>
+            <tr>
+              <th scope="col">Módulo</th>
+              <th scope="col">Ver</th>
+              <th scope="col">Crear / Editar</th>
+              <th scope="col">Exportar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for modulo in page_data.modulos %}
+            <tr data-module="{{ modulo.value }}">
+              <th scope="row">{{ modulo.label }}</th>
+              <td>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" data-flag="can_read" id="{{ modulo.value }}-read">
+                  <label class="form-check-label" for="{{ modulo.value }}-read">Ver</label>
+                </div>
+              </td>
+              <td>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" data-flag="can_write" id="{{ modulo.value }}-write">
+                  <label class="form-check-label" for="{{ modulo.value }}-write">Crear / Editar</label>
+                </div>
+              </td>
+              <td>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" data-flag="allow_export" id="{{ modulo.value }}-export">
+                  <label class="form-check-label" for="{{ modulo.value }}-export">Exportar</label>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="permission-step mb-4">
+      <h2 class="h5 mb-2">3. Plantillas rápidas</h2>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="role-template" class="form-label">Plantilla por rol</label>
+          <div class="input-group">
+            <select id="role-template" class="form-select">
+              <option value="">Seleccionar rol…</option>
+              {% for rol in page_data.role_templates %}
+              <option value="{{ rol.id }}">{{ rol.label }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-outline-primary" type="button" id="apply-role-template">Aplicar</button>
+          </div>
+          <div class="form-text">Carga permisos base según el rol seleccionado.</div>
+        </div>
+        <div class="col-md-6">
+          <label for="user-template" class="form-label">Clonar de usuario</label>
+          <div class="input-group">
+            <select id="user-template" class="form-select">
+              <option value="">Seleccionar usuario…</option>
+              {% for usuario in page_data.usuarios %}
+              <option value="{{ usuario.id }}">{{ usuario.label }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-outline-primary" type="button" id="apply-user-template">Clonar</button>
+          </div>
+          <div class="form-text">Duplica hospitales y módulos de otro usuario.</div>
+        </div>
+      </div>
+    </div>
+    <div class="d-flex justify-content-end gap-2">
+      <button class="btn btn-outline-secondary" type="button" id="reset-permissions">Restablecer</button>
+      <button class="btn btn-primary" type="button" id="save-permissions">Guardar cambios</button>
+    </div>
+  </div>
 </div>
-<div class="table-responsive bg-white rounded shadow-sm">
-  <table class="table table-striped align-middle mb-0">
-    <thead>
-      <tr>
-        <th>Rol</th>
-        <th>Módulo</th>
-        <th>Hospital</th>
-        <th>Lectura</th>
-        <th>Escritura</th>
-        <th>Exportar</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for permiso in permisos %}
-      <tr>
-        <td>{{ permiso.rol.nombre }}</td>
-        <td class="text-capitalize">{{ normalize_enum_value(permiso.modulo) }}</td>
-        <td>{{ permiso.hospital.nombre if permiso.hospital else 'Todos' }}</td>
-        <td>{{ 'Sí' if permiso.can_read else 'No' }}</td>
-        <td>{{ 'Sí' if permiso.can_write else 'No' }}</td>
-        <td>{{ 'Sí' if permiso.allow_export else 'No' }}</td>
-        <td class="text-end">
-          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('permisos.editar', permiso_id=permiso.id) }}">Editar</a>
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="7" class="text-center text-muted">Sin permisos configurados.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-{{ render_pagination(pagination) }}
+<script type="application/json" id="permissions-data">{{ page_data|tojson }}</script>
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const dataElement = document.getElementById('permissions-data');
+      if (!dataElement) {
+        return;
+      }
+      const pageData = JSON.parse(dataElement.textContent);
+      const userSelect = document.getElementById('user-select');
+      const hospitalsSelect = document.getElementById('hospitals-select');
+      const moduleRows = document.querySelectorAll('[data-module]');
+      const roleTemplate = document.getElementById('role-template');
+      const userTemplate = document.getElementById('user-template');
+      const applyRoleBtn = document.getElementById('apply-role-template');
+      const applyUserBtn = document.getElementById('apply-user-template');
+      const resetBtn = document.getElementById('reset-permissions');
+      const saveBtn = document.getElementById('save-permissions');
+      const alertBox = document.getElementById('permissions-alert');
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      const saveUrlTemplate = pageData.save_url_template;
+
+      const rolePayloads = new Map(Object.entries(pageData.role_payloads || {}));
+      const userStates = new Map(Object.entries(pageData.user_states || {}));
+
+      const state = {
+        userId: pageData.selected_user_id || null,
+        hospitals: new Set(),
+        modules: {},
+      };
+
+      const ensureModuleState = (moduleKey) => {
+        if (!state.modules[moduleKey]) {
+          state.modules[moduleKey] = { can_read: false, can_write: false, allow_export: false };
+        }
+        return state.modules[moduleKey];
+      };
+
+      const renderHospitals = () => {
+        const selected = state.hospitals;
+        Array.from(hospitalsSelect.options).forEach((option) => {
+          option.selected = selected.has(Number(option.value));
+        });
+      };
+
+      const renderModules = () => {
+        moduleRows.forEach((row) => {
+          const moduleKey = row.dataset.module;
+          const flags = ensureModuleState(moduleKey);
+          row.querySelectorAll('[data-flag]').forEach((checkbox) => {
+            checkbox.checked = Boolean(flags[checkbox.dataset.flag]);
+          });
+        });
+      };
+
+      const loadFromPayload = (payload) => {
+        state.hospitals = new Set((payload?.hospitals || []).map((value) => Number(value)));
+        state.modules = {};
+        moduleRows.forEach((row) => {
+          const moduleKey = row.dataset.module;
+          const data = payload?.modules?.[moduleKey] || {};
+          state.modules[moduleKey] = {
+            can_read: Boolean(data.can_read),
+            can_write: Boolean(data.can_write),
+            allow_export: Boolean(data.allow_export),
+          };
+        });
+        renderHospitals();
+        renderModules();
+      };
+
+      const showAlert = (type, message) => {
+        if (!alertBox) {
+          return;
+        }
+        alertBox.className = `alert alert-${type}`;
+        alertBox.textContent = message;
+        alertBox.classList.remove('d-none');
+      };
+
+      const clearAlert = () => {
+        if (!alertBox) {
+          return;
+        }
+        alertBox.classList.add('d-none');
+        alertBox.textContent = '';
+      };
+
+      const updateCloneSelect = () => {
+        Array.from(userTemplate.options).forEach((option) => {
+          if (!option.value) {
+            option.disabled = false;
+            return;
+          }
+          option.disabled = Number(option.value) === state.userId;
+        });
+        userTemplate.value = '';
+        roleTemplate.value = '';
+      };
+
+      if (state.userId && userStates.has(String(state.userId))) {
+        loadFromPayload(userStates.get(String(state.userId)));
+      }
+      updateCloneSelect();
+
+      userSelect.addEventListener('change', () => {
+        clearAlert();
+        state.userId = Number(userSelect.value);
+        const payload = userStates.get(String(state.userId));
+        if (payload) {
+          loadFromPayload(payload);
+        } else {
+          state.hospitals = new Set();
+          state.modules = {};
+          renderHospitals();
+          renderModules();
+        }
+        updateCloneSelect();
+      });
+
+      hospitalsSelect.addEventListener('change', () => {
+        state.hospitals = new Set(Array.from(hospitalsSelect.selectedOptions).map((option) => Number(option.value)));
+      });
+
+      moduleRows.forEach((row) => {
+        row.querySelectorAll('[data-flag]').forEach((checkbox) => {
+          checkbox.addEventListener('change', () => {
+            const moduleKey = row.dataset.module;
+            const flags = ensureModuleState(moduleKey);
+            flags[checkbox.dataset.flag] = checkbox.checked;
+          });
+        });
+      });
+
+      applyRoleBtn.addEventListener('click', () => {
+        const selected = roleTemplate.value;
+        if (!selected) {
+          showAlert('warning', 'Seleccione un rol para aplicar la plantilla.');
+          return;
+        }
+        const payload = rolePayloads.get(String(selected));
+        if (payload) {
+          loadFromPayload(payload);
+          showAlert('info', 'Plantilla de rol aplicada.');
+        }
+      });
+
+      applyUserBtn.addEventListener('click', () => {
+        const selected = userTemplate.value;
+        if (!selected) {
+          showAlert('warning', 'Seleccione un usuario para clonar.');
+          return;
+        }
+        const payload = userStates.get(String(selected));
+        if (payload) {
+          loadFromPayload(payload);
+          showAlert('info', 'Permisos clonados del usuario seleccionado.');
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        const payload = userStates.get(String(state.userId));
+        if (payload) {
+          loadFromPayload(payload);
+        } else {
+          state.hospitals = new Set();
+          state.modules = {};
+          renderHospitals();
+          renderModules();
+        }
+        clearAlert();
+      });
+
+      const buildSaveUrl = (userId) => {
+        return saveUrlTemplate.replace(/0(\/guardar)?$/, (match, suffix) => `${userId}${suffix || ''}`);
+      };
+
+      saveBtn.addEventListener('click', async () => {
+        clearAlert();
+        if (!state.userId) {
+          showAlert('warning', 'Seleccione un usuario para guardar.');
+          return;
+        }
+        if (!state.hospitals.size) {
+          showAlert('warning', 'Seleccione al menos un hospital.');
+          return;
+        }
+        const payload = {
+          hospitals: Array.from(state.hospitals),
+          modules: {},
+        };
+        pageData.modulos.forEach((module) => {
+          const flags = ensureModuleState(module.value);
+          payload.modules[module.value] = { ...flags };
+        });
+        saveBtn.disabled = true;
+        try {
+          const response = await fetch(buildSaveUrl(state.userId), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Error inesperado' }));
+            showAlert('danger', error.error || 'No se pudo guardar la configuración.');
+            return;
+          }
+          const result = await response.json();
+          if (result.status === 'ok') {
+            userStates.set(String(state.userId), result.payload);
+            loadFromPayload(result.payload);
+            showAlert('success', 'Permisos actualizados correctamente.');
+          } else {
+            showAlert('danger', result.error || 'No se pudo guardar la configuración.');
+          }
+        } catch (error) {
+          console.error(error);
+          showAlert('danger', 'Error de comunicación con el servidor.');
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+    });
+  </script>
 {% endblock %}

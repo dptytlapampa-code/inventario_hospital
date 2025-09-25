@@ -14,6 +14,7 @@ class UsuarioForm(FlaskForm):
     nombre = StringField("Nombre", validators=[DataRequired(), Length(max=120)])
     apellido = StringField("Apellido", validators=[Optional(), Length(max=120)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    dni = StringField("DNI", validators=[DataRequired(), Length(min=6, max=20)])
     username = StringField("Usuario", validators=[DataRequired(), Length(max=80)])
     rol_id = SelectField("Rol", coerce=int, validators=[DataRequired()])
     password = PasswordField("Contraseña", validators=[Optional(), Length(min=8, max=128)])
@@ -46,6 +47,13 @@ class UsuarioForm(FlaskForm):
             query = query.filter(Usuario.id != self._usuario.id)
         if query.first():
             raise ValidationError("El nombre de usuario ya está en uso")
+
+    def validate_dni(self, field):  # type: ignore[override]
+        query = Usuario.query.filter(Usuario.dni == field.data)
+        if self._usuario:
+            query = query.filter(Usuario.id != self._usuario.id)
+        if query.first():
+            raise ValidationError("El DNI ya está registrado")
 
     def validate(self, extra_validators=None):  # type: ignore[override]
         if not super().validate(extra_validators=extra_validators):
