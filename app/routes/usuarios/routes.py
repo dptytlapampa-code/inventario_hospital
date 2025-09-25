@@ -59,6 +59,7 @@ def crear():
             nombre=form.nombre.data.strip(),
             apellido=(form.apellido.data or "").strip() or None,
             email=form.email.data.strip().lower(),
+            dni=form.dni.data.strip(),
             username=form.username.data.strip(),
             rol_id=form.rol_id.data,
             activo=form.activo.data,
@@ -82,6 +83,7 @@ def editar(usuario_id: int):
         usuario.nombre = form.nombre.data.strip()
         usuario.apellido = (form.apellido.data or "").strip() or None
         usuario.email = form.email.data.strip().lower()
+        usuario.dni = form.dni.data.strip()
         usuario.username = form.username.data.strip()
         usuario.rol_id = form.rol_id.data
         usuario.activo = form.activo.data
