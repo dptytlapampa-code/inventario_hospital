@@ -49,9 +49,9 @@
             <th scope="col" class="text-end">Acciones</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-license-list data-license-scope="admin">
           {% for licencia in pagination.items %}
-          <tr>
+          <tr data-license-row="{{ licencia.id }}">
             <td class="fw-semibold">#{{ licencia.id }}</td>
             <td>
               <div class="fw-semibold">{{ licencia.usuario.nombre }} {{ licencia.usuario.apellido or '' }}</div>
@@ -60,13 +60,13 @@
             <td>{{ licencia.hospital.nombre if licencia.hospital else '—' }}</td>
             <td>{{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} – {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</td>
             <td>{{ normalize_enum_value(licencia.tipo) }}</td>
-            <td>
+            <td data-license-status>
               <span class="badge bg-{{ badge_for(licencia.estado) }}">{{ normalize_enum_value(licencia.estado) }}</span>
               {% if licencia.decisor %}
               <div class="small text-muted mt-1">{{ licencia.decisor.nombre }}{% if licencia.decidido_en %}, {{ licencia.decidido_en.strftime('%d/%m/%Y %H:%M') }}{% endif %}</div>
               {% endif %}
             </td>
-            <td class="text-wrap">
+            <td class="text-wrap" data-license-detail>
               <div class="small text-muted">Motivo</div>
               <div>{{ licencia.motivo }}</div>
               {% if licencia.motivo_rechazo %}
@@ -74,14 +74,14 @@
               <div class="text-danger">{{ licencia.motivo_rechazo }}</div>
               {% endif %}
             </td>
-            <td class="text-end">
+            <td class="text-end" data-license-actions>
               <div class="d-flex flex-column gap-2 align-items-end">
                 {% if licencia.estado == EstadoLicencia.SOLICITADA %}
-                <form method="post" action="{{ url_for('licencias.aprobar', licencia_id=licencia.id) }}" class="d-inline">
+                <form method="post" action="{{ url_for('licencias.aprobar', licencia_id=licencia.id) }}" class="d-inline" data-license-approve>
                   {{ aprobar_form.csrf_token }}
                   <button type="submit" class="btn btn-success btn-sm">Aprobar</button>
                 </form>
-                <div class="w-100">
+                <div class="w-100" data-license-reject>
                   <button class="btn btn-outline-danger btn-sm w-100" type="button" data-bs-toggle="collapse" data-bs-target="#rechazo-{{ licencia.id }}" aria-expanded="false" aria-controls="rechazo-{{ licencia.id }}">
                     Rechazar
                   </button>
@@ -96,11 +96,12 @@
                 </div>
                 {% endif %}
                 {% if licencia.estado in [EstadoLicencia.SOLICITADA, EstadoLicencia.APROBADA] %}
-                <form method="post" action="{{ url_for('licencias.cancelar', licencia_id=licencia.id) }}" class="d-inline">
+                <form method="post" action="{{ url_for('licencias.cancelar', licencia_id=licencia.id) }}" class="d-inline" data-license-cancel>
                   {{ cancelar_form.csrf_token }}
                   <button type="submit" class="btn btn-outline-warning btn-sm">Cancelar</button>
                 </form>
                 {% endif %}
+                <span class="text-muted small{% if licencia.estado in [EstadoLicencia.SOLICITADA, EstadoLicencia.APROBADA] %} d-none{% endif %}" data-license-no-actions>Sin acciones</span>
               </div>
             </td>
           </tr>
@@ -114,4 +115,8 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/licencias_stream.js') }}"></script>
 {% endblock %}

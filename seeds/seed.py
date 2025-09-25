@@ -54,6 +54,7 @@ def reset_tables(session: Session) -> None:
     session.execute(delete(Licencia))
     session.execute(delete(equipo_insumos))
     session.execute(delete(Equipo))
+    session.execute(delete(TipoEquipo))
     session.execute(delete(Insumo))
     session.execute(delete(Oficina))
     session.execute(delete(Servicio))
@@ -63,7 +64,7 @@ def reset_tables(session: Session) -> None:
 
 
 def create_catalogs(session: Session) -> dict[str, object]:
-    """Insert hospitals, services and roles."""
+    """Insert hospitals, services, roles and equipment types."""
 
     hospitales = [
         Hospital(
@@ -111,12 +112,38 @@ def create_catalogs(session: Session) -> dict[str, object]:
     session.add_all(roles)
     session.flush()
 
+    tipos_equipo = create_equipment_types(session)
+
     return {
         "hospitales": hospitales,
         "servicios": servicios,
         "oficinas": oficinas,
         "roles": {role.nombre.lower(): role for role in roles},
+        "tipos_equipo": tipos_equipo,
     }
+
+
+def create_equipment_types(session: Session) -> dict[str, TipoEquipo]:
+    """Insert the default equipment types expected by the application."""
+
+    defaults = [
+        ("impresora", "Impresora"),
+        ("router", "Router"),
+        ("switch", "Switch"),
+        ("notebook", "Notebook"),
+        ("cpu", "CPU"),
+        ("monitor", "Monitor"),
+        ("access_point", "Access Point"),
+        ("scanner", "Scanner"),
+        ("proyector", "Proyector"),
+        ("telefono_ip", "Teléfono IP"),
+        ("ups", "UPS"),
+        ("otro", "Otro"),
+    ]
+    registros = [TipoEquipo(nombre=nombre, activo=True) for _, nombre in defaults]
+    session.add_all(registros)
+    session.flush()
+    return {slug: registro for (slug, _), registro in zip(defaults, registros)}
 
 
 def hashed_password() -> str:
@@ -278,11 +305,12 @@ def create_inventory(session: Session, ctx: dict[str, object], usuarios: dict[st
     hospitales: list[Hospital] = ctx["hospitales"]  # type: ignore[assignment]
     servicios: list[Servicio] = ctx["servicios"]  # type: ignore[assignment]
     oficinas: list[Oficina] = ctx["oficinas"]  # type: ignore[assignment]
+    tipos_equipo: dict[str, TipoEquipo] = ctx["tipos_equipo"]  # type: ignore[assignment]
 
     equipos = [
         Equipo(
             codigo="EQ-0001",
-            tipo=TipoEquipo.NOTEBOOK,
+            tipo=tipos_equipo["notebook"],
             estado=EstadoEquipo.OPERATIVO,
             descripcion="Notebook Lenovo ThinkPad",
             marca="Lenovo",
@@ -294,7 +322,7 @@ def create_inventory(session: Session, ctx: dict[str, object], usuarios: dict[st
         ),
         Equipo(
             codigo="EQ-0002",
-            tipo=TipoEquipo.IMPRESORA,
+            tipo=tipos_equipo["impresora"],
             estado=EstadoEquipo.SERVICIO_TECNICO,
             descripcion="Impresora HP LaserJet en revisión",
             marca="HP",

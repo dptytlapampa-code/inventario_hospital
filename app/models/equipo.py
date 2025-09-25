@@ -20,21 +20,19 @@ if TYPE_CHECKING:  # pragma: no cover
     from .usuario import Usuario
 
 
-class TipoEquipo(str, Enum):
-    """Equipment categories."""
+class TipoEquipo(Base):
+    """Catalogue of equipment types managed by superadmins."""
 
-    IMPRESORA = "impresora"
-    ROUTER = "router"
-    SWITCH = "switch"
-    NOTEBOOK = "notebook"
-    CPU = "cpu"
-    MONITOR = "monitor"
-    ACCESS_POINT = "access_point"
-    SCANNER = "scanner"
-    PROYECTOR = "proyector"
-    TELEFONO_IP = "telefono_ip"
-    UPS = "ups"
-    OTRO = "otro"
+    __tablename__ = "tipo_equipo"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(160), unique=True, nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    equipos: Mapped[list["Equipo"]] = relationship("Equipo", back_populates="tipo")
+
+    def __repr__(self) -> str:  # pragma: no cover - debugging helper
+        return f"TipoEquipo(id={self.id!r}, nombre={self.nombre!r}, activo={self.activo!r})"
 
 
 class EstadoEquipo(str, Enum):
@@ -53,7 +51,7 @@ class Equipo(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     codigo: Mapped[str | None] = mapped_column(String(50), unique=True)
-    tipo: Mapped[TipoEquipo] = mapped_column(SAEnum(TipoEquipo, name="tipo_equipo"), nullable=False)
+    tipo_id: Mapped[int] = mapped_column(ForeignKey("tipo_equipo.id"), nullable=False)
     estado: Mapped[EstadoEquipo] = mapped_column(
         SAEnum(EstadoEquipo, name="estado_equipo"),
         default=EstadoEquipo.OPERATIVO,
@@ -83,6 +81,7 @@ class Equipo(Base):
     )
 
     hospital: Mapped["Hospital"] = relationship("Hospital", back_populates="equipos")
+    tipo: Mapped["TipoEquipo"] = relationship("TipoEquipo", back_populates="equipos")
     servicio: Mapped["Servicio | None"] = relationship("Servicio")
     oficina: Mapped["Oficina | None"] = relationship("Oficina", back_populates="equipos")
     insumos: Mapped[list["Insumo"]] = relationship(
@@ -96,6 +95,20 @@ class Equipo(Base):
     historial: Mapped[list["EquipoHistorial"]] = relationship(
         "EquipoHistorial", back_populates="equipo", cascade="all, delete-orphan"
     )
+
+    @property
+    def titulo(self) -> str:
+        """Return a human friendly title for listings and detail views."""
+
+        tipo_nombre = (self.tipo.nombre if self.tipo and self.tipo.nombre else "").strip()
+        marca = (self.marca or "").strip()
+        modelo = (self.modelo or "").strip()
+        marca_modelo = " ".join(part for part in [marca, modelo] if part)
+        if tipo_nombre and marca_modelo:
+            return f"{tipo_nombre} - {marca_modelo}"
+        if tipo_nombre:
+            return tipo_nombre
+        return marca_modelo or "Equipo"
 
     def registrar_evento(self, usuario: "Usuario | None", accion: str, descripcion: str | None = None) -> None:
         """Append an entry to the equipment history."""

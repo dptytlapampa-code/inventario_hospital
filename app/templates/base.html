@@ -60,6 +60,9 @@
                   <ul class="sidebar-subnav list-unstyled mb-0">
                     <li><a class="sidebar-sublink{% if current_bp == 'equipos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('equipos.listar') }}">Listado</a></li>
                     <li><a class="sidebar-sublink{% if current_endpoint == 'equipos.crear' %} active{% endif %}" href="{{ url_for('equipos.crear') }}">Nuevo</a></li>
+                    {% if has_role('superadmin') %}
+                    <li><a class="sidebar-sublink{% if current_endpoint == 'equipos.gestionar_tipos' %} active{% endif %}" href="{{ url_for('equipos.gestionar_tipos') }}">Tipos de equipo</a></li>
+                    {% endif %}
                     <li><a class="sidebar-sublink{% if current_bp == 'adjuntos' %} active{% endif %}" href="{{ url_for('adjuntos.listar') }}">Adjuntos</a></li>
                     <li><a class="sidebar-sublink{% if current_bp == 'actas' %} active{% endif %}" href="{{ url_for('actas.listar') }}">Actas</a></li>
                     <li><a class="sidebar-sublink{% if current_bp == 'docscan' %} active{% endif %}" href="{{ url_for('docscan.listar') }}">Docscan</a></li>

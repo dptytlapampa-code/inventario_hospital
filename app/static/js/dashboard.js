@@ -1,6 +1,7 @@
 (function () {
-  const REFRESH_INTERVAL = 30000;
+  const POLL_INTERVAL = 60000;
   let refreshTimer = null;
+  let eventSource = null;
   let charts = {};
 
   function getContext(id) {
@@ -252,6 +253,65 @@
     }
   }
 
+  function startPolling() {
+    stopPolling();
+    refreshTimer = window.setInterval(fetchMetrics, POLL_INTERVAL);
+  }
+
+  function stopPolling() {
+    if (refreshTimer) {
+      window.clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  }
+
+  function disconnectStream() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  }
+
+  function connectStream() {
+    if (typeof window.EventSource === 'undefined') {
+      startPolling();
+      return;
+    }
+
+    disconnectStream();
+
+    try {
+      eventSource = new window.EventSource('/api/dashboard/stream', { withCredentials: true });
+    } catch (error) {
+      console.warn('No fue posible iniciar el stream SSE, usando polling.', error);
+      startPolling();
+      return;
+    }
+
+    eventSource.addEventListener('open', () => {
+      stopPolling();
+    });
+
+    eventSource.addEventListener('message', (event) => {
+      if (!event.data) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(event.data);
+        updateDashboard(payload);
+      } catch (error) {
+        console.error('No se pudo interpretar el evento SSE de dashboard', error);
+      }
+    });
+
+    eventSource.addEventListener('error', () => {
+      if (!eventSource || eventSource.readyState === window.EventSource.CLOSED) {
+        disconnectStream();
+        startPolling();
+      }
+    });
+  }
+
   function updateDashboard(metrics) {
     if (!metrics) {
       return;
@@ -276,15 +336,17 @@
       renderCharts(initial);
       updateUpdatedAt(initial.generated_at_display || '—');
     }
-    refreshTimer = window.setInterval(fetchMetrics, REFRESH_INTERVAL);
     fetchMetrics();
+    connectStream();
+    if (!eventSource) {
+      startPolling();
+    }
   }
 
   document.addEventListener('DOMContentLoaded', init);
 
   window.addEventListener('beforeunload', () => {
-    if (refreshTimer) {
-      window.clearInterval(refreshTimer);
-    }
+    stopPolling();
+    disconnectStream();
   });
 })();

@@ -37,18 +37,17 @@
     <tbody>
       {% for equipo in equipos %}
       <tr>
-        {% set tipo_label = normalize_enum_value(equipo.tipo).replace('_', ' ') %}
+        {% set equipo_titulo = equipo.titulo %}
         {% set estado_label = normalize_enum_value(equipo.estado).replace('_', ' ') %}
         {% set estado_clases = {
           'OPERATIVO': 'status-badge--success',
           'SERVICIO_TECNICO': 'status-badge--warning',
           'DE_BAJA': 'status-badge--danger',
-          'PRESTADO': 'status-badge--info'
+          'PRESTADO': 'status-badge--secondary'
         } %}
         {% set estado_class = estado_clases.get((equipo.estado.name if equipo.estado is not none else '') , 'status-badge--muted') %}
-        {% set marca_modelo = (equipo.marca or '') ~ (' ' + equipo.modelo if equipo.modelo else '') %}
         <td>
-          <div class="fw-semibold">{{ tipo_label|title }}{% if marca_modelo.strip() %} - {{ marca_modelo.strip() }}{% endif %}</div>
+          <div class="fw-semibold">{{ equipo_titulo }}</div>
           <div class="text-muted small">{{ equipo.descripcion or 'Sin descripción registrada' }}</div>
         </td>
         <td>{{ equipo.codigo or '—' }}</td>
