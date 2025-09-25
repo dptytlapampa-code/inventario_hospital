@@ -48,7 +48,8 @@ def _populate_database() -> dict[str, object]:
     rol_admin = Rol(nombre="admin")
     rol_gestor = Rol(nombre="gestor")
     rol_visor = Rol(nombre="visor")
-    db.session.add_all([rol_super, rol_admin, rol_gestor, rol_visor])
+    rol_tecnico = Rol(nombre="tecnico")
+    db.session.add_all([rol_super, rol_admin, rol_gestor, rol_visor, rol_tecnico])
     db.session.flush()
 
     superadmin = Usuario(
@@ -95,11 +96,28 @@ def _populate_database() -> dict[str, object]:
     )
     visor.set_password(DEFAULT_PASSWORD)
 
-    db.session.add_all([superadmin, admin, gestor, visor])
+    tecnico = Usuario(
+        username="tecnico",
+        nombre="Teresita",
+        apellido="Tecnica",
+        dni="30000004",
+        email="tecnico@hospital.test",
+        rol=rol_tecnico,
+        hospital=hospital,
+    )
+    tecnico.set_password(DEFAULT_PASSWORD)
+
+    db.session.add_all([superadmin, admin, gestor, visor, tecnico])
     db.session.flush()
 
     permisos = [
-        Permiso(rol=rol_super, modulo=modulo, can_read=True, can_write=True)
+        Permiso(
+            rol=rol_super,
+            modulo=modulo,
+            can_read=True,
+            can_write=True,
+            allow_export=True,
+        )
         for modulo in Modulo
     ]
     permisos.append(
@@ -127,6 +145,33 @@ def _populate_database() -> dict[str, object]:
             hospital=hospital,
             can_read=True,
             can_write=True,
+        )
+    )
+    permisos.append(
+        Permiso(
+            rol=rol_tecnico,
+            modulo=Modulo.INVENTARIO,
+            hospital=hospital,
+            can_read=True,
+            can_write=True,
+        )
+    )
+    permisos.append(
+        Permiso(
+            rol=rol_tecnico,
+            modulo=Modulo.ADJUNTOS,
+            hospital=hospital,
+            can_read=True,
+            can_write=True,
+        )
+    )
+    permisos.append(
+        Permiso(
+            rol=rol_tecnico,
+            modulo=Modulo.INSUMOS,
+            hospital=hospital,
+            can_read=True,
+            can_write=False,
         )
     )
     db.session.add_all(permisos)
@@ -187,6 +232,7 @@ def _populate_database() -> dict[str, object]:
         "admin": admin,
         "gestor": gestor,
         "visor": visor,
+        "tecnico": tecnico,
         "servicio": servicio,
         "oficina": oficina,
         "equipo": equipo,
@@ -223,6 +269,7 @@ def data(app):
             "admin": Usuario.query.filter_by(username="admin").first(),
             "gestor": Usuario.query.filter_by(username="gestor").first(),
             "visor": Usuario.query.filter_by(username="visor").first(),
+            "tecnico": Usuario.query.filter_by(username="tecnico").first(),
             "equipo": Equipo.query.first(),
             "insumo": Insumo.query.first(),
             "acta": Acta.query.first(),
@@ -250,4 +297,9 @@ def gestor_credentials():
 @pytest.fixture()
 def visor_credentials():
     return {"username": "visor", "password": DEFAULT_PASSWORD}
+
+
+@pytest.fixture()
+def tecnico_credentials():
+    return {"username": "tecnico", "password": DEFAULT_PASSWORD}
 
