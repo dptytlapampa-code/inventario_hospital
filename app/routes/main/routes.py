@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from app.extensions import db
 from app.forms.usuario import PerfilForm
 from app.models.usuario import ThemePreference
-from app.services.dashboard_service import collect_dashboard_metrics, collect_license_history
+from app.services.dashboard_service import collect_dashboard_metrics
 
 main_bp = Blueprint("main", __name__)
 
@@ -16,15 +16,13 @@ main_bp = Blueprint("main", __name__)
 @login_required
 def index() -> str:
     metrics = collect_dashboard_metrics(current_user)
-    licencias_chart = collect_license_history(current_user)
-    return render_template("main/index.html", metrics=metrics, licencias_chart=licencias_chart)
+    return render_template("main/index.html", metrics=metrics)
 
 
 @main_bp.route("/dashboard")
 @login_required
 def dashboard() -> str:
     metrics = collect_dashboard_metrics(current_user)
-    licencias_chart = collect_license_history(current_user)
 
     role_template = {
         "superadmin": "main/dashboard_superadmin.html",
@@ -33,7 +31,7 @@ def dashboard() -> str:
     }
     template = role_template.get((current_user.role or "").lower(), "main/dashboard_tecnico.html")
 
-    return render_template(template, metrics=metrics, licencias_chart=licencias_chart)
+    return render_template(template, metrics=metrics)
 
 
 @main_bp.route("/perfil", methods=["GET", "POST"])

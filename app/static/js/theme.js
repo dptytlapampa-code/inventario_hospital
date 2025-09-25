@@ -1,18 +1,24 @@
 (function () {
   const doc = document.documentElement;
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
 
-  function systemTheme() {
-    return prefersDark.matches ? 'dark' : 'light';
+  function sanitizeTheme(theme) {
+    return theme === 'dark' ? 'dark' : 'light';
   }
 
-  function applyTheme(theme) {
-    const effective = theme === 'system' ? systemTheme() : theme;
-    doc.dataset.themePref = theme;
-    doc.setAttribute('data-bs-theme', effective);
+  function setActiveButton(theme) {
     document
       .querySelectorAll('[data-theme-option]')
       .forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-theme-option') === theme));
+  }
+
+  function applyTheme(theme, { silent = false } = {}) {
+    const effective = sanitizeTheme(theme);
+    doc.dataset.themePref = effective;
+    doc.setAttribute('data-bs-theme', effective);
+    setActiveButton(effective);
+    if (!silent) {
+      document.dispatchEvent(new CustomEvent('theme:changed', { detail: { theme: effective } }));
+    }
   }
 
   function persistTheme(theme) {
@@ -23,27 +29,19 @@
         'Content-Type': 'application/json',
         'X-CSRFToken': csrfToken,
       },
-      body: JSON.stringify({ theme }),
+      body: JSON.stringify({ theme: sanitizeTheme(theme) }),
     }).catch(() => {
       // Network failures shouldn't break the UI; the preference will be retried on next change.
     });
   }
 
-  applyTheme(doc.dataset.themePref || 'system');
-
-  prefersDark.addEventListener('change', () => {
-    if (doc.dataset.themePref === 'system') {
-      applyTheme('system');
-    }
-  });
+  const initialTheme = sanitizeTheme(doc.dataset.themePref || 'light');
+  applyTheme(initialTheme, { silent: true });
 
   document.querySelectorAll('[data-theme-option]').forEach((btn) => {
     btn.addEventListener('click', (event) => {
       event.preventDefault();
-      const theme = btn.getAttribute('data-theme-option');
-      if (!theme) {
-        return;
-      }
+      const theme = sanitizeTheme(btn.getAttribute('data-theme-option'));
       applyTheme(theme);
       persistTheme(theme);
     });
