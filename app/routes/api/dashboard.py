@@ -7,7 +7,11 @@ from typing import Iterator
 
 from flask import Response, current_app, jsonify, stream_with_context
 from flask_login import current_user, login_required
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
+from app.extensions import db
+from app.models import Usuario
 from app.services.dashboard_service import collect_dashboard_metrics
 
 from . import api_bp
@@ -27,7 +31,10 @@ def dashboard_metrics():
 def dashboard_stream() -> Response:
     """Stream dashboard updates using Server Sent Events."""
 
-    user = current_user._get_current_object()
+    try:
+        user_id = int(current_user.get_id())
+    except (TypeError, ValueError):
+        user_id = None
     interval = current_app.config.get("DASHBOARD_STREAM_INTERVAL", 30)
     retry = current_app.config.get("DASHBOARD_STREAM_RETRY", interval * 1000)
 
@@ -35,6 +42,16 @@ def dashboard_stream() -> Response:
     def generate() -> Iterator[str]:
         yield f"retry: {retry}\n\n"
         while True:
+            if user_id is None:
+                break
+            stmt = (
+                select(Usuario)
+                .options(joinedload(Usuario.rol))
+                .where(Usuario.id == user_id)
+            )
+            user = db.session.execute(stmt).scalar_one_or_none()
+            if user is None:
+                break
             payload = collect_dashboard_metrics(user)
             yield f"data: {json.dumps(payload)}\n\n"
             time.sleep(max(1, int(interval)))
