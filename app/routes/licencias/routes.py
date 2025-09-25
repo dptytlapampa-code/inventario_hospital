@@ -42,9 +42,6 @@ def solicitar():
             fecha_inicio=form.fecha_inicio.data,
             fecha_fin=form.fecha_fin.data,
             motivo=form.motivo.data,
-            comentario=form.comentario.data,
-            requires_replacement=form.requires_replacement.data,
-            reemplazo_id=form.reemplazo_id.data or None,
         )
         enviar_licencia(licencia)
         flash("Solicitud enviada", "success")
@@ -68,7 +65,7 @@ def listar():
     if allowed:
         query = query.filter(Licencia.hospital_id.in_(allowed))
     elif current_user.role != "superadmin":
-        query = query.filter(Licencia.usuario_id == current_user.id)
+        query = query.filter(Licencia.user_id == current_user.id)
 
     if estado:
         try:
@@ -111,16 +108,16 @@ def detalle(licencia_id: int):
 def aprobar_rechazar(licencia_id: int):
     licencia = Licencia.query.get_or_404(licencia_id)
     form = AprobarRechazarForm()
-    if licencia.estado != EstadoLicencia.PENDIENTE:
-        flash("Solo se pueden gestionar licencias pendientes.", "warning")
+    if licencia.estado != EstadoLicencia.SOLICITADA:
+        flash("Solo se pueden gestionar licencias solicitadas.", "warning")
         return redirect(url_for("licencias.detalle", licencia_id=licencia.id))
     if form.validate_on_submit():
         try:
             if form.accion.data == "aprobar":
-                aprobar_licencia(licencia, current_user, comentario=form.comentario.data)
+                aprobar_licencia(licencia, current_user)
                 flash("Licencia aprobada", "success")
             else:
-                rechazar_licencia(licencia, current_user, comentario=form.comentario.data)
+                rechazar_licencia(licencia, current_user)
                 flash("Licencia rechazada", "info")
         except ValueError as exc:
             current_app.logger.warning(
@@ -162,7 +159,7 @@ def calendario():
     if allowed:
         query = query.filter(Licencia.hospital_id.in_(allowed))
     elif current_user.role != "superadmin":
-        query = query.filter(Licencia.usuario_id == current_user.id)
+        query = query.filter(Licencia.user_id == current_user.id)
 
     if form.validate() and form.mes.data:
         inicio_mes = form.mes.data.replace(day=1)

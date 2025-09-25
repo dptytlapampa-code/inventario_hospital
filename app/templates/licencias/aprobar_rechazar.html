@@ -1,12 +1,11 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
+{% from '_form_helpers.html' import render_field, render_select %}
 {% block title %}Gestionar licencia{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">Gestionar licencia</h1>
 <form method="post" novalidate>
   {{ form.hidden_tag() }}
   {{ render_select(form.accion) }}
-  {{ render_textarea(form.comentario, rows=3) }}
   {{ form.submit(class="btn btn-primary") }}
   <a class="btn btn-outline-secondary" href="{{ url_for('licencias.detalle', licencia_id=licencia.id) }}">Cancelar</a>
 </form>

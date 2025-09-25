@@ -4,10 +4,10 @@ from enum import Enum
 class EstadoLicencia(str, Enum):
     """Estados unificados de una licencia."""
 
-    BORRADOR = "borrador"
-    PENDIENTE = "pendiente"
+    SOLICITADA = "solicitada"
     APROBADA = "aprobada"
     RECHAZADA = "rechazada"
+    CANCELADA = "cancelada"
 
 
 __all__ = ["EstadoLicencia"]

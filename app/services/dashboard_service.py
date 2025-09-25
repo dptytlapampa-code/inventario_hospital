@@ -53,14 +53,14 @@ def collect_dashboard_metrics() -> dict[str, object]:
 
     licencias_pendientes = (
         db.session.query(func.count(Licencia.id))
-        .filter(Licencia.estado == EstadoLicencia.PENDIENTE)
+        .filter(Licencia.estado == EstadoLicencia.SOLICITADA)
         .scalar()
         or 0
     )
     licencias_delta = (
         db.session.query(func.count(Licencia.id))
         .filter(
-            Licencia.estado == EstadoLicencia.PENDIENTE,
+            Licencia.estado == EstadoLicencia.SOLICITADA,
             Licencia.created_at >= since,
         )
         .scalar()

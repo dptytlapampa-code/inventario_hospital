@@ -26,16 +26,13 @@ def test_crear_y_enviar_licencia(app, data):
         licencia = crear_licencia(
             usuario=usuario,
             hospital_id=hospital.id,
-            tipo=TipoLicencia.TEMPORAL,
+            tipo=TipoLicencia.VACACIONES,
             fecha_inicio=date.today() + timedelta(days=3),
             fecha_fin=date.today() + timedelta(days=6),
             motivo="Trámite",
-            comentario=None,
-            requires_replacement=False,
-            reemplazo_id=None,
         )
         enviar_licencia(licencia)
-        assert licencia.estado == EstadoLicencia.PENDIENTE
+        assert licencia.estado == EstadoLicencia.SOLICITADA
 
 
 def test_aprobar_licencia_valida_superposicion(app, data):
@@ -51,13 +48,10 @@ def test_aprobar_licencia_valida_superposicion(app, data):
         licencia = crear_licencia(
             usuario=usuario,
             hospital_id=hospital.id,
-            tipo=TipoLicencia.TEMPORAL,
+            tipo=TipoLicencia.ESTUDIO,
             fecha_inicio=date.today() + timedelta(days=10),
             fecha_fin=date.today() + timedelta(days=12),
             motivo="Capacitación",
-            comentario=None,
-            requires_replacement=False,
-            reemplazo_id=None,
         )
         enviar_licencia(licencia)
         aprobar_licencia(licencia, superadmin)
@@ -73,13 +67,10 @@ def test_aprobar_licencia_valida_superposicion(app, data):
             otra = crear_licencia(
                 usuario=usuario,
                 hospital_id=hospital.id,
-                tipo=TipoLicencia.TEMPORAL,
+                tipo=TipoLicencia.ENFERMEDAD,
                 fecha_inicio=licencia.fecha_inicio,
                 fecha_fin=licencia.fecha_fin,
                 motivo="Duplicado",
-                comentario=None,
-                requires_replacement=False,
-                reemplazo_id=None,
             )
             enviar_licencia(otra)
             aprobar_licencia(otra, superadmin)

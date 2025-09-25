@@ -1,11 +1,11 @@
-"""License model storing leave requests and workflow state."""
+"""SQLAlchemy model describing leave requests for users."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, Index, Text, func
+from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, Index, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -16,18 +16,18 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class TipoLicencia(str, Enum):
-    """Types of licenses."""
+    """Supported license types."""
 
-    TEMPORAL = "temporal"
-    PERMANENTE = "permanente"
-    ESPECIAL = "especial"
+    VACACIONES = "vacaciones"
+    ENFERMEDAD = "enfermedad"
+    ESTUDIO = "estudio"
+    OTRO = "otro"
 
 
 class EstadoLicencia(str, Enum):
-    """Workflow states for a license."""
+    """Workflow states for a license request."""
 
-    BORRADOR = "borrador"
-    PENDIENTE = "pendiente"
+    SOLICITADA = "solicitada"
     APROBADA = "aprobada"
     RECHAZADA = "rechazada"
     CANCELADA = "cancelada"
@@ -37,25 +37,29 @@ class Licencia(Base):
     """Leave request workflow for users."""
 
     __tablename__ = "licencias"
-    __table_args__ = (Index("ix_licencias_estado_tipo", "estado", "tipo"),)
+    __table_args__ = (
+        Index("ix_licencias_user_id", "user_id"),
+        Index("ix_licencias_estado", "estado"),
+        Index("ix_licencias_fecha_inicio_fecha_fin", "fecha_inicio", "fecha_fin"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
     tipo: Mapped[TipoLicencia] = mapped_column(
         SAEnum(TipoLicencia, name="tipo_licencia"), nullable=False
     )
-    estado: Mapped[EstadoLicencia] = mapped_column(
-        SAEnum(EstadoLicencia, name="estado_licencia"), default=EstadoLicencia.BORRADOR, nullable=False
-    )
     fecha_inicio: Mapped[date] = mapped_column(Date(), nullable=False)
     fecha_fin: Mapped[date] = mapped_column(Date(), nullable=False)
     motivo: Mapped[str] = mapped_column(Text(), nullable=False)
-    comentario: Mapped[str | None] = mapped_column(Text())
-    requires_replacement: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    reemplazo_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
-    aprobado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
-    aprobado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    estado: Mapped[EstadoLicencia] = mapped_column(
+        SAEnum(EstadoLicencia, name="estado_licencia"),
+        default=EstadoLicencia.SOLICITADA,
+        server_default=EstadoLicencia.SOLICITADA.value,
+        nullable=False,
+    )
+    decidido_por: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    decidido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
@@ -67,14 +71,11 @@ class Licencia(Base):
     )
 
     usuario: Mapped["Usuario"] = relationship(
-        "Usuario", back_populates="licencias", foreign_keys=[usuario_id]
+        "Usuario", back_populates="licencias", foreign_keys=[user_id]
     )
     hospital: Mapped["Hospital | None"] = relationship("Hospital", back_populates="licencias")
-    reemplazo: Mapped["Usuario | None"] = relationship(
-        "Usuario", foreign_keys=[reemplazo_id], back_populates="reemplazos"
-    )
-    aprobado_por: Mapped["Usuario | None"] = relationship(
-        "Usuario", foreign_keys=[aprobado_por_id]
+    decisor: Mapped["Usuario | None"] = relationship(
+        "Usuario", foreign_keys=[decidido_por], back_populates="licencias_decididas"
     )
 
     def dias_habiles(self) -> int:
@@ -90,35 +91,37 @@ class Licencia(Base):
                 dias += 1
         return dias
 
-    def enviar_pendiente(self) -> None:
-        if self.estado != EstadoLicencia.BORRADOR:
-            raise ValueError("Solo se puede enviar una licencia en borrador")
-        self.estado = EstadoLicencia.PENDIENTE
-
     def aprobar(self, aprobador: "Usuario", fecha: datetime | None = None) -> None:
-        if self.estado not in {EstadoLicencia.PENDIENTE, EstadoLicencia.BORRADOR}:
-            raise ValueError("La licencia debe estar pendiente para aprobarse")
-        if self.requires_replacement and not self.reemplazo_id:
-            raise ValueError("Debe asignar un reemplazo antes de aprobar")
-        self.estado = EstadoLicencia.APROBADA
-        self.aprobado_por = aprobador
-        self.aprobado_en = fecha or datetime.utcnow()
+        """Mark the license as approved by ``aprobador``."""
 
-    def rechazar(self, aprobador: "Usuario", comentario: str | None = None) -> None:
-        if self.estado != EstadoLicencia.PENDIENTE:
-            raise ValueError("Solo se puede rechazar una licencia pendiente")
+        if self.estado != EstadoLicencia.SOLICITADA:
+            raise ValueError("La licencia debe estar solicitada para aprobarse")
+        self.estado = EstadoLicencia.APROBADA
+        self.decisor = aprobador
+        self.decidido_en = fecha or datetime.utcnow()
+
+    def rechazar(self, aprobador: "Usuario") -> None:
+        """Reject the license request."""
+
+        if self.estado != EstadoLicencia.SOLICITADA:
+            raise ValueError("Solo se puede rechazar una licencia solicitada")
         self.estado = EstadoLicencia.RECHAZADA
-        self.aprobado_por = aprobador
-        self.aprobado_en = datetime.utcnow()
-        if comentario:
-            self.comentario = comentario
+        self.decisor = aprobador
+        self.decidido_en = datetime.utcnow()
 
     def cancelar(self, usuario: "Usuario") -> None:
-        if self.estado not in {EstadoLicencia.BORRADOR, EstadoLicencia.PENDIENTE}:
-            raise ValueError("Solo se puede cancelar licencias pendientes o en borrador")
+        """Cancel the license request."""
+
+        if self.estado not in {EstadoLicencia.SOLICITADA, EstadoLicencia.APROBADA}:
+            raise ValueError("Solo se puede cancelar licencias solicitadas o aprobadas")
         self.estado = EstadoLicencia.CANCELADA
-        self.aprobado_por = usuario
-        self.aprobado_en = datetime.utcnow()
+        self.decisor = usuario
+        self.decidido_en = datetime.utcnow()
 
     def se_superpone(self, otra: "Licencia") -> bool:
+        """Return True if the license range overlaps with ``otra``."""
+
         return max(self.fecha_inicio, otra.fecha_inicio) <= min(self.fecha_fin, otra.fecha_fin)
+
+
+__all__ = ["Licencia", "TipoLicencia", "EstadoLicencia"]

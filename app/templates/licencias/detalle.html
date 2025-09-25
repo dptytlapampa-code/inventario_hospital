@@ -10,10 +10,8 @@
     <p><strong>Tipo:</strong> {{ normalize_enum_value(licencia.tipo)|title }}</p>
     <p><strong>Estado:</strong> {{ normalize_enum_value(licencia.estado) }}</p>
     <p><strong>Motivo:</strong> {{ licencia.motivo }}</p>
-    <p><strong>Comentario:</strong> {{ licencia.comentario or '—' }}</p>
-    <p><strong>Reemplazo:</strong> {{ licencia.reemplazo.nombre if licencia.reemplazo else 'No requiere' }}</p>
-    {% if licencia.aprobado_por %}
-    <p><strong>Gestionado por:</strong> {{ licencia.aprobado_por.nombre }} el {{ licencia.aprobado_en.strftime('%d/%m/%Y %H:%M') }}</p>
+    {% if licencia.decisor %}
+    <p><strong>Gestionado por:</strong> {{ licencia.decisor.nombre }} el {{ licencia.decidido_en.strftime('%d/%m/%Y %H:%M') if licencia.decidido_en else '—' }}</p>
     {% endif %}
     <a class="btn btn-outline-secondary" href="{{ url_for('licencias.listar') }}">Volver</a>
   </div>

@@ -55,10 +55,10 @@ class Usuario(Base, UserMixin):
     servicio: Mapped["Servicio | None"] = relationship("Servicio")
     oficina: Mapped["Oficina | None"] = relationship("Oficina")
     licencias: Mapped[list["Licencia"]] = relationship(
-        "Licencia", back_populates="usuario", foreign_keys="Licencia.usuario_id"
+        "Licencia", back_populates="usuario", foreign_keys="Licencia.user_id"
     )
-    reemplazos: Mapped[list["Licencia"]] = relationship(
-        "Licencia", back_populates="reemplazo", foreign_keys="Licencia.reemplazo_id"
+    licencias_decididas: Mapped[list["Licencia"]] = relationship(
+        "Licencia", back_populates="decisor", foreign_keys="Licencia.decidido_por"
     )
 
     @property
