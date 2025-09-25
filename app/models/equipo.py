@@ -1,11 +1,23 @@
 """Equipment model with history tracking."""
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
+from unicodedata import normalize
 
-from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    String,
+    Text,
+    event,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -26,13 +38,40 @@ class TipoEquipo(Base):
     __tablename__ = "tipo_equipo"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     nombre: Mapped[str] = mapped_column(String(160), unique=True, nullable=False)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+        nullable=False,
+    )
 
     equipos: Mapped[list["Equipo"]] = relationship("Equipo", back_populates="tipo")
 
     def __repr__(self) -> str:  # pragma: no cover - debugging helper
-        return f"TipoEquipo(id={self.id!r}, nombre={self.nombre!r}, activo={self.activo!r})"
+        return (
+            "TipoEquipo("
+            f"id={self.id!r}, slug={self.slug!r}, nombre={self.nombre!r}, activo={self.activo!r}"
+            ")"
+        )
+
+    @staticmethod
+    def _slug_source(value: str | None) -> str:
+        return (value or "").strip()
+
+    @classmethod
+    def slug_from_nombre(cls, value: str | None) -> str:
+        base = cls._slug_source(value)
+        if not base:
+            return "tipo"
+        normalized = normalize("NFKD", base).encode("ascii", "ignore").decode("ascii")
+        slug = re.sub(r"[^a-z0-9]+", "-", normalized.lower()).strip("-")
+        return slug or "tipo"
 
 
 class EstadoEquipo(str, Enum):
@@ -137,3 +176,17 @@ class EquipoHistorial(Base):
 
 
 __all__ = ["TipoEquipo", "EstadoEquipo", "Equipo", "EquipoHistorial"]
+
+
+def _ensure_tipo_equipo_slug(target: TipoEquipo) -> None:
+    target.slug = TipoEquipo.slug_from_nombre(target.slug or target.nombre)
+
+
+@event.listens_for(TipoEquipo, "before_insert")
+def _tipo_equipo_before_insert(mapper, connection, target: TipoEquipo) -> None:  # pragma: no cover
+    _ensure_tipo_equipo_slug(target)
+
+
+@event.listens_for(TipoEquipo, "before_update")
+def _tipo_equipo_before_update(mapper, connection, target: TipoEquipo) -> None:  # pragma: no cover
+    _ensure_tipo_equipo_slug(target)

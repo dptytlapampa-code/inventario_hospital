@@ -140,7 +140,9 @@ def create_equipment_types(session: Session) -> dict[str, TipoEquipo]:
         ("ups", "UPS"),
         ("otro", "Otro"),
     ]
-    registros = [TipoEquipo(nombre=nombre, activo=True) for _, nombre in defaults]
+    registros = [
+        TipoEquipo(slug=slug, nombre=nombre, activo=True) for slug, nombre in defaults
+    ]
     session.add_all(registros)
     session.flush()
     return {slug: registro for (slug, _), registro in zip(defaults, registros)}

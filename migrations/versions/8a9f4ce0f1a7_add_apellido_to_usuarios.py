@@ -17,8 +17,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("usuarios", sa.Column("apellido", sa.String(length=120), nullable=True))
+    with op.batch_alter_table("usuarios", recreate="always") as batch_op:
+        batch_op.add_column(sa.Column("apellido", sa.String(length=120), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column("usuarios", "apellido")
+    with op.batch_alter_table("usuarios", recreate="always") as batch_op:
+        batch_op.drop_column("apellido")

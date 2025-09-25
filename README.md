@@ -14,6 +14,7 @@ Sistema web completo y listo para producción para la gestión de inventario hos
    - [5.3 Con Docker](#53-con-docker)
    - [5.4 Makefile (atajos)](#54-makefile-atajos)
 6. Base de datos, migraciones y seeds
+   - [6.1 Primer arranque / SQLite](#61-primer-arranque--sqlite)
 7. Roles, permisos y seguridad
 8. Módulo de Licencias/Vacaciones
    - [8.1 Modelo de datos](#81-modelo-de-datos)
@@ -207,6 +208,17 @@ Seeds (`seeds/seed.py`): abre una sesión SQLAlchemy sobre `DATABASE_URL`, limpi
 - `consulta / Cambiar123!` (Usuario de solo lectura)
 - Equipos/insumos/actas/adjuntos/licencias de ejemplo
 - Asegura que los permisos por hospital y módulo queden cargados.
+
+### 6.1 Primer arranque / SQLite
+
+Para validar el sistema rápidamente sin levantar PostgreSQL podés usar SQLite apuntando `DATABASE_URL` a un archivo local (por ejemplo `sqlite:///inventario.db`). El orden recomendado es:
+
+1. **Definir la URL:** `export DATABASE_URL=sqlite:///inventario.db` (o `set` en Windows).
+2. **Crear el esquema:** `flask db upgrade` (las migraciones usan `render_as_batch` y `CheckConstraint` para soportar SQLite).
+3. **Sembrar datos básicos:** `python seeds/seed.py` (solo después del `upgrade`).
+4. **Levantar la app:** `flask run`.
+
+El `before_request` que valida licencias ahora detecta si las tablas `usuarios`/`licencias` existen antes de consultar, por lo que un `flask run` accidental antes de migrar no devuelve 500. Aun así, siempre corré las migraciones primero para garantizar que los seeds y el login funcionen.
 
 ## 7. Roles, permisos y seguridad
 
