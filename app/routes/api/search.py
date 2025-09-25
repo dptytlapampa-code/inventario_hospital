@@ -75,6 +75,7 @@ def search_hospitales():
     )
 
 
+@api_bp.route("/search_servicios")
 @api_bp.route("/search/servicios")
 @login_required
 def search_servicios_lookup():
@@ -114,6 +115,7 @@ def search_servicios_lookup():
     )
 
 
+@api_bp.route("/search_oficinas")
 @api_bp.route("/search/oficinas")
 @login_required
 def search_oficinas_lookup():

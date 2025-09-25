@@ -219,16 +219,17 @@ def collect_dashboard_metrics(user, top_supplies: int = 8) -> dict[str, object]:
 
     # Equipos por tipo (top 7)
     equipment_type_total = func.count(Equipo.id).label("total")
-    equipment_type_query = db.session.query(Equipo.tipo, equipment_type_total).group_by(Equipo.tipo)
+    equipment_type_query = (
+        db.session.query(TipoEquipo.nombre, equipment_type_total)
+        .join(TipoEquipo, TipoEquipo.id == Equipo.tipo_id)
+        .group_by(TipoEquipo.id, TipoEquipo.nombre)
+    )
     equipment_type_query = _apply_scope(equipment_type_query, Equipo.hospital_id, scope)
     equipment_type_rows = (
         equipment_type_query.order_by(equipment_type_total.desc()).limit(7).all()
     )
     equipment_type = {
-        "labels": [
-            _to_title(row[0].value if isinstance(row[0], TipoEquipo) else str(row[0]))
-            for row in equipment_type_rows
-        ],
+        "labels": [row[0] for row in equipment_type_rows],
         "values": [row[1] for row in equipment_type_rows],
     }
 

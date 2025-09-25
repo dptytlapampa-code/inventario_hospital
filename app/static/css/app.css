@@ -10,7 +10,7 @@
   --color-warning: #f59f00;
   --color-danger: #d9480f;
   --color-info: #0ca678;
-  --color-muted: #6b7280;
+  --color-muted: #475569;
 }
 
 body {
@@ -287,13 +287,13 @@ body {
 
 .card {
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 0.9rem;
-  box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.05);
+  border-radius: 1rem;
+  box-shadow: 0 0.6rem 1.6rem rgba(15, 23, 42, 0.06);
 }
 
 .card-header {
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(37, 99, 235, 0));
+  background: linear-gradient(135deg, rgba(241, 245, 249, 0.9), rgba(241, 245, 249, 0.4));
   font-weight: 600;
 }
 
@@ -371,14 +371,15 @@ body {
 }
 
 .btn-outline-secondary {
-  color: var(--color-muted);
-  border-color: rgba(107, 114, 128, 0.45);
+  color: #334155;
+  border-color: rgba(51, 65, 85, 0.55);
 }
 
 .btn-outline-secondary:hover,
 .btn-outline-secondary:focus {
-  background-color: rgba(107, 114, 128, 0.12);
-  color: #374151;
+  background-color: rgba(51, 65, 85, 0.12);
+  color: #1e293b;
+  border-color: rgba(51, 65, 85, 0.8);
 }
 
 .status-badge {
@@ -394,31 +395,31 @@ body {
 }
 
 .status-badge--success {
-  background: rgba(47, 158, 68, 0.12);
-  color: #1b6d32;
-  border: 1px solid rgba(47, 158, 68, 0.35);
+  background: rgba(16, 122, 57, 0.15);
+  color: #0c4a2f;
+  border: 1px solid rgba(16, 122, 57, 0.32);
 }
 
 .status-badge--warning {
-  background: rgba(245, 159, 0, 0.14);
-  color: #8a5b00;
-  border: 1px solid rgba(245, 159, 0, 0.38);
+  background: rgba(191, 119, 6, 0.18);
+  color: #5c3b03;
+  border: 1px solid rgba(191, 119, 6, 0.36);
 }
 
 .status-badge--danger {
-  background: rgba(217, 72, 15, 0.15);
-  color: #93240a;
-  border: 1px solid rgba(217, 72, 15, 0.35);
+  background: rgba(185, 28, 28, 0.16);
+  color: #7f1d1d;
+  border: 1px solid rgba(185, 28, 28, 0.35);
 }
 
-.status-badge--info {
-  background: rgba(12, 166, 120, 0.14);
-  color: #0a5c46;
-  border: 1px solid rgba(12, 166, 120, 0.35);
+.status-badge--secondary {
+  background: rgba(71, 85, 105, 0.18);
+  color: #1f2937;
+  border: 1px solid rgba(71, 85, 105, 0.32);
 }
 
 .status-badge--muted {
-  background: rgba(107, 114, 128, 0.14);
+  background: rgba(107, 114, 128, 0.12);
   color: #424c5a;
   border: 1px solid rgba(107, 114, 128, 0.25);
 }

@@ -110,6 +110,12 @@ def _populate_database() -> dict[str, object]:
     db.session.add_all([superadmin, admin, gestor, visor, tecnico])
     db.session.flush()
 
+    tipo_notebook = TipoEquipo(nombre="Notebook", activo=True)
+    tipo_impresora = TipoEquipo(nombre="Impresora", activo=True)
+    tipo_router = TipoEquipo(nombre="Router", activo=True)
+    db.session.add_all([tipo_notebook, tipo_impresora, tipo_router])
+    db.session.flush()
+
     permisos = [
         Permiso(
             rol=rol_super,
@@ -185,7 +191,7 @@ def _populate_database() -> dict[str, object]:
 
     equipo = Equipo(
         codigo="EQ-100",
-        tipo=TipoEquipo.NOTEBOOK,
+        tipo=tipo_notebook,
         estado=EstadoEquipo.OPERATIVO,
         descripcion="Notebook de prueba",
         hospital=hospital,
@@ -238,6 +244,11 @@ def _populate_database() -> dict[str, object]:
         "equipo": equipo,
         "insumo": insumo,
         "acta": acta,
+        "tipos_equipo": {
+            "notebook": tipo_notebook,
+            "impresora": tipo_impresora,
+            "router": tipo_router,
+        },
         "licencia": licencia,
     }
 
@@ -276,6 +287,11 @@ def data(app):
             "licencia": Licencia.query.first(),
             "servicio": Servicio.query.first(),
             "oficina": Oficina.query.first(),
+            "tipos_equipo": {
+                "notebook": TipoEquipo.query.filter_by(nombre="Notebook").first(),
+                "impresora": TipoEquipo.query.filter_by(nombre="Impresora").first(),
+                "router": TipoEquipo.query.filter_by(nombre="Router").first(),
+            },
         }
 
 

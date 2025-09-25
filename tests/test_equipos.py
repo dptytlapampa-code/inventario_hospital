@@ -1,7 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 
-from app.models import Equipo, EquipoAdjunto, EstadoEquipo, TipoEquipo
+from app.models import Equipo, EquipoAdjunto, EstadoEquipo
 
 
 def login(client, username: str, password: str) -> None:
@@ -12,10 +12,10 @@ def login(client, username: str, password: str) -> None:
     )
 
 
-def _base_equipo_form(hospital, include_serial: bool = True) -> dict[str, str]:
+def _base_equipo_form(hospital, tipo_id: int, include_serial: bool = True) -> dict[str, str]:
     data = {
         "descripcion": "Router de prueba",
-        "tipo": TipoEquipo.ROUTER.value,
+        "tipo": str(tipo_id),
         "estado": EstadoEquipo.OPERATIVO.value,
         "hospital_busqueda": hospital.nombre,
         "hospital_id": str(hospital.id),
@@ -30,7 +30,9 @@ def _base_equipo_form(hospital, include_serial: bool = True) -> dict[str, str]:
 
 def test_equipo_requires_serial_when_flag_not_checked(client, admin_credentials, data):
     login(client, **admin_credentials)
-    form_data = _base_equipo_form(data["hospital"], include_serial=False)
+    form_data = _base_equipo_form(
+        data["hospital"], data["tipos_equipo"]["router"].id, include_serial=False
+    )
     response = client.post("/equipos/crear", data=form_data, follow_redirects=True)
     assert response.status_code == 200
     assert "Ingrese un número de serie" in response.get_data(as_text=True)
@@ -38,7 +40,9 @@ def test_equipo_requires_serial_when_flag_not_checked(client, admin_credentials,
 
 def test_equipo_generates_internal_serial(client, admin_credentials, data):
     login(client, **admin_credentials)
-    form_data = _base_equipo_form(data["hospital"], include_serial=False)
+    form_data = _base_equipo_form(
+        data["hospital"], data["tipos_equipo"]["router"].id, include_serial=False
+    )
     form_data["sin_numero_serie"] = "y"
     response = client.post("/equipos/crear", data=form_data, follow_redirects=False)
     assert response.status_code == 302
@@ -50,7 +54,9 @@ def test_equipo_generates_internal_serial(client, admin_credentials, data):
 
 def test_equipo_requires_valid_hospital_lookup(client, admin_credentials, data):
     login(client, **admin_credentials)
-    form_data = _base_equipo_form(data["hospital"], include_serial=True)
+    form_data = _base_equipo_form(
+        data["hospital"], data["tipos_equipo"]["router"].id, include_serial=True
+    )
     form_data["hospital_id"] = ""
     response = client.post("/equipos/crear", data=form_data, follow_redirects=True)
     assert response.status_code == 200

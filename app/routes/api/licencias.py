@@ -3,8 +3,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from flask import abort, jsonify, request
+import json
+import time
+
+from flask import Response, abort, current_app, jsonify, request, stream_with_context
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 
 from app.models import EstadoLicencia, Licencia, TipoLicencia
 
@@ -43,6 +47,17 @@ def _serialize(licencia: Licencia) -> dict[str, object]:
         "decidido_por": licencia.decisor.nombre if licencia.decisor else None,
         "decidido_en": licencia.decidido_en.isoformat() if licencia.decidido_en else None,
     }
+
+
+def _stream_query(user) -> list[Licencia]:
+    query = Licencia.query.options(
+        joinedload(Licencia.usuario),
+        joinedload(Licencia.hospital),
+        joinedload(Licencia.decisor),
+    ).order_by(Licencia.created_at.desc())
+    if not user.has_role("superadmin"):
+        query = query.filter(Licencia.user_id == user.id)
+    return query.all()
 
 
 @api_bp.get("/licencias/mias")
@@ -102,3 +117,29 @@ def api_licencias_admin():
 
     licencias = query.order_by(Licencia.created_at.desc()).all()
     return jsonify({"licencias": [_serialize(licencia) for licencia in licencias]})
+
+
+@api_bp.get("/licencias/stream")
+@login_required
+def api_licencias_stream() -> Response:
+    """Stream license updates for the current user via SSE."""
+
+    user = current_user._get_current_object()
+    interval = current_app.config.get("LICENSES_STREAM_INTERVAL", 30)
+    retry = current_app.config.get("LICENSES_STREAM_RETRY", interval * 1000)
+
+    @stream_with_context
+    def generate():
+        yield f"retry: {int(retry)}\n\n"
+        while True:
+            licencias = _stream_query(user)
+            payload = {
+                "scope": "admin" if user.has_role("superadmin") else "mine",
+                "licencias": [_serialize(licencia) for licencia in licencias],
+            }
+            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+            time.sleep(max(30, int(interval)))
+
+    response = Response(generate(), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    return response

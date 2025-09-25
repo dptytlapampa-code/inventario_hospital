@@ -21,6 +21,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.orm import selectinload
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
@@ -31,6 +32,8 @@ from app.forms.equipo import (
     EquipoFiltroForm,
     EquipoForm,
     EquipoHistorialFiltroForm,
+    TipoEquipoCreateForm,
+    TipoEquipoUpdateForm,
 )
 from app.models import (
     Acta,
@@ -41,8 +44,9 @@ from app.models import (
     EstadoEquipo,
     Modulo,
     TipoActa,
+    TipoEquipo,
 )
-from app.security import permissions_required, require_hospital_access
+from app.security import permissions_required, require_hospital_access, require_roles
 from app.services.audit_service import log_action
 from app.services.equipo_service import generate_internal_serial
 from app.utils import normalize_enum_value
@@ -87,7 +91,7 @@ def listar():
     page = request.args.get("page", type=int, default=1)
     per_page = current_app.config.get("DEFAULT_PAGE_SIZE", 20)
 
-    query = Equipo.query.order_by(Equipo.created_at.desc())
+    query = Equipo.query.options(selectinload(Equipo.tipo)).order_by(Equipo.created_at.desc())
     allowed = getattr(g, "allowed_hospitals", set())
     if allowed:
         query = query.filter(Equipo.hospital_id.in_(allowed))
@@ -125,7 +129,7 @@ def crear():
             numero_serie = (form.numero_serie.data or "").strip()
         equipo = Equipo(
             codigo=form.codigo.data or None,
-            tipo=form.tipo.data,
+            tipo_id=form.tipo.data,
             estado=form.estado.data,
             descripcion=form.descripcion.data or None,
             marca=form.marca.data or None,
@@ -155,7 +159,7 @@ def crear():
 @permissions_required("inventario:write")
 @require_hospital_access(Modulo.INVENTARIO)
 def editar(equipo_id: int):
-    equipo = Equipo.query.get_or_404(equipo_id)
+    equipo = Equipo.query.options(selectinload(Equipo.tipo)).get_or_404(equipo_id)
     form = EquipoForm(obj=equipo)
     if request.method == "GET":
         form.sin_numero_serie.data = equipo.sin_numero_serie
@@ -166,7 +170,7 @@ def editar(equipo_id: int):
         else:
             equipo.numero_serie = (form.numero_serie.data or "").strip()
         equipo.codigo = form.codigo.data or None
-        equipo.tipo = form.tipo.data
+        equipo.tipo_id = form.tipo.data
         equipo.estado = form.estado.data
         equipo.descripcion = form.descripcion.data or None
         equipo.marca = form.marca.data or None
@@ -193,7 +197,7 @@ def editar(equipo_id: int):
 @permissions_required("inventario:read")
 @require_hospital_access(Modulo.INVENTARIO)
 def detalle(equipo_id: int):
-    equipo = Equipo.query.get_or_404(equipo_id)
+    equipo = Equipo.query.options(selectinload(Equipo.tipo)).get_or_404(equipo_id)
     form_adjuntos = EquipoAdjuntoForm()
 
     historial_entries = sorted(
@@ -599,3 +603,72 @@ def actas_completas(equipo_id: int):
         actas=pagination.items,
         pagination=pagination,
     )
+
+
+@equipos_bp.route("/tipos", methods=["GET", "POST"])
+@login_required
+@require_roles("superadmin")
+def gestionar_tipos():
+    """Allow superadministrators to create and maintain equipment types."""
+
+    create_form = TipoEquipoCreateForm(prefix="nuevo")
+    if create_form.validate_on_submit():
+        nombre = (create_form.nombre.data or "").strip()
+        if not nombre:
+            create_form.nombre.errors.append("Ingrese un nombre válido")
+        else:
+            nuevo = TipoEquipo(nombre=nombre, activo=True)
+            db.session.add(nuevo)
+            db.session.commit()
+            flash("Tipo de equipo agregado", "success")
+            return redirect(url_for("equipos.gestionar_tipos"))
+
+    tipos = (
+        TipoEquipo.query.order_by(TipoEquipo.activo.desc(), TipoEquipo.nombre.asc())
+        .all()
+    )
+    update_forms = []
+    for tipo in tipos:
+        form = TipoEquipoUpdateForm(prefix=f"tipo-{tipo.id}")
+        form.tipo_id.data = str(tipo.id)
+        form.nombre.data = tipo.nombre
+        form.activo.data = tipo.activo
+        update_forms.append((tipo, form))
+
+    return render_template(
+        "equipos/tipos.html",
+        create_form=create_form,
+        update_forms=update_forms,
+        tipos=tipos,
+    )
+
+
+@equipos_bp.route("/tipos/<int:tipo_id>", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def actualizar_tipo(tipo_id: int):
+    """Persist updates to an equipment type."""
+
+    tipo = TipoEquipo.query.get_or_404(tipo_id)
+    form = TipoEquipoUpdateForm()
+    if not form.validate_on_submit():
+        for errors in form.errors.values():
+            for message in errors:
+                flash(message, "danger")
+        return redirect(url_for("equipos.gestionar_tipos"))
+
+    try:
+        submitted_id = int(form.tipo_id.data)
+    except (TypeError, ValueError):
+        flash("Identificador inválido", "danger")
+        return redirect(url_for("equipos.gestionar_tipos"))
+
+    if submitted_id != tipo_id:
+        flash("El identificador enviado no coincide", "danger")
+        return redirect(url_for("equipos.gestionar_tipos"))
+
+    tipo.nombre = (form.nombre.data or "").strip()
+    tipo.activo = bool(form.activo.data)
+    db.session.commit()
+    flash("Tipo de equipo actualizado", "success")
+    return redirect(url_for("equipos.gestionar_tipos"))

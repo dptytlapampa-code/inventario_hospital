@@ -44,19 +44,19 @@
             <th scope="col" class="text-end">Acciones</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-license-list data-license-scope="mine">
           {% for licencia in pagination.items %}
-          <tr>
+          <tr data-license-row="{{ licencia.id }}">
             <td class="fw-semibold">{{ normalize_enum_value(licencia.tipo) }}</td>
             <td>
               <div>{{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} – {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</div>
               <div class="text-muted small">{{ licencia.dias_habiles() }} días hábiles</div>
             </td>
             <td>{{ licencia.hospital.nombre if licencia.hospital else '—' }}</td>
-            <td>
+            <td data-license-status>
               <span class="badge bg-{{ badge_for(licencia.estado) }}">{{ normalize_enum_value(licencia.estado) }}</span>
             </td>
-            <td class="text-wrap">
+            <td class="text-wrap" data-license-detail>
               <div class="small text-muted">Motivo</div>
               <div>{{ licencia.motivo }}</div>
               {% if licencia.motivo_rechazo %}
@@ -67,17 +67,12 @@
               <div class="small text-muted mt-2">Decidido por {{ licencia.decisor.nombre }}{% if licencia.decidido_en %} el {{ licencia.decidido_en.strftime('%d/%m/%Y %H:%M') }}{% endif %}</div>
               {% endif %}
             </td>
-            <td class="text-end">
-              {% if licencia.estado == EstadoLicencia.SOLICITADA %}
-              <form method="post" action="{{ url_for('licencias.cancelar', licencia_id=licencia.id) }}" class="d-inline">
+            <td class="text-end" data-license-actions>
+              <form method="post" action="{{ url_for('licencias.cancelar', licencia_id=licencia.id) }}" class="d-inline{% if licencia.estado != EstadoLicencia.SOLICITADA %} d-none{% endif %}" data-license-cancel>
                 {{ cancel_form.csrf_token }}
                 <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Cancelar la solicitud?');">Cancelar</button>
               </form>
-              {% elif licencia.estado == EstadoLicencia.CANCELADA %}
-              <span class="text-muted">Sin acciones</span>
-              {% else %}
-              <span class="text-muted">Sin acciones</span>
-              {% endif %}
+              <span class="text-muted small{% if licencia.estado == EstadoLicencia.SOLICITADA %} d-none{% endif %}" data-license-no-actions>Sin acciones</span>
             </td>
           </tr>
           {% endfor %}
@@ -90,4 +85,8 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/licencias_stream.js') }}"></script>
 {% endblock %}
