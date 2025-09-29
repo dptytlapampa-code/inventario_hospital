@@ -103,6 +103,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     from app.routes.search import search_bp
     from app.routes.usuarios import usuarios_bp
     from app.routes.ubicaciones import ubicaciones_bp
+    from app.routes.ubicaciones_api import ubicaciones_api_bp
 
     for blueprint in (
         auth_bp,
@@ -117,6 +118,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         search_bp,
         licencias_bp,
         api_bp,
+        ubicaciones_api_bp,
         usuarios_bp,
     ):
         app.register_blueprint(blueprint)

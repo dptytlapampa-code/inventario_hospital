@@ -1,0 +1,133 @@
+{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
+<form
+  method="post"
+  novalidate
+  class="needs-validation"
+  data-servicios-url="{{ url_for('ubicaciones_api.obtener_servicios') }}"
+  data-oficinas-url="{{ url_for('ubicaciones_api.obtener_oficinas') }}"
+>
+  {{ form.hidden_tag() }}
+  <div class="form-section">
+    <div class="section-header">Ubicación</div>
+    <div class="section-body row g-3">
+      <div class="col-12 col-md-4">
+        <label class="form-label fw-semibold" for="hospital_id">Hospital</label>
+        <select
+          class="form-select{% if form.hospital_id.errors %} is-invalid{% endif %}"
+          id="hospital_id"
+          name="hospital_id"
+          required
+          data-placeholder="Seleccione un hospital"
+        >
+          <option value="">Seleccione un hospital</option>
+          {% for hospital in hospitales %}
+          <option value="{{ hospital.id }}"{% if form.hospital_id.data == hospital.id %} selected{% endif %}>{{ hospital.nombre }}</option>
+          {% endfor %}
+        </select>
+        {% for error in form.hospital_id.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label fw-semibold" for="servicio_id">Servicio</label>
+        <select
+          class="form-select{% if form.servicio_id.errors %} is-invalid{% endif %}"
+          id="servicio_id"
+          name="servicio_id"
+          {% if not servicios_iniciales %}disabled{% endif %}
+          data-placeholder="Seleccione un servicio"
+          data-default-label="Seleccione un hospital para ver servicios"
+          data-empty-label="No hay servicios disponibles"
+          data-loading-label="Cargando servicios..."
+          data-error-label="Error al cargar servicios"
+          data-has-initial="{{ 1 if servicios_iniciales else 0 }}"
+        >
+          {% if servicios_iniciales %}
+          <option value="">Seleccione un servicio</option>
+          {% elif form.hospital_id.data %}
+          <option value="">No hay servicios disponibles</option>
+          {% else %}
+          <option value="">Seleccione un hospital para ver servicios</option>
+          {% endif %}
+          {% for servicio in servicios_iniciales %}
+          <option value="{{ servicio.id }}"{% if form.servicio_id.data == servicio.id %} selected{% endif %}>{{ servicio.nombre }}</option>
+          {% endfor %}
+        </select>
+        {% for error in form.servicio_id.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label fw-semibold" for="oficina_id">Oficina</label>
+        <select
+          class="form-select{% if form.oficina_id.errors %} is-invalid{% endif %}"
+          id="oficina_id"
+          name="oficina_id"
+          {% if not oficinas_iniciales %}disabled{% endif %}
+          data-placeholder="Seleccione una oficina"
+          data-default-label="Seleccione un servicio para ver oficinas"
+          data-empty-label="No hay oficinas disponibles"
+          data-loading-label="Cargando oficinas..."
+          data-error-label="Error al cargar oficinas"
+          data-has-initial="{{ 1 if oficinas_iniciales else 0 }}"
+        >
+          {% if oficinas_iniciales %}
+          <option value="">Seleccione una oficina</option>
+          {% elif form.servicio_id.data %}
+          <option value="">No hay oficinas disponibles</option>
+          {% else %}
+          <option value="">Seleccione un servicio para ver oficinas</option>
+          {% endif %}
+          {% for oficina in oficinas_iniciales %}
+          <option value="{{ oficina.id }}"{% if form.oficina_id.data == oficina.id %} selected{% endif %}>{{ oficina.nombre }}</option>
+          {% endfor %}
+        </select>
+        {% for error in form.oficina_id.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+      </div>
+      {{ render_field(form.responsable, form_group_class='col-12 col-md-6', placeholder='Responsable del equipo') }}
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-header">Identificación y estado</div>
+    <div class="section-body row g-3">
+      <div class="col-12 col-md-6" data-serial-container>
+        <label class="form-label" for="{{ form.numero_serie.id }}">Número de serie</label>
+        {{ render_input_field(form.numero_serie, 'form-control' ~ (' is-invalid' if form.numero_serie.errors else ''), placeholder='Número de serie', extra_attrs={'data-serial-input': 'true'}) }}
+        <div class="form-text d-none" data-serial-message>Se generará un código interno al guardar.</div>
+        {% for error in form.numero_serie.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <div class="col-12 col-md-6 align-self-end">
+        <div class="form-check mb-0">
+          {{ render_input_field(form.sin_numero_serie, 'form-check-input' ~ (' is-invalid' if form.sin_numero_serie.errors else ''), extra_attrs={'data-serial-toggle': 'true'}) }}
+          {{ form.sin_numero_serie.label(class='form-check-label') }}
+          {% for error in form.sin_numero_serie.errors %}
+          <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      {{ render_field(form.codigo, form_group_class='col-12 col-md-6', placeholder='Código patrimonial') }}
+      {{ render_select(form.tipo, form_group_class='col-12 col-md-3', label_class='form-label') }}
+      {{ render_select(form.estado, form_group_class='col-12 col-md-3', label_class='form-label') }}
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-header">Detalles del equipo</div>
+    <div class="section-body row g-3">
+      {{ render_textarea(form.descripcion, form_group_class='col-12', rows=3, placeholder='Descripción breve del equipo') }}
+      {{ render_field(form.marca, form_group_class='col-12 col-md-4', placeholder='Marca') }}
+      {{ render_field(form.modelo, form_group_class='col-12 col-md-4', placeholder='Modelo') }}
+      {{ render_field(form.fecha_compra, form_group_class='col-12 col-md-4', input_type='date') }}
+      {{ render_field(form.fecha_instalacion, form_group_class='col-12 col-md-4', input_type='date') }}
+      {{ render_field(form.garantia_hasta, form_group_class='col-12 col-md-4', input_type='date') }}
+      {{ render_textarea(form.observaciones, form_group_class='col-12', rows=3, placeholder='Observaciones relevantes') }}
+    </div>
+  </div>
+  <div class="d-flex flex-column flex-md-row gap-2 justify-content-end">
+    {{ form.submit(class='btn btn-primary px-4') }}
+    <a class="btn btn-outline-secondary" href="{{ url_for('equipos.listar') }}">Cancelar</a>
+  </div>
+</form>

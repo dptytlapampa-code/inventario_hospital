@@ -10,6 +10,7 @@ from wtforms import (
     BooleanField,
     DateField,
     HiddenField,
+    IntegerField,
     SelectField,
     StringField,
     SubmitField,
@@ -37,12 +38,11 @@ class EquipoForm(FlaskForm):
     marca = StringField("Marca", validators=[Optional(), Length(max=100)])
     modelo = StringField("Modelo", validators=[Optional(), Length(max=100)])
     numero_serie = StringField("Número de serie", validators=[Optional(), Length(max=120)])
-    hospital_busqueda = StringField("Hospital", validators=[DataRequired(), Length(max=160)])
-    hospital_id = HiddenField()
-    servicio_busqueda = StringField("Servicio", validators=[Optional(), Length(max=160)])
-    servicio_id = HiddenField()
-    oficina_busqueda = StringField("Oficina", validators=[Optional(), Length(max=160)])
-    oficina_id = HiddenField()
+    hospital_id = IntegerField(
+        "Hospital", validators=[DataRequired(message="Seleccione una opción válida")]
+    )
+    servicio_id = IntegerField("Servicio", validators=[Optional()])
+    oficina_id = IntegerField("Oficina", validators=[Optional()])
     responsable = StringField("Responsable", validators=[Optional(), Length(max=120)])
     fecha_compra = DateField("Fecha de compra", validators=[Optional()], default=None)
     fecha_instalacion = DateField("Fecha de instalación", validators=[Optional()], default=None)
@@ -58,7 +58,6 @@ class EquipoForm(FlaskForm):
             self.tipo.data = self.tipo.data.id
         self._initial_tipo_id = self.tipo.data if isinstance(self.tipo.data, int) else None
         self.estado.choices = [(estado.value, estado.name.replace("_", " ").title()) for estado in EstadoEquipo]
-        self._populate_lookup_defaults()
 
     def _populate_tipo_choices(self) -> None:
         tipos = (
@@ -77,36 +76,6 @@ class EquipoForm(FlaskForm):
         self.tipo.choices = active_choices
         self.tipo.render_kw = {} if active_choices else {"disabled": "disabled"}
 
-    # pylint: disable=too-many-return-statements
-    def _populate_lookup_defaults(self) -> None:
-        if self.hospital_id.data:
-            try:
-                hospital_id = int(self.hospital_id.data)
-            except (TypeError, ValueError):
-                hospital_id = None
-            if hospital_id:
-                hospital = Hospital.query.get(hospital_id)
-                if hospital:
-                    self.hospital_busqueda.data = self._format_hospital_label(hospital)
-        if self.servicio_id.data:
-            try:
-                servicio_id = int(self.servicio_id.data)
-            except (TypeError, ValueError):
-                servicio_id = None
-            if servicio_id:
-                servicio = Servicio.query.get(servicio_id)
-                if servicio:
-                    self.servicio_busqueda.data = servicio.nombre
-        if self.oficina_id.data:
-            try:
-                oficina_id = int(self.oficina_id.data)
-            except (TypeError, ValueError):
-                oficina_id = None
-            if oficina_id:
-                oficina = Oficina.query.get(oficina_id)
-                if oficina:
-                    self.oficina_busqueda.data = oficina.nombre
-
     def validate(self, extra_validators=None):  # type: ignore[override]
         if not super().validate(extra_validators=extra_validators):
             return False
@@ -122,32 +91,6 @@ class EquipoForm(FlaskForm):
         if not tipo.activo and self._initial_tipo_id != tipo.id:
             self.tipo.errors.append("Seleccione un tipo activo")
             return False
-        if not self._validate_lookup(
-            self.hospital_busqueda,
-            self.hospital_id,
-            Hospital,
-            required=True,
-            label_getter=self._format_hospital_label,
-        ):
-            return False
-        if not self._validate_lookup(self.servicio_busqueda, self.servicio_id, Servicio, required=False):
-            return False
-        if not self._validate_lookup(self.oficina_busqueda, self.oficina_id, Oficina, required=False):
-            return False
-
-        if self.servicio_id.data:
-            servicio = Servicio.query.get(self.servicio_id.data)
-            if not servicio or servicio.hospital_id != self.hospital_id.data:
-                self.servicio_busqueda.errors.append("Seleccione una opción válida")
-                return False
-        if self.oficina_id.data:
-            oficina = Oficina.query.get(self.oficina_id.data)
-            if not oficina or oficina.hospital_id != self.hospital_id.data:
-                self.oficina_busqueda.errors.append("Seleccione una opción válida")
-                return False
-            if self.servicio_id.data and oficina.servicio_id and oficina.servicio_id != self.servicio_id.data:
-                self.oficina_busqueda.errors.append("Seleccione una opción válida")
-                return False
         numero_serie = (self.numero_serie.data or "").strip()
         if not self.sin_numero_serie.data and not numero_serie:
             self.numero_serie.errors.append(
@@ -165,50 +108,6 @@ class EquipoForm(FlaskForm):
             self.fecha_instalacion.errors.append("La instalación no puede ser anterior a la compra")
             return False
         return True
-
-    @staticmethod
-    def _validate_lookup(text_field, hidden_field, model, required: bool, label_getter=None) -> bool:
-        text = (text_field.data or "").strip() if text_field is not None else ""
-        hidden_value = hidden_field.data if hidden_field is not None else None
-
-        if not text and not hidden_value:
-            if required:
-                text_field.errors.append("Seleccione una opción válida")
-                return False
-            hidden_field.data = None
-            return True
-
-        if required and not hidden_value:
-            text_field.errors.append("Seleccione una opción válida")
-            return False
-        if hidden_value in (None, ""):
-            if text:
-                text_field.errors.append("Seleccione una opción válida")
-                return False
-            text_field.data = ""
-            hidden_field.data = None
-            return True
-        try:
-            identifier = int(hidden_value)
-        except (TypeError, ValueError):
-            text_field.errors.append("Seleccione una opción válida")
-            return False
-        instance = model.query.get(identifier)
-        if not instance:
-            text_field.errors.append("Seleccione una opción válida")
-            return False
-        hidden_field.data = identifier
-        if text_field is not None:
-            if label_getter is not None:
-                text_field.data = label_getter(instance)
-            else:
-                text_field.data = getattr(instance, "nombre", str(instance))
-        return True
-
-    @staticmethod
-    def _format_hospital_label(hospital: Hospital) -> str:
-        localidad = getattr(hospital, "localidad", None) or getattr(hospital, "direccion", None)
-        return f"{hospital.nombre} - {localidad}" if localidad else hospital.nombre
 
 
 class EquipoFiltroForm(FlaskForm):
