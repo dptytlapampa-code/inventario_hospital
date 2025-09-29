@@ -211,6 +211,17 @@ body {
   padding: 1.4rem;
 }
 
+.form-section,
+.form-section .section-body,
+.section-body {
+  overflow: visible;
+}
+
+.ts-dropdown,
+.dropdown-menu {
+  z-index: 2000;
+}
+
 .table-filter {
   display: flex;
   gap: 0.75rem;

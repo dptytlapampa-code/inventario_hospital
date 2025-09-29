@@ -18,7 +18,7 @@ def obtener_servicios() -> tuple[object, int] | object:
 
     hospital_id = request.args.get("hospital_id", type=int)
     if hospital_id is None:
-        return jsonify({"error": "hospital_id requerido"}), 400
+        return jsonify({"error": "parámetro requerido"}), 400
 
     servicios = (
         Servicio.query.filter_by(hospital_id=hospital_id)
@@ -40,7 +40,7 @@ def obtener_oficinas() -> tuple[object, int] | object:
 
     servicio_id = request.args.get("servicio_id", type=int)
     if servicio_id is None:
-        return jsonify({"error": "servicio_id requerido"}), 400
+        return jsonify({"error": "parámetro requerido"}), 400
 
     oficinas = (
         Oficina.query.filter_by(servicio_id=servicio_id)
