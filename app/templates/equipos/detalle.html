@@ -76,7 +76,27 @@
     <div class="card h-100">
       <div class="card-body">
         <h6 class="text-muted">Fechas</h6>
-        <p class="mb-0">Compra: {{ equipo.fecha_compra or '—' }}<br>Instalación: {{ equipo.fecha_instalacion or '—' }}<br>Garantía: {{ equipo.garantia_hasta or '—' }}</p>
+        <p class="mb-0">Ingreso: {{ equipo.fecha_ingreso or '—' }}<br>Instalación: {{ equipo.fecha_instalacion or '—' }}<br>Garantía: {{ equipo.garantia_hasta or '—' }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Alta</h6>
+        <p class="mb-2">
+          <span class="badge rounded-pill {% if equipo.es_nuevo %}bg-success-subtle text-success-emphasis{% else %}bg-secondary-subtle text-secondary-emphasis{% endif %}">{{ 'Nuevo' if equipo.es_nuevo else 'Usado' }}</span>
+        </p>
+        <dl class="row mb-0 small">
+          <dt class="col-6">Expediente</dt>
+          <dd class="col-6 text-truncate">{{ equipo.expediente or '—' }}</dd>
+          <dt class="col-6">Año</dt>
+          <dd class="col-6">{{ equipo.anio_expediente or '—' }}</dd>
+          <dt class="col-6">Orden de compra</dt>
+          <dd class="col-6 text-truncate">{{ equipo.orden_compra or '—' }}</dd>
+          <dt class="col-6">Tipo adquisición</dt>
+          <dd class="col-6">{{ equipo.tipo_adquisicion|replace('_', ' ')|title if equipo.tipo_adquisicion else '—' }}</dd>
+        </dl>
       </div>
     </div>
   </div>

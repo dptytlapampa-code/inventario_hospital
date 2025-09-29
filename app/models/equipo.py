@@ -13,6 +13,7 @@ from sqlalchemy import (
     DateTime,
     Enum as SAEnum,
     ForeignKey,
+    Integer,
     String,
     Text,
     event,
@@ -105,10 +106,15 @@ class Equipo(Base):
     servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
     oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
     responsable: Mapped[str | None] = mapped_column(String(120))
-    fecha_compra: Mapped[date | None] = mapped_column(Date())
+    fecha_ingreso: Mapped[date | None] = mapped_column("fecha_compra", Date())
     fecha_instalacion: Mapped[date | None] = mapped_column(Date())
     garantia_hasta: Mapped[date | None] = mapped_column(Date())
     observaciones: Mapped[str | None] = mapped_column(Text())
+    es_nuevo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    expediente: Mapped[str | None] = mapped_column(String(120))
+    anio_expediente: Mapped[int | None] = mapped_column(Integer())
+    orden_compra: Mapped[str | None] = mapped_column(String(120))
+    tipo_adquisicion: Mapped[str | None] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
