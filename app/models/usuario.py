@@ -25,6 +25,7 @@ class ThemePreference(str, Enum):
 
 if TYPE_CHECKING:  # pragma: no cover
     from .hospital import Hospital, Oficina, Servicio
+    from .hospital_usuario_rol import HospitalUsuarioRol
     from .licencia import Licencia
     from .permisos import Permiso
     from .rol import Rol
@@ -78,6 +79,11 @@ class Usuario(Base, UserMixin):
     )
     licencias_decididas: Mapped[list["Licencia"]] = relationship(
         "Licencia", back_populates="decisor", foreign_keys="Licencia.decidido_por"
+    )
+    hospitales_roles: Mapped[list["HospitalUsuarioRol"]] = relationship(
+        "HospitalUsuarioRol",
+        back_populates="usuario",
+        cascade="all, delete-orphan",
     )
 
     @property
@@ -138,7 +144,10 @@ class Usuario(Base, UserMixin):
         if not self.rol:
             return set()
         if self.rol.nombre.lower() == "superadmin":
-            return {permiso.hospital_id for permiso in self.rol.permisos if permiso.hospital_id}
+            ids = {permiso.hospital_id for permiso in self.rol.permisos if permiso.hospital_id}
+            if not ids:
+                ids = {rel.hospital_id for rel in self.hospitales_roles}
+            return ids
 
         hospital_ids: set[int] = set()
         for permiso in self.rol.permisos:
@@ -148,7 +157,14 @@ class Usuario(Base, UserMixin):
                 hospital_ids.add(permiso.hospital_id)
         if self.hospital_id:
             hospital_ids.add(self.hospital_id)
+        hospital_ids.update(rel.hospital_id for rel in self.hospitales_roles)
         return hospital_ids
+
+    @property
+    def hospitales_asignados(self) -> list[int]:
+        """Return the hospital IDs assigned via the pivot table."""
+
+        return [rel.hospital_id for rel in self.hospitales_roles]
 
     def update_permissions(self, permisos: Iterable["Permiso"]) -> None:
         """Synchronise permission relationship."""

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
@@ -250,8 +250,10 @@ def aprobar(licencia_id: int):
     try:
         aprobar_licencia(licencia, current_user)
         flash("Licencia aprobada", "success")
+        response = {"ok": True, "estado": licencia.estado.value}
     except ValueError as exc:  # pragma: no cover - defensive
         flash(str(exc), "warning")
+        response = {"ok": False, "error": str(exc)}
     else:
         log_action(
             usuario_id=current_user.id,
@@ -260,6 +262,10 @@ def aprobar(licencia_id: int):
             tabla="licencias",
             registro_id=licencia.id,
         )
+    if request.accept_mimetypes.accept_json:
+        status = 200 if response.get("ok") else 400
+        response.update({"licencia_id": licencia.id})
+        return jsonify(response), status
     return redirect(request.referrer or url_for("licencias.gestion"))
 
 
@@ -275,8 +281,10 @@ def rechazar(licencia_id: int):
     try:
         rechazar_licencia(licencia, current_user, form.motivo_rechazo.data)
         flash("Licencia rechazada", "info")
+        response = {"ok": True, "estado": licencia.estado.value}
     except ValueError as exc:  # pragma: no cover - defensive
         flash(str(exc), "warning")
+        response = {"ok": False, "error": str(exc)}
     else:
         log_action(
             usuario_id=current_user.id,
@@ -285,6 +293,10 @@ def rechazar(licencia_id: int):
             tabla="licencias",
             registro_id=licencia.id,
         )
+    if request.accept_mimetypes.accept_json:
+        status = 200 if response.get("ok") else 400
+        response.update({"licencia_id": licencia.id})
+        return jsonify(response), status
     return redirect(request.referrer or url_for("licencias.gestion"))
 
 

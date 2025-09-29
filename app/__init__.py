@@ -94,6 +94,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     from app.routes.adjuntos import adjuntos_bp
     from app.routes.api import api_bp
     from app.routes.auth import auth_bp
+    from app.routes.auditoria import auditoria_bp
     from app.routes.docscan import docscan_bp
     from app.routes.equipos import equipos_bp
     from app.routes.insumos import insumos_bp
@@ -101,6 +102,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     from app.routes.main import main_bp
     from app.routes.permisos import permisos_bp
     from app.routes.search import search_bp
+    from app.routes.search_api import search_api_bp
     from app.routes.usuarios import usuarios_bp
     from app.routes.ubicaciones import ubicaciones_bp
     from app.routes.ubicaciones_api import ubicaciones_api_bp
@@ -114,10 +116,12 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         adjuntos_bp,
         docscan_bp,
         permisos_bp,
+        auditoria_bp,
         actas_bp,
         search_bp,
         licencias_bp,
         api_bp,
+        search_api_bp,
         ubicaciones_api_bp,
         usuarios_bp,
     ):

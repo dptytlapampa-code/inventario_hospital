@@ -1,0 +1,11 @@
+<div class="picker mb-3">
+  <label class="form-label" for="{{ id }}">{{ label }}</label>
+  <input
+    type="text"
+    id="{{ id }}"
+    class="form-control"
+    placeholder="{{ placeholder | default('') }}"
+    autocomplete="off"
+  />
+  <ul id="{{ id }}Results" class="list-group mt-2"></ul>
+</div>
