@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block header_title %}{{ titulo }}{% endblock %}
+{% block styles %}
+  {{ super() }}
+  <style>
+    .container,
+    .card,
+    .card-body {
+      overflow: visible !important;
+    }
+    .dropdown-menu {
+      max-height: 260px;
+      overflow: auto;
+    }
+  </style>
+{% endblock %}
+{% block content %}
+  {% include 'equipos/_form.html' %}
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/equipos_form.js') }}"></script>
+{% endblock %}
