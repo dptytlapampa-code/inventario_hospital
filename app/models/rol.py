@@ -23,6 +23,9 @@ class Rol(Base):
 
     usuarios = relationship("Usuario", back_populates="rol")
     permisos = relationship("Permiso", back_populates="rol", cascade="all, delete-orphan")
+    usuarios_hospitales = relationship(
+        "HospitalUsuarioRol", back_populates="rol", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"Rol(id={self.id!r}, nombre={self.nombre!r})"

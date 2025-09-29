@@ -1,7 +1,6 @@
 """Audit service writing records to the database."""
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from flask import request
@@ -18,6 +17,11 @@ def log_action(
     tabla: str | None = None,
     registro_id: int | None = None,
     datos: dict[str, Any] | None = None,
+    hospital_id: int | None = None,
+    descripcion: str | None = None,
+    entidad: str | None = None,
+    entidad_id: int | None = None,
+    cambios: dict[str, Any] | None = None,
 ) -> Auditoria:
     """Persist an audit entry."""
 
@@ -25,9 +29,11 @@ def log_action(
         usuario_id=usuario_id,
         accion=accion,
         modulo=modulo,
-        tabla=tabla,
-        registro_id=registro_id,
-        datos=json.dumps(datos, ensure_ascii=False) if datos else None,
+        hospital_id=hospital_id,
+        entidad=entidad or tabla,
+        entidad_id=entidad_id or registro_id,
+        descripcion=descripcion,
+        cambios=cambios or datos,
         ip_address=request.remote_addr if request else None,
     )
     db.session.add(entry)
@@ -39,7 +45,7 @@ def get_logs(limit: int = 100) -> list[Auditoria]:
     """Return the most recent audit entries."""
 
     return (
-        Auditoria.query.order_by(Auditoria.fecha.desc()).limit(limit).all()
+        Auditoria.query.order_by(Auditoria.created_at.desc()).limit(limit).all()
     )
 
 

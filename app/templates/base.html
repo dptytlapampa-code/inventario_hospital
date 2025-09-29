@@ -124,7 +124,8 @@
                     <li><a class="sidebar-sublink{% if current_bp == 'usuarios' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('usuarios.listar') }}">Listado</a></li>
                     <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.crear' %} active{% endif %}" href="{{ url_for('usuarios.crear') }}">Nuevo usuario</a></li>
                     <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Permisos</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'auditorias' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Auditorías</a></li>
+                    <li><a class="sidebar-sublink{% if current_bp == 'auditoria' %} active{% endif %}" href="{{ url_for('auditoria.index') }}">Auditorías</a></li>
+                    <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.asignacion' %} active{% endif %}" href="{{ url_for('usuarios.asignacion') }}">Asignación hospitales</a></li>
                     <li><a class="sidebar-sublink{% if current_bp == 'licencias' %} active{% endif %}" href="{{ url_for('licencias.gestion') }}">Licencias (gestión)</a></li>
                   </ul>
                 </div>

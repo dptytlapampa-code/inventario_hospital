@@ -11,6 +11,7 @@ from .base import Base
 
 if TYPE_CHECKING:  # pragma: no cover
     from .equipo import Equipo
+    from .hospital_usuario_rol import HospitalUsuarioRol
     from .licencia import Licencia
     from .permisos import Permiso
     from .usuario import Usuario
@@ -43,6 +44,9 @@ class Hospital(Base):
         "Oficina", back_populates="hospital", cascade="all, delete-orphan"
     )
     usuarios: Mapped[list["Usuario"]] = relationship("Usuario", back_populates="hospital")
+    usuarios_roles: Mapped[list["HospitalUsuarioRol"]] = relationship(
+        "HospitalUsuarioRol", back_populates="hospital", cascade="all, delete-orphan"
+    )
     licencias: Mapped[list["Licencia"]] = relationship("Licencia", back_populates="hospital")
     equipos: Mapped[list["Equipo"]] = relationship("Equipo", back_populates="hospital")
     permisos: Mapped[list["Permiso"]] = relationship("Permiso", back_populates="hospital")

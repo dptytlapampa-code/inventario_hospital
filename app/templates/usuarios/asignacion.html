@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% from '_pagination.html' import render_pagination %}
+{% block title %}Asignación de hospitales{% endblock %}
+{% block header_title %}Asignación de hospitales{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/live_search.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/pickers.js') }}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const roles = {{ roles|tojson }};
+      const manager = window.UserHospitalAssignment({
+        onUserSelected: function (item) {
+          const form = document.querySelector('#asignacionForm');
+          if (form) {
+            form.dataset.usuarioId = item.id;
+          }
+        },
+        roles: roles
+      });
+      const form = document.querySelector('#asignacionForm');
+      if (!form) return;
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const usuarioId = manager.getUsuarioId();
+        if (!usuarioId) {
+          alert('Seleccione un usuario antes de guardar.');
+          return;
+        }
+        const assignments = manager.getAssignments();
+        if (!assignments.length) {
+          alert('Agregue al menos un hospital.');
+          return;
+        }
+        const pendientes = assignments.filter((item) => !item.rol_id);
+        if (pendientes.length) {
+          alert('Seleccione un rol para cada hospital asignado.');
+          return;
+        }
+        fetch(`/api/search/usuarios/${usuarioId}/hospitales/bulk`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ add: assignments })
+        })
+          .then((response) => response.json())
+          .then(() => {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success mt-3';
+            alert.textContent = 'Asignaciones guardadas correctamente';
+            form.appendChild(alert);
+            setTimeout(() => alert.remove(), 4000);
+          });
+      });
+    });
+  </script>
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-6">
+    {% include 'partials/_picker.html' with id='usuarioLookup', label='Usuario', placeholder='Buscar usuario...' %}
+  </div>
+</div>
+<div class="row">
+  <div class="col-lg-6">
+    {% include 'partials/_picker.html' with id='hospitalLookup', label='Hospital', placeholder='Buscar hospital...' %}
+  </div>
+</div>
+<form id="asignacionForm" data-usuario-id="{{ usuario.id if usuario else '' }}">
+  <h5 class="mt-4">Hospitales asignados</h5>
+  <p class="text-muted">Seleccione un usuario y luego agregue hospitales utilizando el buscador.</p>
+  {% include 'partials/_chips.html' %}
+  <div class="mt-3">
+    <button type="submit" class="btn btn-primary">Guardar asignaciones</button>
+  </div>
+</form>
+{% endblock %}

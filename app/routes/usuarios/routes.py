@@ -3,13 +3,22 @@ from __future__ import annotations
 
 import secrets
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required
 from sqlalchemy import asc, or_
 
 from app.extensions import db
 from app.forms.usuario import UsuarioForm
-from app.models import Usuario
+from app.models import Rol, Usuario
 from app.security import require_roles
 from app.services.audit_service import log_action
 
@@ -137,3 +146,15 @@ def cambiar_estado(usuario_id: int, accion: str):
         registro_id=usuario.id,
     )
     return redirect(url_for("usuarios.listar"))
+
+
+@usuarios_bp.route("/asignacion")
+@login_required
+@require_roles("admin", "superadmin")
+def asignacion():
+    roles = Rol.query.order_by(Rol.nombre).all()
+    return render_template(
+        "usuarios/asignacion.html",
+        roles=roles,
+        usuario=None,
+    )

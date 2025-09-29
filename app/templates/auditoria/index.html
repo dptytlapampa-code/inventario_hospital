@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Auditoría{% endblock %}
+{% block header_title %}Auditoría{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/live_search.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+{% endblock %}
+{% block content %}
+<form class="row g-3 mb-4" method="get">
+  <div class="col-md-4">
+    <label for="q" class="form-label">Texto</label>
+    <input type="text" class="form-control" id="q" name="q" value="{{ filtros.q }}" placeholder="Buscar en descripción, módulo o acción">
+  </div>
+  <div class="col-md-4">
+    <label for="usuario_id" class="form-label">Usuario</label>
+    <select class="form-select" id="usuario_id" name="usuario_id">
+      <option value="">Todos</option>
+      {% for usuario in usuarios %}
+        <option value="{{ usuario.id }}" {% if filtros.usuario_id == usuario.id %}selected{% endif %}>{{ usuario.nombre }}{% if usuario.apellido %} {{ usuario.apellido }}{% endif %}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-4">
+    <label for="hospital_id" class="form-label">Hospital</label>
+    <select class="form-select" id="hospital_id" name="hospital_id">
+      <option value="">Todos</option>
+      {% for hospital in hospitales %}
+        <option value="{{ hospital.id }}" {% if filtros.hospital_id == hospital.id %}selected{% endif %}>{{ hospital.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label for="modulo" class="form-label">Módulo</label>
+    <input type="text" class="form-control" id="modulo" name="modulo" value="{{ filtros.modulo or '' }}">
+  </div>
+  <div class="col-md-3">
+    <label for="accion" class="form-label">Acción</label>
+    <input type="text" class="form-control" id="accion" name="accion" value="{{ filtros.accion or '' }}">
+  </div>
+  <div class="col-md-3">
+    <label for="desde" class="form-label">Desde</label>
+    <input type="date" class="form-control" id="desde" name="desde" value="{{ filtros.desde or '' }}">
+  </div>
+  <div class="col-md-3">
+    <label for="hasta" class="form-label">Hasta</label>
+    <input type="date" class="form-control" id="hasta" name="hasta" value="{{ filtros.hasta or '' }}">
+  </div>
+  <div class="col-12 text-end">
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+<div class="table-responsive bg-white rounded shadow-sm">
+  <table class="table table-hover align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Fecha</th>
+        <th>Usuario</th>
+        <th>Hospital</th>
+        <th>Módulo</th>
+        <th>Acción</th>
+        <th>Entidad</th>
+        <th>Descripción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in pagination.items %}
+        <tr>
+          <td>{{ log.created_at.strftime('%d/%m/%Y %H:%M') if log.created_at else '' }}</td>
+          <td>{{ log.usuario.nombre if log.usuario else 'Sistema' }}</td>
+          <td>{{ log.hospital.nombre if log.hospital else '-' }}</td>
+          <td>{{ log.modulo or '-' }}</td>
+          <td>{{ log.accion }}</td>
+          <td>{{ log.entidad or '-' }}{% if log.entidad_id %} #{{ log.entidad_id }}{% endif %}</td>
+          <td>
+            {% if log.descripcion %}
+              <span>{{ log.descripcion }}</span>
+            {% else %}
+              <code class="small">{{ log.cambios | tojson if log.cambios else '' }}</code>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">Sin registros.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% from '_pagination.html' import render_pagination %}
+{{ render_pagination(pagination) }}
+{% endblock %}
