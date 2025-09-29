@@ -1,12 +1,17 @@
 <!doctype html>
 {% set raw_theme_pref = current_user.theme_pref.value if current_user.is_authenticated else 'light' %}
-{% if raw_theme_pref == 'system' %}
+{% if raw_theme_pref == 'dark' %}
   {% set theme_pref = 'dark' %}
 {% else %}
-  {% set theme_pref = raw_theme_pref %}
+  {% set theme_pref = 'light' %}
 {% endif %}
 {% set theme_initial = 'dark' if theme_pref == 'dark' else 'light' %}
-<html lang="es" data-theme-pref="{{ theme_pref }}" data-bs-theme="{{ theme_initial }}">
+<html
+  lang="es"
+  data-theme-pref="{{ theme_pref }}"
+  data-bs-theme="{{ theme_initial }}"
+  data-qa-checks="{{ 'true' if config.get('TESTING') else 'false' }}"
+>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
