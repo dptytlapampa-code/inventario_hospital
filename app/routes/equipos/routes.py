@@ -251,12 +251,18 @@ def crear():
             servicio_id=servicio.id if servicio else None,
             oficina_id=oficina.id if oficina else None,
             responsable=form.responsable.data or None,
-            fecha_compra=form.fecha_compra.data,
+            fecha_ingreso=form.fecha_ingreso.data,
             fecha_instalacion=form.fecha_instalacion.data,
             garantia_hasta=form.garantia_hasta.data,
             observaciones=form.observaciones.data or None,
+            es_nuevo=bool(form.es_nuevo.data),
+            expediente=form.expediente.data or None,
+            anio_expediente=form.anio_expediente.data or None,
+            orden_compra=form.orden_compra.data or None,
+            tipo_adquisicion=form.tipo_adquisicion.data or None,
         )
-        equipo.registrar_evento(current_user, "Alta", "Creación de equipo")
+        detalle_alta = "Alta de equipo nuevo" if form.es_nuevo.data else "Alta de equipo usado"
+        equipo.registrar_evento(current_user, "Alta", detalle_alta)
         db.session.add(equipo)
         db.session.commit()
         log_action(
@@ -395,10 +401,15 @@ def editar(equipo_id: int):
         equipo.servicio_id = servicio.id if servicio else None
         equipo.oficina_id = oficina.id if oficina else None
         equipo.responsable = form.responsable.data or None
-        equipo.fecha_compra = form.fecha_compra.data
+        equipo.fecha_ingreso = form.fecha_ingreso.data
         equipo.fecha_instalacion = form.fecha_instalacion.data
         equipo.garantia_hasta = form.garantia_hasta.data
         equipo.observaciones = form.observaciones.data or None
+        equipo.es_nuevo = bool(form.es_nuevo.data)
+        equipo.expediente = form.expediente.data or None
+        equipo.anio_expediente = form.anio_expediente.data or None
+        equipo.orden_compra = form.orden_compra.data or None
+        equipo.tipo_adquisicion = form.tipo_adquisicion.data or None
         equipo.registrar_evento(current_user, "Actualización", "Edición de equipo")
         db.session.commit()
         log_action(usuario_id=current_user.id, accion="editar", modulo="inventario", tabla="equipos", registro_id=equipo.id)

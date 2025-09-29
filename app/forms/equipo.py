@@ -44,11 +44,31 @@ class EquipoForm(FlaskForm):
     servicio_id = IntegerField("Servicio", validators=[Optional()])
     oficina_id = IntegerField("Oficina", validators=[Optional()])
     responsable = StringField("Responsable", validators=[Optional(), Length(max=120)])
-    fecha_compra = DateField("Fecha de compra", validators=[Optional()], default=None)
+    fecha_ingreso = DateField("Fecha de ingreso", validators=[Optional()], default=None)
     fecha_instalacion = DateField("Fecha de instalación", validators=[Optional()], default=None)
     garantia_hasta = DateField("Garantía hasta", validators=[Optional()], default=None)
     observaciones = TextAreaField("Observaciones", validators=[Optional(), Length(max=1000)])
     sin_numero_serie = BooleanField("Sin número de serie visible", default=False)
+    es_nuevo = BooleanField("Equipo nuevo", default=False)
+    expediente = StringField("Expediente", validators=[Optional(), Length(max=120)])
+    anio_expediente = IntegerField(
+        "Año del expediente",
+        validators=[Optional()],
+        render_kw={"min": 1900, "max": 2100},
+    )
+    orden_compra = StringField("Orden de compra", validators=[Optional(), Length(max=120)])
+    tipo_adquisicion = SelectField(
+        "Tipo de adquisición",
+        choices=[
+            ("", "Seleccione una opción"),
+            ("licitacion", "Licitación"),
+            ("compra", "Compra"),
+            ("donacion", "Donación"),
+            ("otro", "Otro"),
+        ],
+        validators=[Optional()],
+        coerce=str,
+    )
     submit = SubmitField("Guardar")
 
     def __init__(self, *args, **kwargs) -> None:
@@ -97,16 +117,31 @@ class EquipoForm(FlaskForm):
                 "Ingrese un número de serie o marque 'Sin número de serie visible'"
             )
             return False
-        if self.fecha_compra.data and self.fecha_compra.data > date.today():
-            self.fecha_compra.errors.append("La fecha de compra no puede ser futura")
+        if self.fecha_ingreso.data and self.fecha_ingreso.data > date.today():
+            self.fecha_ingreso.errors.append("La fecha de ingreso no puede ser futura")
             return False
         if (
             self.fecha_instalacion.data
-            and self.fecha_compra.data
-            and self.fecha_instalacion.data < self.fecha_compra.data
+            and self.fecha_ingreso.data
+            and self.fecha_instalacion.data < self.fecha_ingreso.data
         ):
-            self.fecha_instalacion.errors.append("La instalación no puede ser anterior a la compra")
+            self.fecha_instalacion.errors.append("La instalación no puede ser anterior al ingreso")
             return False
+        if self.es_nuevo.data:
+            if not self.tipo_adquisicion.data:
+                self.tipo_adquisicion.errors.append("Seleccione el tipo de adquisición")
+                return False
+            if not (self.expediente.data or self.orden_compra.data):
+                self.expediente.errors.append(
+                    "Ingrese el expediente u orden de compra utilizada en el alta"
+                )
+                self.orden_compra.errors.append(
+                    "Ingrese el expediente u orden de compra utilizada en el alta"
+                )
+                return False
+            if self.anio_expediente.data and not (1900 <= self.anio_expediente.data <= date.today().year + 1):
+                self.anio_expediente.errors.append("Ingrese un año válido")
+                return False
         return True
 
 
@@ -201,6 +236,11 @@ class TipoEquipoCreateForm(FlaskForm):
     nombre = StringField("Nombre", validators=[DataRequired(), Length(max=160)])
     submit = SubmitField("Agregar tipo")
 
+    def validate(self, extra_validators=None):  # type: ignore[override]
+        is_valid = super().validate(extra_validators=extra_validators)
+        self._deduplicate_errors()
+        return is_valid
+
     @staticmethod
     def _normalized(value: str | None) -> str:
         return (value or "").strip().lower()
@@ -222,6 +262,11 @@ class TipoEquipoUpdateForm(FlaskForm):
     activo = BooleanField("Activo")
     submit = SubmitField("Guardar cambios")
 
+    def validate(self, extra_validators=None):  # type: ignore[override]
+        is_valid = super().validate(extra_validators=extra_validators)
+        self._deduplicate_errors()
+        return is_valid
+
     @staticmethod
     def _normalized(value: str | None) -> str:
         return (value or "").strip().lower()
@@ -238,6 +283,17 @@ class TipoEquipoUpdateForm(FlaskForm):
         )
         if existing:
             raise ValidationError("Ya existe un tipo con ese nombre")
+
+    def _deduplicate_errors(self) -> None:
+        for field in self._fields.values():
+            if getattr(field, "errors", None):
+                seen: set[str] = set()
+                deduped: list[str] = []
+                for error in field.errors:
+                    if error not in seen:
+                        seen.add(error)
+                        deduped.append(error)
+                field.errors[:] = deduped
 
 __all__ = [
     "EquipoForm",

@@ -120,10 +120,25 @@
       {{ render_textarea(form.descripcion, form_group_class='col-12', rows=3, placeholder='Descripción breve del equipo') }}
       {{ render_field(form.marca, form_group_class='col-12 col-md-4', placeholder='Marca') }}
       {{ render_field(form.modelo, form_group_class='col-12 col-md-4', placeholder='Modelo') }}
-      {{ render_field(form.fecha_compra, form_group_class='col-12 col-md-4', input_type='date') }}
+      {{ render_field(form.fecha_ingreso, form_group_class='col-12 col-md-4', input_type='date') }}
       {{ render_field(form.fecha_instalacion, form_group_class='col-12 col-md-4', input_type='date') }}
       {{ render_field(form.garantia_hasta, form_group_class='col-12 col-md-4', input_type='date') }}
       {{ render_textarea(form.observaciones, form_group_class='col-12', rows=3, placeholder='Observaciones relevantes') }}
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-header d-flex align-items-center justify-content-between">
+      <span>Alta del equipo</span>
+      <div class="form-check form-switch mb-0">
+        {{ form.es_nuevo(class='form-check-input', id='esNuevoSwitch') }}
+        <label class="form-check-label" for="esNuevoSwitch">Equipo nuevo</label>
+      </div>
+    </div>
+    <div class="section-body row g-3" data-nuevo-fields hidden>
+      {{ render_field(form.expediente, form_group_class='col-12 col-md-6', placeholder='Número de expediente') }}
+      {{ render_field(form.anio_expediente, form_group_class='col-12 col-md-3', input_type='number') }}
+      {{ render_field(form.orden_compra, form_group_class='col-12 col-md-6', placeholder='Orden de compra') }}
+      {{ render_select(form.tipo_adquisicion, form_group_class='col-12 col-md-3', label_class='form-label') }}
     </div>
   </div>
   <div class="d-flex flex-column flex-md-row gap-2 justify-content-end">

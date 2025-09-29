@@ -243,8 +243,36 @@
     });
   }
 
+  function handleNuevoEquipoToggle() {
+    const nuevoSwitch = document.getElementById('esNuevoSwitch');
+    if (!nuevoSwitch) {
+      return;
+    }
+    const container = document.querySelector('[data-nuevo-fields]');
+    if (!container) {
+      return;
+    }
+    const toggleFields = () => {
+      if (nuevoSwitch.checked) {
+        container.removeAttribute('hidden');
+      } else {
+        container.setAttribute('hidden', '');
+        container.querySelectorAll('input, select').forEach((input) => {
+          if (input.type === 'checkbox' || input.type === 'radio') {
+            input.checked = false;
+          } else {
+            input.value = '';
+          }
+        });
+      }
+    };
+    nuevoSwitch.addEventListener('change', toggleFields);
+    toggleFields();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     handleUbicacionSelects();
     handleSerialToggle();
+    handleNuevoEquipoToggle();
   });
 })();
