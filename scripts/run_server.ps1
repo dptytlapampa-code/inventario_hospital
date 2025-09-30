@@ -1,107 +1,96 @@
-[CmdletBinding()]
-param(
-    [string]$Host = '127.0.0.1',
-    [int]$Port = 5000,
-    [switch]$Debug
-)
+<#
+.SYNOPSIS
+Inicia rápidamente el servidor Flask cuando el entorno ya fue provisionado.
 
+.DESCRIPTION
+Activa `.venv`, carga las variables de `.env`, valida que la URI de SQLAlchemy apunte
+a PostgreSQL y ejecuta `python -m flask run --debug` escuchando en 127.0.0.1:5000.
+#>
+
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$projectRoot = Resolve-Path (Join-Path $scriptRoot '..')
-$originalLocation = Get-Location
 
-function Write-Info([string]$Message) {
+function Write-Info {
+    param([string]$Message)
     Write-Host $Message -ForegroundColor Cyan
 }
 
-function Write-Success([string]$Message) {
-    Write-Host $Message -ForegroundColor Green
-}
-
-function Write-WarningMessage([string]$Message) {
-    Write-Warning $Message
-}
-
-function Write-ErrorMessage([string]$Message) {
-    Write-Host $Message -ForegroundColor Red
-}
-
-function Invoke-LoadDotEnv {
+function Get-DotEnvValues {
     param([string]$Path)
-    if (-not (Test-Path $Path)) {
-        return
+
+    $values = @{}
+    foreach ($line in Get-Content -LiteralPath $Path -ErrorAction Stop) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed.StartsWith('#') -or -not $trimmed.Contains('=')) {
+            continue
+        }
+        $pair = $trimmed.Split('=', 2)
+        $key = $pair[0].Trim()
+        $value = ''
+        if ($pair.Length -gt 1) {
+            $value = $pair[1].Trim().Trim('"').Trim("'")
+        }
+        $values[$key] = $value
     }
 
-    foreach ($rawLine in Get-Content $Path) {
-        $line = $rawLine.Trim()
-        if (-not $line -or $line.StartsWith('#') -or -not $line.Contains('=')) {
-            continue
-        }
-        $parts = $line.Split('=', 2)
-        $key = $parts[0].Trim()
-        if (-not $key) {
-            continue
-        }
-        $value = ''
-        if ($parts.Length -gt 1) {
-            $value = $parts[1].Trim().Trim('"').Trim("'")
-        }
-        if (-not (Test-Path Env:$key)) {
-            Set-Item -Path Env:$key -Value $value
-        }
-    }
+    return $values
 }
 
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = (Resolve-Path (Join-Path $scriptRoot '..')).Path
+
+Push-Location -LiteralPath $projectRoot
+$scriptFailed = $false
 try {
-    Set-Location $projectRoot
+    $activatePath = Join-Path $projectRoot '.venv\Scripts\Activate.ps1'
+    $venvPython = Join-Path $projectRoot '.venv\Scripts\python.exe'
 
-    $venvActivate = Join-Path $projectRoot '.venv/Scripts/Activate.ps1'
-    if (Test-Path $venvActivate) {
-        Write-Info "Activating virtual environment: $venvActivate"
-        . $venvActivate
+    if (-not (Test-Path -LiteralPath $activatePath)) {
+        throw 'No se encontró .venv\Scripts\Activate.ps1. Ejecutá scripts\bootstrap.bat primero.'
+    }
+    if (-not (Test-Path -LiteralPath $venvPython)) {
+        throw 'No se encontró .venv\Scripts\python.exe. Ejecutá scripts\bootstrap.bat primero.'
     }
 
-    $dotenvPath = Join-Path $projectRoot '.env'
-    Invoke-LoadDotEnv -Path $dotenvPath
+    Write-Info "Activando entorno virtual: $activatePath"
+    . $activatePath
 
-    if (-not $env:FLASK_APP) {
-        $env:FLASK_APP = 'wsgi.py'
-        Write-WarningMessage 'FLASK_APP no estaba definido. Se usará wsgi.py.'
+    $envPath = Join-Path $projectRoot '.env'
+    if (-not (Test-Path -LiteralPath $envPath)) {
+        throw 'No se encontró .env. Generá la configuración ejecutando scripts\bootstrap.bat.'
     }
 
-    if (-not $env:SQLALCHEMY_DATABASE_URI) {
-        throw "SQLALCHEMY_DATABASE_URI no está configurada. Editá .env y agregá la cadena de conexión a PostgreSQL."
+    $envValues = Get-DotEnvValues -Path $envPath
+    foreach ($key in $envValues.Keys) {
+        Set-Item -Path "Env:$key" -Value $envValues[$key]
     }
 
-    $databaseUri = $env:SQLALCHEMY_DATABASE_URI
+    if (-not $envValues.ContainsKey('SQLALCHEMY_DATABASE_URI')) {
+        throw 'La variable SQLALCHEMY_DATABASE_URI no está definida en .env.'
+    }
+
+    $databaseUri = $envValues['SQLALCHEMY_DATABASE_URI']
     if ($databaseUri -match '^(?i)sqlite') {
-        Write-ErrorMessage "SQLite no es compatible para este proyecto (URI actual: $databaseUri). Configurá SQLALCHEMY_DATABASE_URI a postgresql://..."
-        exit 1
+        throw "La URI configurada ($databaseUri) apunta a SQLite. Configurá PostgreSQL antes de continuar."
     }
 
-    & python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('psycopg2') else 1)"
+    Write-Info 'Levantando servidor Flask en http://127.0.0.1:5000 (modo debug).'
+    & $venvPython -m flask run --host=127.0.0.1 --port=5000 --debug
     if ($LASTEXITCODE -ne 0) {
-        Write-WarningMessage 'psycopg2 no está instalado. Ejecutando "python -m pip install psycopg2-binary~=2.9".'
-        & python -m pip install psycopg2-binary~=2.9
-        if ($LASTEXITCODE -ne 0) {
-            throw 'No se pudo instalar psycopg2-binary.'
-        }
+        throw 'El servidor Flask finalizó con errores.'
     }
-
-    Write-Info 'Actualizando base de datos con flask dbsafe-upgrade...'
-    & flask dbsafe-upgrade
-    if ($LASTEXITCODE -ne 0) {
-        throw 'La actualización de la base de datos falló.'
+}
+catch {
+    $scriptFailed = $true
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+    if ($_.Exception.InnerException) {
+        Write-Host "Detalles: $($_.Exception.InnerException.Message)" -ForegroundColor Red
     }
-
-    $flaskArgs = @('run', '--host', $Host, '--port', $Port.ToString())
-    if ($Debug.IsPresent) {
-        $flaskArgs += '--debug'
-    }
-
-    Write-Success "Iniciando servidor: flask $($flaskArgs -join ' ')"
-    & flask @flaskArgs
 }
 finally {
-    Set-Location $originalLocation
+    Pop-Location
+}
+
+if ($scriptFailed) {
+    exit 1
 }
