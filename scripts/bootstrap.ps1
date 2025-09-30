@@ -42,7 +42,32 @@ function Write-ErrorMessage {
 }
 
 function Get-ProjectRoot {
-    $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $scriptRoot = $null
+
+    if ($PSScriptRoot) {
+        $scriptRoot = $PSScriptRoot
+    }
+    else {
+        $scriptPath = $null
+
+        if ($MyInvocation -and $MyInvocation.PSObject.Properties['MyCommand']) {
+            $command = $MyInvocation.MyCommand
+
+            if ($command -and $command.PSObject.Properties['Path'] -and $command.Path) {
+                $scriptPath = $command.Path
+            }
+            elseif ($command -and $command.PSObject.Properties['Definition'] -and $command.Definition) {
+                $scriptPath = $command.Definition
+            }
+        }
+
+        if (-not $scriptPath) {
+            throw 'No se pudo determinar la ruta del script.'
+        }
+
+        $scriptRoot = Split-Path -Parent $scriptPath
+    }
+
     $candidate = Join-Path $scriptRoot '..'
     return (Resolve-Path -LiteralPath $candidate).Path
 }
