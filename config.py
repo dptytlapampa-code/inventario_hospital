@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -27,18 +28,13 @@ def _database_uri_from_env() -> str:
 
     The project relies on PostgreSQL outside of the automated test suite.  The
     URI *must* be provided through ``SQLALCHEMY_DATABASE_URI`` in ``.env`` or
-    the process environment.  When an SQLite URI is detected while running in
-    development or production, the function logs a helpful error and aborts to
-    prevent the accidental creation of ``inventario.db``.
+    the process environment.  When the tests run (detected through environment
+    variables or the presence of ``pytest``), the function quietly falls back to
+    an in-memory SQLite database so the suite can execute without any external
+    dependencies.  In other environments, if an SQLite URI is detected while
+    running in development or production, the function logs a helpful error and
+    aborts to prevent the accidental creation of ``inventario.db``.
     """
-
-    uri = os.getenv("SQLALCHEMY_DATABASE_URI")
-    if not uri:
-        raise RuntimeError(
-            "SQLALCHEMY_DATABASE_URI must be configured in the environment. "
-            "Set it to a PostgreSQL URL such as "
-            "'postgresql://salud:Catrilo.20@localhost/inventario_hospital'."
-        )
 
     env_name = (
         os.getenv("FLASK_ENV")
@@ -47,7 +43,32 @@ def _database_uri_from_env() -> str:
         or "production"
     ).lower()
 
-    if uri.startswith("sqlite") and env_name in {"development", "production", "prod", "dev", "staging"}:
+    uri = os.getenv("SQLALCHEMY_DATABASE_URI")
+
+    if not uri:
+        if (
+            env_name in {"test", "testing"}
+            or os.getenv("PYTEST_CURRENT_TEST")
+            or "pytest" in sys.modules
+        ):
+            LOGGER.debug(
+                "Defaulting SQLALCHEMY_DATABASE_URI to in-memory SQLite for the test suite."
+            )
+            return "sqlite:///:memory:"
+
+        raise RuntimeError(
+            "SQLALCHEMY_DATABASE_URI must be configured in the environment. "
+            "Set it to a PostgreSQL URL such as "
+            "'postgresql://salud:Catrilo.20@localhost/inventario_hospital'."
+        )
+
+    if uri.startswith("sqlite") and env_name in {
+        "development",
+        "production",
+        "prod",
+        "dev",
+        "staging",
+    }:
         LOGGER.error(
             "SQLite URI (%s) detected while running in %s. "
             "Configure SQLALCHEMY_DATABASE_URI to point to PostgreSQL to avoid "
