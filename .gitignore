@@ -3,3 +3,7 @@ app/static/favicon.ico
 
 # Bytecode caches
 __pycache__/
+*.db
+*.sqlite
+.venv/
+instance/

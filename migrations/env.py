@@ -1,7 +1,6 @@
 """Alembic configuration for the project."""
 from __future__ import annotations
 
-import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -42,7 +41,7 @@ if config.config_file_name is not None:  # pragma: no cover - configuration hook
 
 
 def _database_url() -> str:
-    return os.getenv("DATABASE_URL", Config.SQLALCHEMY_DATABASE_URI)
+    return Config.SQLALCHEMY_DATABASE_URI
 
 
 def _common_config_kwargs(url: str | URL) -> dict[str, Any]:

@@ -5,7 +5,11 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, render_template
+import click
+from alembic.script import ScriptDirectory
+from flask import Flask, current_app, render_template
+from flask.cli import with_appcontext
+from flask_migrate import CommandError, merge as migrate_merge, upgrade as migrate_upgrade
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -40,6 +44,51 @@ def _combine_dicts(
         except (TypeError, ValueError):
             combined.update(dict(mapping))
     return combined
+
+
+def _get_alembic_heads() -> list[str]:
+    """Return the list of revision heads known to Alembic."""
+
+    migrate_config = current_app.extensions.get("migrate")
+    if not migrate_config:
+        raise click.ClickException("Flask-Migrate no está configurado en la aplicación actual.")
+
+    alembic_config = migrate_config.migrate.get_config(directory=migrate_config.directory)
+    script = ScriptDirectory.from_config(alembic_config)
+    return script.get_heads()
+
+
+def _register_cli(app: Flask) -> None:
+    """Register custom Flask CLI commands used by the project."""
+
+    @app.cli.command("dbsafe-upgrade")
+    @with_appcontext
+    def dbsafe_upgrade_command() -> None:
+        """Upgrade the database after merging stray Alembic heads if needed."""
+
+        try:
+            heads = _get_alembic_heads()
+            if len(heads) > 1:
+                revisions = " ".join(heads)
+                click.secho(
+                    f"Se detectaron {len(heads)} heads de Alembic. Realizando merge automático...",
+                    fg="yellow",
+                )
+                migrate_merge(revisions=revisions, message="auto merge heads")
+            migrate_upgrade()
+        except CommandError as exc:  # pragma: no cover - CLI wrapper
+            raise click.ClickException(str(exc)) from exc
+
+        click.secho("Migraciones aplicadas correctamente.", fg="green")
+
+    @app.cli.command("seed")
+    @with_appcontext
+    def seed_command() -> None:
+        """Populate the database with deterministic seed data."""
+
+        from seeds.seed import run_seed
+
+        run_seed(current_app)
 
 
 def create_app(config_class: type[Config] | Config = Config) -> Flask:
@@ -133,6 +182,8 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     # repository while still serving ``/static/favicon.ico`` and preventing the
     # browser from issuing 404 requests for the asset.
     ensure_favicon(app.static_folder)
+
+    _register_cli(app)
 
     @app.errorhandler(401)
     def unauthorized(error):  # type: ignore[override]

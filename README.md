@@ -2,8 +2,47 @@
 
 Sistema web completo y listo para producción para la gestión de inventario hospitalario y técnico en hospitales públicos (Hospital Dr. Lucio Molas y Hospital René Favaloro), con autenticación y permisos granulares, licencias/vacaciones (con workflow de aprobación por Superadmin y reemplazos), actas PDF, adjuntos, insumos/componentes con stock, auditoría, buscador global y dashboard con Chart.js.
 
+## Guía rápida para Windows (PowerShell)
+
+1. **Crear entorno virtual e instalar dependencias**
+
+   ```powershell
+   py -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+
+2. **Configurar `.env` (en el directorio del proyecto)**
+
+   ```text
+   FLASK_APP=wsgi.py
+   SQLALCHEMY_DATABASE_URI=postgresql://salud:Catrilo.20@localhost/inventario_hospital
+   FLASK_ENV=development
+   ```
+
+3. **Migraciones y datos base**
+
+   ```powershell
+   flask dbsafe-upgrade
+   flask seed
+   ```
+
+4. **Iniciar el servidor sin problemas de firma**
+
+   ```powershell
+   scripts\run_server.bat -Host 127.0.0.1 -Port 5000 -Debug
+   ```
+
+   El script activa `.venv`, carga `.env`, instala `psycopg2-binary` si falta y valida que la URI sea PostgreSQL antes de llamar a `flask run`.
+
+5. **Credenciales iniciales**
+
+   Usuario Superadmin por defecto: `admin / 123456`.
+
 ## Tabla de contenido
 
+0. [Guía rápida para Windows (PowerShell)](#guía-rápida-para-windows-powershell)
 1. Objetivos
 2. Alcance funcional
 3. Stack técnico
@@ -41,7 +80,7 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 
 ## 2. Alcance funcional
 
-- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `superadmin / Cambiar123!` (Superadmin). Otros usuarios de ejemplo se crean con `python seeds/seed.py`.
+- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `admin / 123456` (Superadmin). Otros usuarios de ejemplo se crean con `flask seed`.
 - Permisos granulares por hospital y módulo (inventario, insumos, actas, adjuntos, docscan, reportes, auditoría, licencias).
 - Ubicaciones jerárquicas: Hospital → Servicio → Oficina (ABM, validaciones de duplicados, edición sin cambiar IDs).
 - Equipos: tipos predefinidos, estados (Operativo, En Servicio Técnico, De baja), expediente/año opcionales, historial.
@@ -127,7 +166,8 @@ FLASK_ENV=development
 FLASK_RUN_HOST=0.0.0.0
 FLASK_RUN_PORT=5000
 SECRET_KEY=change_me
-DATABASE_URL=postgresql://salud:Catrilo.20@localhost/inventario_hospital
+FLASK_APP=wsgi.py
+SQLALCHEMY_DATABASE_URI=postgresql://salud:Catrilo.20@localhost/inventario_hospital
 UPLOAD_FOLDER=./uploads
 MAX_CONTENT_LENGTH=16777216
 ALLOWED_EXTENSIONS=pdf,jpg,jpeg,png
@@ -139,20 +179,21 @@ LOG_LEVEL=INFO
 ```
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .\.venv\Scripts\activate
+pip install --upgrade pip
 pip install -r requirements.txt
 
 # Dependencias opcionales (Bcrypt nativo, PostgreSQL, PDF, QR)
 # pip install flask-bcrypt psycopg2-binary weasyprint qrcode Pillow
 
-# Migraciones
+# Migraciones seguras
 export FLASK_APP=wsgi.py           # Windows: set FLASK_APP=wsgi.py
-flask db upgrade
+flask dbsafe-upgrade
 
 # (Opcional) Seeds (reinicia datos base)
-python seeds/seed.py
+flask seed
 
 # Ejecutar
-flask run                          # o python wsgi.py
+flask run                          # o scripts/run_server.bat en Windows
 
 # Exponer en red local (LAN)
 export FLASK_RUN_HOST=0.0.0.0      # acceder vía http://<ip_local>:5000/
@@ -160,7 +201,7 @@ export FLASK_RUN_PORT=5000         # ajustar si se usa otro puerto
 # Windows: permitir el puerto 5000/seleccionado en el Firewall
 ```
 
-> **Nota (Windows):** Podés usar `.\scripts\run_server.ps1 [-Host 0.0.0.0] [-Port 5000] [-Debug]` para configurar el entorno y lanzar el servidor con PowerShell.
+> **Nota (Windows):** El script `scripts\run_server.bat` salta la política de ejecución, activa `.venv`, valida la URI de PostgreSQL, instala `psycopg2-binary` si falta y ejecuta `flask run` con los flags `-Host`, `-Port` y `-Debug`.
 
 ### 5.3 Con Docker
 
@@ -198,29 +239,20 @@ flask db migrate -m "cambio X"
 flask db upgrade
 ```
 
-El repositorio incluye una migración inicial con todas las tablas declaradas en `app/models`. El comando `flask db upgrade` tomará la URL configurada en `DATABASE_URL` (o el valor por defecto de `config.py`).
+El repositorio incluye una migración inicial con todas las tablas declaradas en `app/models`. El comando `flask dbsafe-upgrade` toma la URI configurada en `SQLALCHEMY_DATABASE_URI`, detecta múltiples heads de Alembic, realiza un merge automático si es necesario y deja la base migrada.
 
-Las migraciones relevantes (`bd8b7d50f9ac` y `c6be45c2d4ab`) utilizan `op.batch_alter_table(..., recreate="always")` y detección de columnas/índices existentes para mantener la compatibilidad con SQLite durante pruebas locales y asegurar la presencia de `equipos_adjuntos.file_size`.
+Seeds (`flask seed`): reutiliza la aplicación Flask (misma configuración `.env`), valida que la conexión sea PostgreSQL y repuebla los catálogos de manera idempotente:
 
-Seeds (`seeds/seed.py`): abre una sesión SQLAlchemy sobre `DATABASE_URL`, limpia los datos existentes y vuelve a poblar la base con hospitales (Lucio Molas, René Favaloro), usuarios base, permisos por módulo/hospital, inventario de ejemplo (equipos + insumos) y licencias en distintos estados:
-
-- `superadmin / Cambiar123!` (Superadmin global)
+- `admin / 123456` (Superadmin global)
 - `admin_molas / Cambiar123!` y `admin_favaloro / Cambiar123!` (Admins locales)
 - `tecnico_molas / Cambiar123!` y `tecnico_favaloro / Cambiar123!` (Técnicos por hospital)
 - `consulta / Cambiar123!` (Usuario de solo lectura)
 - Equipos/insumos/actas/adjuntos/licencias de ejemplo
-- Asegura que los permisos por hospital y módulo queden cargados.
+- Permisos por hospital y módulo listos para operar.
 
-### 6.1 Primer arranque / SQLite
+### 6.1 Primer arranque
 
-Para validar el sistema rápidamente sin levantar PostgreSQL podés usar SQLite apuntando `DATABASE_URL` a un archivo local (por ejemplo `sqlite:///inventario.db`). El orden recomendado es:
-
-1. **Definir la URL:** `export DATABASE_URL=sqlite:///inventario.db` (o `set` en Windows).
-2. **Crear el esquema:** `flask db upgrade` (las migraciones usan `render_as_batch` y `CheckConstraint` para soportar SQLite).
-3. **Sembrar datos básicos:** `python seeds/seed.py` (solo después del `upgrade`).
-4. **Levantar la app:** `flask run`.
-
-El `before_request` que valida licencias ahora detecta si las tablas `usuarios`/`licencias` existen antes de consultar, por lo que un `flask run` accidental antes de migrar no devuelve 500. Aun así, siempre corré las migraciones primero para garantizar que los seeds y el login funcionen.
+PostgreSQL es obligatorio en desarrollo y producción (no se crean `.db` locales). Verificá que el servicio esté disponible y que `SQLALCHEMY_DATABASE_URI` apunte a una instancia válida antes de ejecutar `flask dbsafe-upgrade` y `flask seed`.
 
 ## 7. Roles, permisos y seguridad
 
@@ -346,11 +378,11 @@ Casos clave:
 
 ## 14. Troubleshooting
 
-- **psycopg2 o conexión fallida:** verificar `DATABASE_URL`, credenciales y que Postgres esté levantado.
+- **psycopg2 o conexión fallida:** verificar `SQLALCHEMY_DATABASE_URI`, credenciales y que Postgres esté levantado.
 - **Migraciones:**
-  - Con el repositorio tal como viene alcanza con `flask db upgrade`.
-  - Si creás nuevas migraciones desde cero: `flask db init` → `flask db migrate` → `flask db upgrade`.
-  - Error de heads múltiples: `flask db stamp head` y volver a migrar.
+  - Con el repositorio tal como viene alcanza con `flask dbsafe-upgrade`.
+  - Si creás nuevas migraciones desde cero: `flask db init` → `flask db migrate` → `flask dbsafe-upgrade`.
+  - Error de heads múltiples: `flask dbsafe-upgrade` realiza el merge automático y luego aplica `upgrade`.
 - **WeasyPrint/ReportLab:** pueden requerir paquetes del SO (Cairo, Pango, libffi, etc.). Agregarlos en Dockerfile o instalar en el host.
 - **Docker puerto ocupado:** cambia mapeo (`8000:8000` → `8080:8000`) en `docker-compose.yml`.
 - **Subidas de archivos:** revisar `UPLOAD_FOLDER`, permisos de carpeta y `MAX_CONTENT_LENGTH`.

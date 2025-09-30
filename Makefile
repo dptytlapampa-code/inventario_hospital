@@ -10,4 +10,7 @@ test:
 	pytest
 
 run-windows:
-	pwsh -File scripts/run_server.ps1
+        pwsh -File scripts/run_server.ps1
+
+run-win:
+        cmd /c scripts\run_server.bat

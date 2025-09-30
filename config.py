@@ -1,14 +1,66 @@
-"""Application configuration module."""
+"""Application configuration module.
+
+This module centralises how environment variables are loaded and validated so
+that the Flask app and ancillary scripts (CLI commands, seeds, runners) share
+the same expectations.  The project is designed to run exclusively on
+PostgreSQL in development and production environments, so the configuration
+enforces that requirement early during import time to avoid accidentally
+creating SQLite databases on Windows machines.
+"""
 from __future__ import annotations
 
+import logging
 import os
 from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+LOGGER = logging.getLogger(__name__)
+
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
+
+
+def _database_uri_from_env() -> str:
+    """Return the configured SQLAlchemy database URI.
+
+    The project relies on PostgreSQL outside of the automated test suite.  The
+    URI *must* be provided through ``SQLALCHEMY_DATABASE_URI`` in ``.env`` or
+    the process environment.  When an SQLite URI is detected while running in
+    development or production, the function logs a helpful error and aborts to
+    prevent the accidental creation of ``inventario.db``.
+    """
+
+    uri = os.getenv("SQLALCHEMY_DATABASE_URI")
+    if not uri:
+        raise RuntimeError(
+            "SQLALCHEMY_DATABASE_URI must be configured in the environment. "
+            "Set it to a PostgreSQL URL such as "
+            "'postgresql://salud:Catrilo.20@localhost/inventario_hospital'."
+        )
+
+    env_name = (
+        os.getenv("FLASK_ENV")
+        or os.getenv("ENV")
+        or os.getenv("APP_ENV")
+        or "production"
+    ).lower()
+
+    if uri.startswith("sqlite") and env_name in {"development", "production", "prod", "dev", "staging"}:
+        LOGGER.error(
+            "SQLite URI (%s) detected while running in %s. "
+            "Configure SQLALCHEMY_DATABASE_URI to point to PostgreSQL to avoid "
+            "creating an unintended inventario.db file.",
+            uri,
+            env_name or "production",
+        )
+        raise RuntimeError(
+            "SQLite is not supported in development or production environments. "
+            "Update SQLALCHEMY_DATABASE_URI to use PostgreSQL."
+        )
+
+    return uri
 
 
 def _default_upload_dir() -> str:
@@ -21,9 +73,7 @@ class Config:
     """Base configuration for all environments."""
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me")
-    SQLALCHEMY_DATABASE_URI: str = os.getenv(
-        "DATABASE_URL", f"sqlite:///{BASE_DIR / 'inventario.db'}"
-    )
+    SQLALCHEMY_DATABASE_URI: str = _database_uri_from_env()
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 
