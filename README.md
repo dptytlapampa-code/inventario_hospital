@@ -160,6 +160,8 @@ export FLASK_RUN_PORT=5000         # ajustar si se usa otro puerto
 # Windows: permitir el puerto 5000/seleccionado en el Firewall
 ```
 
+> **Nota (Windows):** Podés usar `.\scripts\run_server.ps1 [-Host 0.0.0.0] [-Port 5000] [-Debug]` para configurar el entorno y lanzar el servidor con PowerShell.
+
 ### 5.3 Con Docker
 
 Requiere Docker y Docker Compose.
