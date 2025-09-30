@@ -187,7 +187,7 @@ function Ensure-DotEnv {
         $password = Read-Host "Password [$defaultPassword]"
         if (-not $password) { $password = $defaultPassword }
 
-        $uri = "postgresql://$user:$password@$host/$db"
+        $uri = 'postgresql://{0}:{1}@{2}/{3}' -f $user, $password, $host, $db
         $content = @(
             'FLASK_APP=wsgi.py',
             'FLASK_ENV=development',
