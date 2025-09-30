@@ -1,66 +1,80 @@
 """Database seed script that loads core catalogues and sample data."""
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
-from pathlib import Path
-import sys
-import os
+from typing import Optional
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:  # pragma: no cover - script bootstrap
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-try:
-    from flask_bcrypt import Bcrypt  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover - fallback for offline envs
-    from app.passwords import PasswordHasher as Bcrypt
-from sqlalchemy import create_engine, delete
+from flask import Flask
+from sqlalchemy import delete, inspect
 from sqlalchemy.orm import Session
 
-from config import Config
+from app import create_app, db
+from app.extensions import bcrypt
 from app.models.acta import Acta, ActaItem, TipoActa
 from app.models.adjunto import Adjunto, TipoAdjunto
 from app.models.auditoria import Auditoria
 from app.models.docscan import Docscan, TipoDocscan
 from app.models.equipo import Equipo, EquipoHistorial, EstadoEquipo, TipoEquipo
 from app.models.hospital import Hospital, Oficina, Servicio
+from app.models.hospital_usuario_rol import HospitalUsuarioRol
 from app.models.insumo import Insumo, InsumoMovimiento, MovimientoTipo, equipo_insumos
 from app.models.licencia import EstadoLicencia, Licencia, TipoLicencia
 from app.models.permisos import Modulo, Permiso
 from app.models.rol import Rol
 from app.models.usuario import Usuario
 
-bcrypt = Bcrypt()
+LOGGER = logging.getLogger(__name__)
+
 DEFAULT_PASSWORD = "Cambiar123!"
+SUPERADMIN_USERNAME = "admin"
+SUPERADMIN_PASSWORD = "123456"
 
-
-def get_engine_url() -> str:
-    """Return the database URL configured for the application."""
-
-    return os.getenv("DATABASE_URL", Config.SQLALCHEMY_DATABASE_URI)
-
-
-def reset_tables(session: Session) -> None:
+REQUIRED_TABLES = [
+    Rol.__tablename__,
+    Usuario.__tablename__,
+    Hospital.__tablename__,
+    Servicio.__tablename__,
+    Oficina.__tablename__,
+    Permiso.__tablename__,
+    TipoEquipo.__tablename__,
+    Equipo.__tablename__,
+    Insumo.__tablename__,
+    Licencia.__tablename__,
+    Docscan.__tablename__,
+    Adjunto.__tablename__,
+    Acta.__tablename__,
+    ActaItem.__tablename__,
+]
+def reset_tables(session: Session, inspector) -> None:
     """Clear existing data so the seed script can be re-run safely."""
 
-    session.execute(delete(ActaItem))
-    session.execute(delete(Acta))
-    session.execute(delete(Adjunto))
-    session.execute(delete(Docscan))
-    session.execute(delete(EquipoHistorial))
-    session.execute(delete(InsumoMovimiento))
-    session.execute(delete(Auditoria))
-    session.execute(delete(Permiso))
-    session.execute(delete(Licencia))
-    session.execute(delete(equipo_insumos))
-    session.execute(delete(Equipo))
-    session.execute(delete(TipoEquipo))
-    session.execute(delete(Insumo))
-    session.execute(delete(Oficina))
-    session.execute(delete(Servicio))
-    session.execute(delete(Usuario))
-    session.execute(delete(Rol))
-    session.execute(delete(Hospital))
+    def _delete_if_exists(statement, table_name: str) -> None:
+        if inspector.has_table(table_name):
+            session.execute(statement)
+
+    _delete_if_exists(delete(ActaItem), ActaItem.__tablename__)
+    _delete_if_exists(delete(Acta), Acta.__tablename__)
+    _delete_if_exists(delete(Adjunto), Adjunto.__tablename__)
+    _delete_if_exists(delete(Docscan), Docscan.__tablename__)
+    _delete_if_exists(delete(EquipoHistorial), EquipoHistorial.__tablename__)
+    _delete_if_exists(delete(InsumoMovimiento), InsumoMovimiento.__tablename__)
+    _delete_if_exists(delete(Auditoria), Auditoria.__tablename__)
+    _delete_if_exists(delete(Permiso), Permiso.__tablename__)
+    _delete_if_exists(delete(Licencia), Licencia.__tablename__)
+    if inspector.has_table(equipo_insumos.name):
+        session.execute(delete(equipo_insumos))
+    _delete_if_exists(delete(Equipo), Equipo.__tablename__)
+    _delete_if_exists(delete(TipoEquipo), TipoEquipo.__tablename__)
+    _delete_if_exists(delete(Insumo), Insumo.__tablename__)
+    _delete_if_exists(delete(HospitalUsuarioRol), HospitalUsuarioRol.__tablename__)
+    _delete_if_exists(delete(Oficina), Oficina.__tablename__)
+    _delete_if_exists(delete(Servicio), Servicio.__tablename__)
+    _delete_if_exists(delete(Usuario), Usuario.__tablename__)
+    _delete_if_exists(delete(Rol), Rol.__tablename__)
+    _delete_if_exists(delete(Hospital), Hospital.__tablename__)
+
+    session.flush()
 
 
 def create_catalogs(session: Session) -> dict[str, object]:
@@ -148,10 +162,10 @@ def create_equipment_types(session: Session) -> dict[str, TipoEquipo]:
     return {slug: registro for (slug, _), registro in zip(defaults, registros)}
 
 
-def hashed_password() -> str:
-    """Return a bcrypt hash for the default password."""
+def hashed_password(value: str = DEFAULT_PASSWORD) -> str:
+    """Return a bcrypt hash for ``value`` using the configured extension."""
 
-    return bcrypt.generate_password_hash(DEFAULT_PASSWORD).decode("utf-8")
+    return bcrypt.generate_password_hash(value).decode("utf-8")
 
 
 def create_users(session: Session, ctx: dict[str, object]) -> dict[str, Usuario]:
@@ -162,12 +176,12 @@ def create_users(session: Session, ctx: dict[str, object]) -> dict[str, Usuario]
 
     usuarios = {
         "superadmin": Usuario(
-            username="superadmin",
+            username=SUPERADMIN_USERNAME,
             nombre="Super Administrador",
             dni="20000000",
             email="superadmin@salud.gob.ar",
             rol=roles["superadmin"],
-            password_hash=hashed_password(),
+            password_hash=hashed_password(SUPERADMIN_PASSWORD),
         ),
         "admin_molas": Usuario(
             username="admin_molas",
@@ -469,24 +483,57 @@ def create_supporting_records(session: Session, ctx: dict[str, object], usuarios
     session.add(auditoria)
 
 
-def seed() -> None:
-    """Execute the full seed workflow."""
+def _ensure_postgresql(engine) -> None:
+    if engine.dialect.name != "postgresql":
+        raise RuntimeError(
+            "Configurar SQLALCHEMY_DATABASE_URI a postgresql://... antes de ejecutar el seed."
+        )
 
-    engine = create_engine(get_engine_url(), future=True)
-    with Session(engine) as session:
-        with session.begin():
-            reset_tables(session)
-        with session.begin():
+
+def _ensure_tables(inspector) -> None:
+    missing = [name for name in REQUIRED_TABLES if not inspector.has_table(name)]
+    if missing:
+        raise RuntimeError(
+            "Faltan tablas en la base de datos: "
+            + ", ".join(sorted(missing))
+            + ". Ejecutá `flask dbsafe-upgrade` antes de `flask seed`."
+        )
+
+
+def run_seed(app: Optional[Flask] = None) -> None:
+    """Execute the full seed workflow using the Flask application context."""
+
+    flask_app = app or create_app()
+    with flask_app.app_context():
+        engine = db.engine
+        _ensure_postgresql(engine)
+        inspector = inspect(engine)
+        _ensure_tables(inspector)
+
+        session: Session = db.session
+        try:
+            reset_tables(session, inspector)
             ctx = create_catalogs(session)
             usuarios = create_users(session, ctx)
             create_permissions(session, ctx)
             inventory = create_inventory(session, ctx, usuarios)
             create_supporting_records(session, ctx, usuarios, inventory)
             create_licenses(session, usuarios, ctx["hospitales"])  # type: ignore[arg-type]
+            session.commit()
+        except Exception:  # pragma: no cover - guard to keep session consistent
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
-    engine.dispose()
-    print("Base de datos poblada con datos iniciales. Usuarios por defecto: superadmin/admin_molas/etc. Contraseña: Cambiar123!")
+        LOGGER.info(
+            "Seed finalizado. Usuario inicial: %s / %s", SUPERADMIN_USERNAME, SUPERADMIN_PASSWORD
+        )
+        print(
+            "Base de datos poblada. Usuario inicial: "
+            f"{SUPERADMIN_USERNAME} / {SUPERADMIN_PASSWORD}."
+        )
 
 
 if __name__ == "__main__":
-    seed()
+    run_seed()
