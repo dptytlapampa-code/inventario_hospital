@@ -4,26 +4,15 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 
 ## Windows 11 – Arranque rápido
 
-1. **Doble clic en `scripts/bootstrap.bat` y seguí los prompts.** No hace falta abrir PowerShell manualmente; el `.bat` ejecuta el flujo completo con `-ExecutionPolicy Bypass`.
-2. **¿Qué hace el script automáticamente?**
-   - Detecta la raíz del proyecto aunque la ruta contenga espacios.
-   - Verifica que exista Python 3.11+ y muestra un enlace de descarga si falta.
-   - Crea y activa `.venv` (si ya existe lo reutiliza) y usa siempre `.\.venv\Scripts\python.exe -m pip ...`.
-   - Actualiza `pip`, instala `requirements.txt` y, si `psycopg2` falla, instala `psycopg2-binary` como fallback.
-   - Crea `.env` cuando falta solicitando los datos por `Read-Host` y muestra los valores existentes cuando ya está configurado.
-   - Valida la conexión a PostgreSQL con `psycopg2`, ofrece crear la base si no existe y detiene el proceso con mensajes claros ante errores.
-   - Ejecuta `python -m flask db heads`, mergea múltiples heads si es necesario y aplica `python -m flask db upgrade`.
-   - Corre `python -m seeds.seed` (idempotente) para poblar usuarios, hospitales, etc.
-   - Lanza `python -m flask run --host=127.0.0.1 --port=5000 --debug` y abre el navegador en `http://127.0.0.1:5000`.
-3. **Valores por defecto de `.env` (enter para aceptar):**
-   - Host: `localhost`
-   - Base de datos: `inventario_hospital`
-   - Usuario: `salud`
-   - Password: `Catrilo.20`
-   - El script genera además `FLASK_APP=wsgi.py` y `FLASK_ENV=development`.
-   - Podés editar `.env` manualmente o borrar el archivo y volver a ejecutar el bootstrap para reconfigurar.
-4. **Primer usuario disponible después del seed:** `admin / 123456` (Superadmin).
-5. **Rearranque rápido:** una vez provisionado, usá `scripts/run_server.ps1` para iniciar solo el servidor (activa `.venv`, lee `.env`, valida PostgreSQL y ejecuta `python -m flask run --debug`).
+1. **Descargá el ZIP del repositorio y descomprimilo en tu carpeta de trabajo.**
+2. **Doble clic sobre `run_dev.ps1` (o clic derecho → “Ejecutar con PowerShell”).** El script crea el entorno virtual, instala dependencias, aplica migraciones y carga el seed de demo.
+3. **Abrí <http://127.0.0.1:5000> en el navegador.** Credenciales iniciales: usuario `admin`, contraseña `123456`.
+
+> Si PowerShell bloquea la ejecución de scripts, ejecutá una vez en una consola:
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+> ```
 
 ## Tabla de contenido
 

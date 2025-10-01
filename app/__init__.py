@@ -16,6 +16,8 @@ from flask_migrate import CommandError, merge as migrate_merge, upgrade as migra
 from sqlalchemy import inspect, select
 from sqlalchemy.orm import joinedload
 
+from dotenv import load_dotenv
+
 from config import Config
 from app.assets import ensure_favicon
 from app.extensions import configure_logging, db, init_extensions, login_manager
@@ -104,6 +106,7 @@ def _register_cli(app: Flask) -> None:
 def create_app(config_class: type[Config] | Config = Config) -> Flask:
     """Create and configure a fully featured Flask application."""
 
+    load_dotenv()
     app = Flask(__name__, instance_relative_config=False)
     if isinstance(config_class, type):
         app.config.from_object(config_class)
@@ -248,6 +251,10 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
 
     _register_cli(app)
 
+    from app.cli import seed_demo
+
+    app.cli.add_command(seed_demo)
+
     @app.errorhandler(401)
     def unauthorized(error):  # type: ignore[override]
         return render_template("errors/401.html"), 401
@@ -259,6 +266,68 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     @app.errorhandler(404)
     def not_found(error):  # type: ignore[override]
         return render_template("errors/404.html"), 404
+
+    from app.models import (
+        Acta,
+        ActaItem,
+        Adjunto,
+        Auditoria,
+        Docscan,
+        Equipo,
+        EquipoAdjunto,
+        EquipoHistorial,
+        EstadoEquipo,
+        Hospital,
+        HospitalUsuarioRol,
+        Insumo,
+        InsumoMovimiento,
+        Licencia,
+        Modulo,
+        MovimientoTipo,
+        Oficina,
+        Permiso,
+        Rol,
+        Servicio,
+        TipoActa,
+        TipoAdjunto,
+        TipoDocscan,
+        TipoEquipo,
+        TipoLicencia,
+        Usuario,
+        EstadoLicencia,
+        equipo_insumos,
+    )
+
+    _ = (
+        Acta,
+        ActaItem,
+        Adjunto,
+        Auditoria,
+        Docscan,
+        Equipo,
+        EquipoAdjunto,
+        EquipoHistorial,
+        EstadoEquipo,
+        Hospital,
+        HospitalUsuarioRol,
+        Insumo,
+        InsumoMovimiento,
+        Licencia,
+        Modulo,
+        MovimientoTipo,
+        Oficina,
+        Permiso,
+        Rol,
+        Servicio,
+        TipoActa,
+        TipoAdjunto,
+        TipoDocscan,
+        TipoEquipo,
+        TipoLicencia,
+        Usuario,
+        EstadoLicencia,
+        equipo_insumos,
+    )
 
     return app
 

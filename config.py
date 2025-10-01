@@ -20,34 +20,22 @@ from dotenv import load_dotenv
 LOGGER = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
+# Cargar variables desde .env si está presente para que la configuración sea
+# reproducible en entornos locales.
 load_dotenv(BASE_DIR / ".env")
 
 
 def _database_uri_from_env() -> str:
-    """Return the configured SQLAlchemy database URI.
-
-    The URI can be provided explicitly via ``SQLALCHEMY_DATABASE_URI``.  When
-    omitted, the function selects sensible defaults depending on the execution
-    context: in the test suite it relies on the in-memory SQLite engine, while
-    in local development it creates ``inventario.db`` next to ``config.py``.
-    Production deployments still require an explicit URI (typically pointing to
-    PostgreSQL) to avoid accidentally persisting data to SQLite.
-    """
-
-    env_name = (
-        os.getenv("FLASK_ENV")
-        or os.getenv("ENV")
-        or os.getenv("APP_ENV")
-        or "production"
-    ).lower()
+    """Resolve the SQLAlchemy database URI according to the environment."""
 
     uri = os.getenv("SQLALCHEMY_DATABASE_URI")
-
     if uri:
         return uri
 
+    flask_env = os.getenv("FLASK_ENV", "").lower()
+
     if (
-        env_name in {"test", "testing"}
+        flask_env in {"testing", "test"}
         or os.getenv("PYTEST_CURRENT_TEST")
         or "pytest" in sys.modules
     ):
@@ -56,15 +44,21 @@ def _database_uri_from_env() -> str:
         )
         return "sqlite:///:memory:"
 
-    flask_env = os.getenv("FLASK_ENV", "").lower()
-    if env_name in {"production", "prod"} or flask_env == "production":
+    if flask_env == "development":
+        LOGGER.info("Using default SQLite database for development.")
+        return "sqlite:///inventario.db"
+
+    if flask_env in {"production", "prod"} or os.getenv("ENV", "").lower() in {
+        "production",
+        "prod",
+    } or os.getenv("APP_ENV", "").lower() in {"production", "prod"}:
         raise RuntimeError(
             "SQLALCHEMY_DATABASE_URI must be configured for production environments."
         )
 
-    sqlite_path = BASE_DIR / "inventario.db"
-    LOGGER.info("Using SQLite database at %s", sqlite_path)
-    return f"sqlite:///{sqlite_path}"
+    raise RuntimeError(
+        "SQLALCHEMY_DATABASE_URI must be provided via the environment for this deployment."
+    )
 
 
 def _default_upload_dir() -> str:
