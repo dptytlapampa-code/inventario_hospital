@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% from '_pagination.html' import render_pagination %}
+{% from 'partials/_macros.html' import picker %}
 {% block title %}Asignación de hospitales{% endblock %}
 {% block header_title %}Asignación de hospitales{% endblock %}
 {% block scripts %}
@@ -62,12 +63,12 @@
 {% block content %}
 <div class="row">
   <div class="col-lg-6">
-    {% include 'partials/_picker.html' with id='usuarioLookup', label='Usuario', placeholder='Buscar usuario...' %}
+    {{ picker('usuarioLookup', 'Usuario', 'Buscar usuario...') }}
   </div>
 </div>
 <div class="row">
   <div class="col-lg-6">
-    {% include 'partials/_picker.html' with id='hospitalLookup', label='Hospital', placeholder='Buscar hospital...' %}
+    {{ picker('hospitalLookup', 'Hospital', 'Buscar hospital...') }}
   </div>
 </div>
 <form id="asignacionForm" data-usuario-id="{{ usuario.id if usuario else '' }}">

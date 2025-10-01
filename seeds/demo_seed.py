@@ -40,6 +40,7 @@ from app.models import (
 LOGGER = logging.getLogger(__name__)
 SUPERADMIN_USERNAME = "admin"
 SUPERADMIN_PASSWORD = "123456"
+SUPERADMIN_EMAIL = "admin@example.com"
 
 
 def _is_verbose() -> bool:
@@ -49,9 +50,136 @@ def _is_verbose() -> bool:
         return os.getenv("DEMO_SEED_VERBOSE", "0") in {"1", "true", "True"}
 
 
-def _log(message: str) -> None:
+def _log(message: str, *, force_info: bool = False) -> None:
+    if force_info:
+        LOGGER.info(message)
+        return
     if _is_verbose():
         LOGGER.info(message)
+
+
+def ensure_superadmin(
+    session: Session,
+    *,
+    username: str = SUPERADMIN_USERNAME,
+    email: str = SUPERADMIN_EMAIL,
+    password: str = SUPERADMIN_PASSWORD,
+) -> Usuario:
+    """Ensure the Superadmin role, permissions and default user exist."""
+
+    role, role_created = _get_or_create(
+        session,
+        Rol,
+        defaults={"descripcion": "Rol con todos los permisos"},
+        nombre="Superadmin",
+    )
+    role.descripcion = "Rol con todos los permisos"
+    _log(
+        "Rol Superadmin %s."
+        % ("creado" if role_created else "encontrado"),
+        force_info=True,
+    )
+    session.flush()
+
+    for modulo in Modulo:
+        permiso, created_permiso = _get_or_create(
+            session,
+            Permiso,
+            defaults={
+                "rol": role,
+                "can_read": True,
+                "can_write": True,
+                "allow_export": True,
+            },
+            rol_id=role.id,
+            modulo=modulo,
+            hospital_id=None,
+        )
+        updated = False
+        if not permiso.can_read:
+            permiso.can_read = True
+            updated = True
+        if not permiso.can_write:
+            permiso.can_write = True
+            updated = True
+        if not permiso.allow_export:
+            permiso.allow_export = True
+            updated = True
+        if created_permiso:
+            _log(
+                f"Permiso global para Superadmin sobre {modulo.value} creado.",
+                force_info=True,
+            )
+        elif updated:
+            _log(
+                f"Permiso global para Superadmin sobre {modulo.value} actualizado.",
+                force_info=True,
+            )
+
+    usuario_defaults = {
+        "nombre": "Super Administrador",
+        "dni": "20000000",
+        "email": email,
+        "rol": role,
+        "activo": True,
+    }
+    usuario, user_created = _get_or_create(
+        session,
+        Usuario,
+        defaults=usuario_defaults,
+        username=username,
+    )
+    usuario.nombre = "Super Administrador"
+    if not usuario.apellido:
+        usuario.apellido = "Principal"
+    usuario.email = email
+    if not usuario.dni:
+        usuario.dni = usuario_defaults["dni"]
+    usuario.rol = role
+    usuario.activo = True
+    usuario.set_password(password)
+    _log(
+        "Usuario %s %s como Superadmin (password por defecto actualizada)."
+        % (usuario.username, "creado" if user_created else "actualizado"),
+        force_info=True,
+    )
+    return usuario
+
+
+def promote_to_superadmin(
+    session: Session, username: str, role: Rol | None = None
+) -> Usuario | None:
+    """Promote ``username`` to the Superadmin role if present."""
+
+    if not username:
+        return None
+
+    target_role = role
+    if target_role is None:
+        target_role = ensure_superadmin(session).rol
+
+    stmt = select(Usuario).filter_by(username=username)
+    usuario = session.execute(stmt).scalar_one_or_none()
+    if not usuario:
+        LOGGER.warning(
+            "Usuario %s no encontrado; no se puede promover a Superadmin.", username
+        )
+        return None
+
+    if usuario.rol_id == target_role.id and usuario.activo:
+        _log(
+            f"Usuario {usuario.username} ya es Superadmin y está activo.",
+            force_info=True,
+        )
+        return usuario
+
+    usuario.rol = target_role
+    usuario.activo = True
+    _log(
+        f"Usuario {usuario.username} promovido al rol Superadmin.",
+        force_info=True,
+    )
+    return usuario
 
 
 def _get_or_create(session: Session, model, defaults: dict[str, Any] | None = None, **filters: Any):
@@ -88,7 +216,7 @@ def _ensure_roles(session: Session) -> dict[str, Rol]:
             nombre=nombre,
         )
         action = "creado" if created else "actualizado"
-        _log(f"Rol {nombre} {action}.")
+        _log(f"Rol {nombre} {action}.", force_info=True)
         roles[nombre.lower()] = rol
     return roles
 
@@ -203,7 +331,7 @@ def _ensure_users(
             "username": SUPERADMIN_USERNAME,
             "nombre": "Super Administrador",
             "dni": "20000000",
-            "email": "superadmin@salud.gob.ar",
+            "email": SUPERADMIN_EMAIL,
             "rol": roles["superadmin"],
             "hospital": None,
             "servicio": None,
@@ -294,7 +422,7 @@ def _ensure_users(
         usuario.activo = True
         usuario.set_password(spec["password"])
         action = "creado" if created else "actualizado"
-        _log(f"Usuario {usuario.username} {action}.")
+        _log(f"Usuario {usuario.username} {action}.", force_info=True)
         usuarios[spec["username"]] = usuario
 
     return usuarios
@@ -322,7 +450,10 @@ def _ensure_permissions(
         permiso.can_read = True
         permiso.can_write = True
         permiso.allow_export = True
-        _log(f"Permiso global para Superadmin sobre {modulo.value} garantizado.")
+        _log(
+            f"Permiso global para Superadmin sobre {modulo.value} garantizado.",
+            force_info=True,
+        )
 
     admin_modules = {
         Modulo.INVENTARIO,
@@ -353,7 +484,10 @@ def _ensure_permissions(
             permiso.can_read = True
             permiso.can_write = True
             permiso.allow_export = modulo == Modulo.REPORTES
-        _log(f"Permisos de admin asegurados para {hospital.nombre}.")
+        _log(
+            f"Permisos de admin asegurados para {hospital.nombre}.",
+            force_info=True,
+        )
 
         tecnico_permisos = [
             (Modulo.INVENTARIO, True),
@@ -393,6 +527,10 @@ def _ensure_permissions(
         permiso.can_read = True
         permiso.can_write = False
         permiso.allow_export = False
+        _log(
+            f"Permisos de lectura garantizados para {hospital.nombre}.",
+            force_info=True,
+        )
 
 
 def _ensure_inventory(
@@ -695,7 +833,9 @@ def load_demo_data(sqlalchemy_db) -> None:
     """Populate demo catalogues and sample data in an idempotent way."""
 
     session: Session = sqlalchemy_db.session
+    superadmin_user = ensure_superadmin(session)
     roles = _ensure_roles(session)
+    roles["superadmin"] = superadmin_user.rol
     hospitales, servicios, oficinas = _ensure_hospital_structure(session)
     tipos = _ensure_equipment_types(session)
     usuarios = _ensure_users(session, roles, hospitales, servicios, oficinas)
@@ -706,4 +846,7 @@ def load_demo_data(sqlalchemy_db) -> None:
     _log(
         "Seed demo listo. Usuario inicial: %s / %s" % (SUPERADMIN_USERNAME, SUPERADMIN_PASSWORD)
     )
+
+
+__all__ = ["ensure_superadmin", "promote_to_superadmin", "load_demo_data"]
 

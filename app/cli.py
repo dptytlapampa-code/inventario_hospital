@@ -2,54 +2,103 @@
 from __future__ import annotations
 
 import click
-from datetime import datetime
-
+from flask import Flask, current_app
 from flask.cli import with_appcontext
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
-from app import db
-from app.models import Hospital, Oficina, Rol, Servicio, Usuario
+from app.extensions import db
 
 
-@click.command("seed-demo")
-@with_appcontext
-def seed_demo() -> None:
-    """Populate the database with a minimal demo dataset."""
+def register_commands(app: Flask) -> None:
+    """Register the project's custom CLI commands."""
 
-    rol = Rol.query.filter_by(nombre="Superadmin").first()
-    if not rol:
-        rol = Rol(
-            nombre="Superadmin",
-            descripcion="Rol con todos los permisos",
-            created_at=datetime.utcnow(),
+    @app.cli.group("seed")
+    def seed_group() -> None:
+        """Comandos de carga de datos iniciales."""
+
+    @seed_group.command("demo")
+    @with_appcontext
+    def seed_demo_command() -> None:
+        """Populate the database with demo data and default credentials."""
+
+        from seeds.demo_seed import ensure_superadmin, load_demo_data
+
+        ensure_superadmin(db.session)
+        load_demo_data(db)
+        db.session.commit()
+        click.secho(
+            "Seed de demo cargado. Usuario admin / 123456 disponible.", fg="green"
         )
-        db.session.add(rol)
-        db.session.flush()
 
-    hosp = Hospital.query.first()
-    if not hosp:
-        hosp = Hospital(nombre="Hospital Demo")
-        db.session.add(hosp)
-        db.session.flush()
+    @app.cli.command("promote-superadmin")
+    @click.option(
+        "--username",
+        "username",
+        required=True,
+        help="Nombre de usuario a promover al rol Superadmin.",
+    )
+    @with_appcontext
+    def promote_superadmin_command(username: str) -> None:
+        """Promote an existing user to the Superadmin role."""
 
-    u = Usuario.query.filter_by(username="admin").first()
-    if not u:
-        u = Usuario(
-            username="admin",
-            nombre="Admin",
-            dni="00000000",
-            apellido="Demo",
-            email="admin@example.com",
-            activo=True,
-            rol_id=rol.id,
-            hospital_id=hosp.id,
+        from seeds.demo_seed import ensure_superadmin, promote_to_superadmin
+
+        superadmin_user = ensure_superadmin(db.session)
+        promoted = promote_to_superadmin(
+            db.session, username=username, role=superadmin_user.rol
         )
-        u.set_password("123456")
-        db.session.add(u)
+        if promoted is None:
+            click.secho(
+                f"Usuario '{username}' no encontrado. No se realizaron cambios.",
+                fg="red",
+            )
+            db.session.commit()
+            return
 
-    db.session.commit()
-    print("OK: seed de demo cargado. Usuario admin / 123456")
+        current_app.logger.info(
+            "Usuario %s promovido a Superadmin por CLI.", promoted.username
+        )
+        db.session.commit()
+        click.secho(
+            f"Usuario '{promoted.username}' ahora es Superadmin y está activo.",
+            fg="green",
+        )
+
+    @app.cli.command("list-perms")
+    @with_appcontext
+    def list_permissions_command() -> None:
+        """List the currently registered role permissions."""
+
+        from app.models import Permiso
+
+        stmt = (
+            select(Permiso)
+            .options(joinedload(Permiso.rol), joinedload(Permiso.hospital))
+            .order_by(Permiso.rol_id, Permiso.modulo, Permiso.hospital_id)
+        )
+        permisos = db.session.execute(stmt).scalars().all()
+        if not permisos:
+            click.echo("No hay permisos registrados en la base de datos.")
+            db.session.commit()
+            return
+
+        click.echo("Rol           | Módulo       | Ámbito       | Acciones")
+        click.echo("-" * 60)
+        for permiso in permisos:
+            acciones: list[str] = []
+            if permiso.can_read:
+                acciones.append("read")
+            if permiso.can_write:
+                acciones.append("write")
+            if permiso.allow_export:
+                acciones.append("export")
+            scope = permiso.hospital.nombre if permiso.hospital else "global"
+            click.echo(
+                f"{permiso.rol.nombre:<13} {permiso.modulo.value:<12} {scope:<12}"
+                f" -> {', '.join(acciones) if acciones else 'sin acciones'}"
+            )
+        db.session.commit()
 
 
-# Referencias silenciosas para evitar advertencias de importaciones no utilizadas
-# cuando herramientas estáticas analizan el módulo.
-_ = (Servicio, Oficina)
+__all__ = ["register_commands"]
