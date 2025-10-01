@@ -4,15 +4,27 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 
 ## Windows 11 – Arranque rápido
 
-1. **Descargá el ZIP del repositorio y descomprimilo en tu carpeta de trabajo.**
-2. **Doble clic sobre `run_dev.ps1` (o clic derecho → “Ejecutar con PowerShell”).** El script crea el entorno virtual, instala dependencias, aplica migraciones y carga el seed de demo.
-3. **Abrí <http://127.0.0.1:5000> en el navegador.** Credenciales iniciales: usuario `admin`, contraseña `123456`.
+1. Abrí **PowerShell** dentro de la carpeta del proyecto (`Shift` + clic derecho → “Abrir terminal PowerShell aquí”).
+2. Solo la primera vez en tu usuario de Windows ejecutá:
 
-> Si PowerShell bloquea la ejecución de scripts, ejecutá una vez en una consola:
->
-> ```powershell
-> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-> ```
+   ```powershell
+   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+   ```
+
+3. Lanzá el entorno de desarrollo con:
+
+   ```powershell
+   .\scripts\run_dev.ps1
+   ```
+
+   El script crea `.venv`, instala dependencias, aplica migraciones y corre `flask seed demo` si la base `inventario.db` no existe.
+
+4. Ingresá a <http://127.0.0.1:5000>. Usuario demo listo: **admin / 123456**.
+5. Para promocionar otro usuario al rol Superadmin (por ejemplo `fpla`):
+
+   ```powershell
+   .\scripts\grant_superadmin.ps1 -Username fpla
+   ```
 
 ## Tabla de contenido
 
@@ -54,7 +66,7 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 
 ## 2. Alcance funcional
 
-- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `admin / 123456` (Superadmin). Otros usuarios de ejemplo se crean con `flask demo-seed --force`.
+- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `admin / 123456` (Superadmin). Otros usuarios de ejemplo se crean con `flask seed demo`.
 - Permisos granulares por hospital y módulo (inventario, insumos, actas, adjuntos, docscan, reportes, auditoría, licencias).
 - Ubicaciones jerárquicas: Hospital → Servicio → Oficina (ABM, validaciones de duplicados, edición sin cambiar IDs).
 - Equipos: tipos predefinidos, estados (Operativo, En Servicio Técnico, De baja), expediente/año opcionales, historial.
@@ -171,8 +183,8 @@ flask db upgrade
 # 4) Arrancar (carga auto-seed si la base está vacía y AUTO_SEED_ON_START=1)
 flask run --host=127.0.0.1 --port=5000 --debug
 
-# 5) (opcional) Forzar demo seed manual
-flask demo-seed --force
+# 5) (opcional) Cargar datos de demo manualmente
+flask seed demo
 ```
 
 > Para Linux/macOS usá `python3 -m venv .venv`, `source .venv/bin/activate`, `cp .env.example .env` y los equivalentes para `export`.
@@ -215,7 +227,7 @@ flask db upgrade
 
 El repositorio incluye una migración inicial con todas las tablas declaradas en `app/models`. El comando `flask dbsafe-upgrade` toma la URI configurada en `SQLALCHEMY_DATABASE_URI`, detecta múltiples heads de Alembic, realiza un merge automático si es necesario y deja la base migrada.
 
-Seeds (`flask demo-seed` o auto-seed en desarrollo): reutiliza la aplicación Flask (misma configuración `.env`), verifica la conexión configurada (SQLite o PostgreSQL) y carga los catálogos de manera idempotente:
+Seeds (`flask seed demo` o auto-seed en desarrollo): reutiliza la aplicación Flask (misma configuración `.env`), verifica la conexión configurada (SQLite o PostgreSQL) y carga los catálogos de manera idempotente:
 
 - `admin / 123456` (Superadmin global)
 - `admin_molas / Cambiar123!` y `admin_favaloro / Cambiar123!` (Admins locales)
@@ -226,7 +238,7 @@ Seeds (`flask demo-seed` o auto-seed en desarrollo): reutiliza la aplicación Fl
 
 ### 6.1 Primer arranque
 
-En desarrollo, si no configurás `SQLALCHEMY_DATABASE_URI`, el proyecto crea `inventario.db` (SQLite) junto al código y ejecuta el seed automáticamente en el primer `flask run` cuando `AUTO_SEED_ON_START=1`. Para usar PostgreSQL definí la URI correspondiente antes de correr las migraciones (`flask db upgrade`) o ejecutar `flask demo-seed`.
+En desarrollo, si no configurás `SQLALCHEMY_DATABASE_URI`, el proyecto crea `inventario.db` (SQLite) junto al código y ejecuta el seed automáticamente en el primer `flask run` cuando `AUTO_SEED_ON_START=1`. Para usar PostgreSQL definí la URI correspondiente antes de correr las migraciones (`flask db upgrade`) o ejecutar `flask seed demo`.
 
 ## 7. Roles, permisos y seguridad
 
@@ -352,6 +364,9 @@ Casos clave:
 
 ## 14. Troubleshooting
 
+- **PowerShell bloquea scripts (.ps1):** ejecutá `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` una única vez en PowerShell y volvé a correr `./scripts/run_dev.ps1`.
+- **Python/pip no encontrados:** asegurate de que `python` esté en el PATH. Si pip falta, corré `python -m ensurepip --upgrade` y luego `python -m pip install --upgrade pip`.
+- **SQLite no disponible:** verificá que tu instalación de Python incluya el módulo `sqlite3` (en Windows 11 viene por defecto). Si la biblioteca DLL no está presente instalá el feature opcional de Windows “SQLite” o reinstalá Python seleccionando *Install for all users*.
 - **psycopg2 o conexión fallida:** verificar `SQLALCHEMY_DATABASE_URI`, credenciales y que Postgres esté levantado.
 - **Migraciones:**
   - Con el repositorio tal como viene alcanza con `flask dbsafe-upgrade`.
