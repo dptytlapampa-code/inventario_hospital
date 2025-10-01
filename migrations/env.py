@@ -41,7 +41,13 @@ if config.config_file_name is not None:  # pragma: no cover - configuration hook
 
 
 def _database_url() -> str:
-    return Config.SQLALCHEMY_DATABASE_URI
+    uri = Config.SQLALCHEMY_DATABASE_URI
+    if uri.startswith("sqlite:///") and not uri.startswith("sqlite:////"):
+        database_name = uri.split("sqlite:///", 1)[1]
+        instance_path = PROJECT_ROOT / "instance"
+        instance_path.mkdir(exist_ok=True)
+        return f"sqlite:///{(instance_path / database_name).resolve()}"
+    return uri
 
 
 def _common_config_kwargs(url: str | URL) -> dict[str, Any]:
