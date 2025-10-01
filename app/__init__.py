@@ -1,6 +1,9 @@
 """Application factory for the Inventario Hospital system."""
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -10,7 +13,7 @@ from alembic.script import ScriptDirectory
 from flask import Flask, current_app, render_template
 from flask.cli import with_appcontext
 from flask_migrate import CommandError, merge as migrate_merge, upgrade as migrate_upgrade
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import joinedload
 
 from config import Config
@@ -81,14 +84,21 @@ def _register_cli(app: Flask) -> None:
 
         click.secho("Migraciones aplicadas correctamente.", fg="green")
 
-    @app.cli.command("seed")
+    @app.cli.command("demo-seed")
+    @click.option("--force", is_flag=True, help="Forzar seed aunque existan datos.")
     @with_appcontext
-    def seed_command() -> None:
-        """Populate the database with deterministic seed data."""
+    def demo_seed_command(force: bool) -> None:
+        """Carga datos de demo de forma idempotente."""
 
-        from seeds.seed import run_seed
+        from app.models import Usuario
+        from seeds.demo_seed import load_demo_data
 
-        run_seed(current_app)
+        if not force and db.session.query(Usuario).count() > 0:
+            click.echo("Ya existen usuarios. Usa --force para resembrar (idempotente).")
+            return
+        load_demo_data(db)
+        db.session.commit()
+        click.echo("Datos de demo cargados.")
 
 
 def create_app(config_class: type[Config] | Config = Config) -> Flask:
@@ -112,6 +122,59 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
 
     configure_logging(app)
     init_extensions(app)
+
+    with app.app_context():
+        skip_auto_seed = os.getenv("AUTO_SEED_SKIP") == "1" or app.config.get("TESTING")
+        is_prod = (
+            app.config.get("ENV", "").lower() == "production"
+            or app.config.get("FLASK_ENV") == "production"
+        )
+        if (
+            not skip_auto_seed
+            and app.config.get("AUTO_SEED_ON_START")
+            and not is_prod
+        ):
+            insp = inspect(db.engine)
+            if not insp.get_table_names():
+                try:
+                    migrations_dir = Path(app.root_path).parent / "migrations"
+                    if migrations_dir.is_dir():
+                        env = os.environ.copy()
+                        env.setdefault("FLASK_APP", os.environ.get("FLASK_APP", "wsgi.py"))
+                        env.setdefault("AUTO_SEED_SKIP", "1")
+                        subprocess.run(
+                            [sys.executable, "-m", "flask", "db", "upgrade"],
+                            cwd=Path(app.root_path).parent,
+                            check=True,
+                            env=env,
+                        )
+                    else:
+                        db.create_all()
+                except Exception as exc:  # pragma: no cover - defensive branch
+                    current_app.logger.warning(
+                        "Auto-migrate fallback failed: %s. Trying create_all() for dev.",
+                        exc,
+                    )
+                    db.create_all()
+
+            try:
+                from app.models import Usuario
+                from seeds.demo_seed import load_demo_data
+
+                if db.session.query(Usuario).count() == 0:
+                    current_app.logger.info(
+                        "Auto-seed: base sin usuarios, cargando datos demo…"
+                    )
+                    load_demo_data(db)
+                    db.session.commit()
+                    current_app.logger.info("Auto-seed: datos demo cargados.")
+                elif app.config.get("DEMO_SEED_VERBOSE"):
+                    current_app.logger.info(
+                        "Auto-seed: ya hay datos, no se cargan demo."
+                    )
+            except Exception as exc:  # pragma: no cover - best effort guard
+                current_app.logger.error(f"Auto-seed error: {exc}")
+                db.session.rollback()
 
     app.jinja_env.globals.setdefault("render_input_field", render_input_field)
     app.jinja_env.globals.setdefault("build_select_attrs", build_select_attrs)
