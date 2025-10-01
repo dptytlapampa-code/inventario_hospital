@@ -65,7 +65,7 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 
 ## 2. Alcance funcional
 
-- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `admin / 123456` (Superadmin). Otros usuarios de ejemplo se crean con `flask seed`.
+- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `admin / 123456` (Superadmin). Otros usuarios de ejemplo se crean con `flask demo-seed --force`.
 - Permisos granulares por hospital y módulo (inventario, insumos, actas, adjuntos, docscan, reportes, auditoría, licencias).
 - Ubicaciones jerárquicas: Hospital → Servicio → Oficina (ABM, validaciones de duplicados, edición sin cambiar IDs).
 - Equipos: tipos predefinidos, estados (Operativo, En Servicio Técnico, De baja), expediente/año opcionales, historial.
@@ -80,7 +80,7 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 ## 3. Stack técnico
 
 - **Backend:** Python 3.11+, Flask (Blueprints, Jinja2), Flask-Login, Flask-Migrate (Alembic), SQLAlchemy, WTForms.
-- **DB:** PostgreSQL. URI por defecto (local): `postgresql://salud:Catrilo.20@localhost/inventario_hospital`
+- **DB:** SQLite (auto en desarrollo) o PostgreSQL configurado vía `SQLALCHEMY_DATABASE_URI`.
 - **Frontend:** HTML5, CSS3, Bootstrap 5, JavaScript (vanilla), Chart.js.
 - **PDF:** WeasyPrint o ReportLab (configurar dependencias del SO si corresponde).
 - **QR:** `qrcode` (por equipo).
@@ -147,46 +147,46 @@ inventario_hospitalario/
 Copia `.env.example` a `.env` y ajusta valores:
 
 ```
+FLASK_APP=wsgi.py
 FLASK_ENV=development
 FLASK_RUN_HOST=0.0.0.0
 FLASK_RUN_PORT=5000
 SECRET_KEY=change_me
-FLASK_APP=wsgi.py
-SQLALCHEMY_DATABASE_URI=postgresql://salud:Catrilo.20@localhost/inventario_hospital
+# Si se deja vacío, por defecto SQLite para desarrollo:
+# SQLALCHEMY_DATABASE_URI=postgresql://usuario:pass@localhost/inventario_hospital
+AUTO_SEED_ON_START=1
+DEMO_SEED_VERBOSE=1
 UPLOAD_FOLDER=./uploads
-MAX_CONTENT_LENGTH=16777216
-ALLOWED_EXTENSIONS=pdf,jpg,jpeg,png
+DOCSCAN_FOLDER=./uploads/docscan
+DEFAULT_PAGE_SIZE=20
 LOG_LEVEL=INFO
 ```
 
 ### 5.2 Sin Docker
 
 ```
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .\.venv\Scripts\activate
-pip install --upgrade pip
+# 1) venv e instalar deps
+py -m venv .venv
+.\.venv\Scripts\activate
 pip install -r requirements.txt
 
-# Dependencias opcionales (Bcrypt nativo, PostgreSQL, PDF, QR)
-# pip install flask-bcrypt psycopg2-binary weasyprint qrcode Pillow
+# 2) (opcional) .env para Postgres; si no, usa SQLite inventario.db por defecto
+copy .env.example .env
+# editar SQLALCHEMY_DATABASE_URI si querés Postgres
+# dejar AUTO_SEED_ON_START=1 para cargar datos demo en el primer arranque
 
-# Migraciones seguras
-export FLASK_APP=wsgi.py           # Windows: set FLASK_APP=wsgi.py
-flask dbsafe-upgrade
+# 3) Migraciones (si hay carpeta migrations)
+set FLASK_APP=wsgi.py           # (PowerShell: $env:FLASK_APP="wsgi.py")
+flask db upgrade
 
-# (Opcional) Seeds (reinicia datos base)
-flask seed
+# 4) Arrancar (carga auto-seed si la base está vacía y AUTO_SEED_ON_START=1)
+flask run --host=127.0.0.1 --port=5000 --debug
 
-# Ejecutar
-flask run                          # o scripts/run_server.bat en Windows
-
-# Exponer en red local (LAN)
-export FLASK_RUN_HOST=0.0.0.0      # acceder vía http://<ip_local>:5000/
-export FLASK_RUN_PORT=5000         # ajustar si se usa otro puerto
-# Windows: permitir el puerto 5000/seleccionado en el Firewall
+# 5) (opcional) Forzar demo seed manual
+flask demo-seed --force
 ```
 
-> **Nota (Windows):** El script `scripts\run_server.bat` salta la política de ejecución, activa `.venv`, valida la URI de PostgreSQL, instala `psycopg2-binary` si falta y ejecuta `flask run` con los flags `-Host`, `-Port` y `-Debug`.
+> Para Linux/macOS usá `python3 -m venv .venv`, `source .venv/bin/activate`, `cp .env.example .env` y los equivalentes para `export`.
 
 ### 5.3 Con Docker
 
@@ -226,7 +226,7 @@ flask db upgrade
 
 El repositorio incluye una migración inicial con todas las tablas declaradas en `app/models`. El comando `flask dbsafe-upgrade` toma la URI configurada en `SQLALCHEMY_DATABASE_URI`, detecta múltiples heads de Alembic, realiza un merge automático si es necesario y deja la base migrada.
 
-Seeds (`flask seed`): reutiliza la aplicación Flask (misma configuración `.env`), valida que la conexión sea PostgreSQL y repuebla los catálogos de manera idempotente:
+Seeds (`flask demo-seed` o auto-seed en desarrollo): reutiliza la aplicación Flask (misma configuración `.env`), verifica la conexión configurada (SQLite o PostgreSQL) y carga los catálogos de manera idempotente:
 
 - `admin / 123456` (Superadmin global)
 - `admin_molas / Cambiar123!` y `admin_favaloro / Cambiar123!` (Admins locales)
@@ -237,7 +237,7 @@ Seeds (`flask seed`): reutiliza la aplicación Flask (misma configuración `.env
 
 ### 6.1 Primer arranque
 
-PostgreSQL es obligatorio en desarrollo y producción (no se crean `.db` locales). Verificá que el servicio esté disponible y que `SQLALCHEMY_DATABASE_URI` apunte a una instancia válida antes de ejecutar `flask dbsafe-upgrade` y `flask seed`.
+En desarrollo, si no configurás `SQLALCHEMY_DATABASE_URI`, el proyecto crea `inventario.db` (SQLite) junto al código y ejecuta el seed automáticamente en el primer `flask run` cuando `AUTO_SEED_ON_START=1`. Para usar PostgreSQL definí la URI correspondiente antes de correr las migraciones (`flask db upgrade`) o ejecutar `flask demo-seed`.
 
 ## 7. Roles, permisos y seguridad
 
