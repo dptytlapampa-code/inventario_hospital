@@ -50,14 +50,19 @@ def _database_url() -> str:
     return uri
 
 
-def _common_config_kwargs(url: str | URL) -> dict[str, Any]:
-    url_str = str(url)
+def _is_sqlite_url(url: str | URL) -> bool:
+    if isinstance(url, URL):
+        return url.get_backend_name() == "sqlite"
+    return str(url).startswith("sqlite")
+
+
+def _common_config_kwargs(is_sqlite: bool) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
         "target_metadata": Base.metadata,
         "compare_type": True,
         "compare_server_default": True,
     }
-    if url_str.startswith("sqlite"):
+    if is_sqlite:
         kwargs["render_as_batch"] = True
     return kwargs
 
@@ -68,7 +73,11 @@ def run_migrations_offline() -> None:
     url = _database_url()
     config.set_main_option("sqlalchemy.url", url)
 
-    context.configure(url=url, literal_binds=True, **_common_config_kwargs(url))
+    context.configure(
+        url=url,
+        literal_binds=True,
+        **_common_config_kwargs(_is_sqlite_url(url)),
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -88,7 +97,10 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:  # type: Connection
-        context.configure(connection=connection, **_common_config_kwargs(connection.engine.url))
+        context.configure(
+            connection=connection,
+            **_common_config_kwargs(connection.dialect.name == "sqlite"),
+        )
 
         with context.begin_transaction():
             context.run_migrations()
