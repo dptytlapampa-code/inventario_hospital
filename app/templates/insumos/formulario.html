@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_field, render_textarea, render_equipo_selector %}
+{% from '_form_helpers.html' import render_field, render_textarea %}
 {% block title %}{{ titulo }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">{{ titulo }}</h1>
@@ -13,15 +13,6 @@
     {{ render_field(form.stock_minimo, form_group_class='col-md-3', input_class='form-control', min_value='0') }}
     {{ render_field(form.costo_unitario, form_group_class='col-md-3', input_class='form-control', step='0.01') }}
     {{ render_textarea(form.descripcion, form_group_class='col-12', rows=3) }}
-    {{ render_equipo_selector(
-      form.equipos,
-      form_group_class='col-12',
-      label='Equipos asociados',
-      placeholder='Busque equipos por tipo, marca o serie…',
-      multiple=True,
-      allow_clear=True,
-      initial_options=equipos_options or []
-    ) }}
   </div>
   <div class="mt-4 d-flex gap-2">
     {{ form.submit(class='btn btn-primary') }}

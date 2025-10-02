@@ -20,7 +20,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from werkzeug.utils import secure_filename
@@ -42,10 +42,15 @@ from app.models import (
     Equipo,
     EquipoAdjunto,
     EquipoHistorial,
+    EquipoInsumo,
     EstadoEquipo,
     Hospital,
+    InsumoMovimiento,
+    InsumoSerie,
     Modulo,
+    MovimientoTipo,
     Oficina,
+    SerieEstado,
     Servicio,
     TipoActa,
     TipoEquipo,
@@ -435,7 +440,17 @@ def editar(equipo_id: int):
 @permissions_required("inventario:read")
 @require_hospital_access(Modulo.INVENTARIO)
 def detalle(equipo_id: int):
-    equipo = Equipo.query.options(selectinload(Equipo.tipo)).get_or_404(equipo_id)
+    equipo = (
+        Equipo.query.options(
+            selectinload(Equipo.tipo),
+            selectinload(Equipo.insumos_asociados)
+            .selectinload(EquipoInsumo.serie)
+            .selectinload(InsumoSerie.insumo),
+            selectinload(Equipo.insumos_asociados).selectinload(EquipoInsumo.insumo),
+            selectinload(Equipo.insumos_asociados).selectinload(EquipoInsumo.asociado_por),
+        )
+        .get_or_404(equipo_id)
+    )
     form_adjuntos = EquipoAdjuntoForm()
 
     historial_entries = sorted(
@@ -469,6 +484,12 @@ def detalle(equipo_id: int):
         reverse=True,
     )
 
+    insumos_activos = [
+        asignacion
+        for asignacion in equipo.insumos_asociados
+        if asignacion.fecha_desasociacion is None
+    ]
+
     return render_template(
         "equipos/detalle.html",
         equipo=equipo,
@@ -478,10 +499,153 @@ def detalle(equipo_id: int):
         actas_total=len(actas_unique),
         adjuntos=equipo.adjuntos,
         archivos=archivos,
-        insumos=equipo.insumos,
+        insumos=insumos_activos,
         adjunto_form=form_adjuntos,
         tipos_acta=list(TipoActa),
         max_upload_size=current_app.config.get("EQUIPOS_MAX_FILE_SIZE", 10 * 1024 * 1024),
+    )
+
+
+@equipos_bp.post("/<int:equipo_id>/insumos/asociar")
+@login_required
+@permissions_required("inventario:write")
+@require_hospital_access(Modulo.INVENTARIO)
+def asociar_insumo(equipo_id: int):
+    equipo = Equipo.query.get_or_404(equipo_id)
+    payload = request.get_json(silent=True) or {}
+    nro_serie = (payload.get("nro_serie") or "").strip()
+    if not nro_serie:
+        return jsonify({"ok": False, "message": "Debe indicar número de serie"}), 400
+
+    serie = InsumoSerie.query.filter_by(nro_serie=nro_serie).first()
+    if not serie:
+        return jsonify({"ok": False, "message": "No existe un insumo con ese número de serie"}), 404
+
+    if serie.estado != SerieEstado.LIBRE or serie.equipo_id is not None:
+        return jsonify({"ok": False, "message": "La serie ya está asignada"}), 409
+
+    insumo = serie.insumo
+    if not insumo:
+        return jsonify({"ok": False, "message": "El insumo asociado no es válido"}), 409
+
+    if insumo.stock <= 0:
+        return jsonify({"ok": False, "message": "Sin stock disponible de este insumo"}), 409
+
+    existente = (
+        EquipoInsumo.query.filter_by(insumo_serie_id=serie.id, fecha_desasociacion=None)
+        .order_by(EquipoInsumo.fecha_asociacion.desc())
+        .first()
+    )
+    if existente:
+        return jsonify({"ok": False, "message": "La serie ya está asignada"}), 409
+
+    serie.estado = SerieEstado.ASIGNADO
+    serie.equipo_id = equipo.id
+    insumo.ajustar_stock(-1)
+
+    asignacion = EquipoInsumo(
+        equipo=equipo,
+        insumo=insumo,
+        serie=serie,
+        asociado_por=current_user if getattr(current_user, "is_authenticated", False) else None,
+    )
+    movimiento = InsumoMovimiento(
+        insumo=insumo,
+        usuario=current_user if getattr(current_user, "is_authenticated", False) else None,
+        equipo_id=equipo.id,
+        tipo=MovimientoTipo.EGRESO,
+        cantidad=1,
+        motivo="Asignación a equipo",
+    )
+    db.session.add(asignacion)
+    db.session.add(movimiento)
+    equipo.registrar_evento(
+        current_user,
+        "Asociación de insumo",
+        f"{insumo.nombre} · {serie.nro_serie}",
+    )
+    db.session.flush()
+    db.session.commit()
+
+    respuesta = {
+        "ok": True,
+        "message": "Insumo asociado",
+        "asociacion": {
+            "id": asignacion.id,
+            "insumo": {"id": insumo.id, "nombre": insumo.nombre},
+            "serie": {"id": serie.id, "nro_serie": serie.nro_serie},
+            "fecha_asociacion": asignacion.fecha_asociacion.isoformat()
+            if asignacion.fecha_asociacion
+            else None,
+            "asociado_por": asignacion.asociado_por.nombre if asignacion.asociado_por else None,
+        },
+    }
+    return jsonify(respuesta), 201
+
+
+@equipos_bp.post("/<int:equipo_id>/insumos/quitar")
+@login_required
+@permissions_required("inventario:write")
+@require_hospital_access(Modulo.INVENTARIO)
+def quitar_insumo(equipo_id: int):
+    equipo = Equipo.query.get_or_404(equipo_id)
+    payload = request.get_json(silent=True) or {}
+    serie_id = payload.get("insumo_serie_id")
+    if not serie_id:
+        return jsonify({"ok": False, "message": "Debe indicar insumo_serie_id"}), 400
+
+    try:
+        serie_id_int = int(serie_id)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "message": "Identificador de serie inválido"}), 400
+
+    serie = (
+        InsumoSerie.query.filter_by(id=serie_id_int, equipo_id=equipo.id)
+        .options(selectinload(InsumoSerie.insumo))
+        .first()
+    )
+    if not serie:
+        return jsonify({"ok": False, "message": "La serie no está asociada a este equipo"}), 404
+
+    asignacion = (
+        EquipoInsumo.query.filter_by(
+            equipo_id=equipo.id, insumo_serie_id=serie.id, fecha_desasociacion=None
+        )
+        .order_by(EquipoInsumo.fecha_asociacion.desc())
+        .first()
+    )
+    if not asignacion:
+        return jsonify({"ok": False, "message": "No se encontró la asociación activa"}), 404
+
+    insumo = serie.insumo
+    serie.estado = SerieEstado.LIBRE
+    serie.equipo_id = None
+    insumo.ajustar_stock(1)
+    asignacion.fecha_desasociacion = func.now()
+
+    movimiento = InsumoMovimiento(
+        insumo=insumo,
+        usuario=current_user if getattr(current_user, "is_authenticated", False) else None,
+        equipo_id=equipo.id,
+        tipo=MovimientoTipo.INGRESO,
+        cantidad=1,
+        motivo="Desasociación de equipo",
+    )
+    db.session.add(movimiento)
+    equipo.registrar_evento(
+        current_user,
+        "Desasociación de insumo",
+        f"{insumo.nombre} · {serie.nro_serie}",
+    )
+    db.session.commit()
+
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Insumo removido",
+            "serie_id": serie.id,
+            "nro_serie": serie.nro_serie,
+        }
     )
 
 

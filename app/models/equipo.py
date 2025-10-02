@@ -23,14 +23,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
-from .insumo import equipo_insumos
-
 if TYPE_CHECKING:  # pragma: no cover
     from .acta import ActaItem
     from .adjunto import Adjunto
     from .equipo_adjunto import EquipoAdjunto
     from .hospital import Hospital, Oficina, Servicio
-    from .insumo import Insumo
+    from .insumo import EquipoInsumo, Insumo, InsumoSerie
     from .usuario import Usuario
 
 
@@ -131,8 +129,14 @@ class Equipo(Base):
     tipo: Mapped["TipoEquipo"] = relationship("TipoEquipo", back_populates="equipos")
     servicio: Mapped["Servicio | None"] = relationship("Servicio")
     oficina: Mapped["Oficina | None"] = relationship("Oficina", back_populates="equipos")
-    insumos: Mapped[list["Insumo"]] = relationship(
-        "Insumo", secondary=equipo_insumos, back_populates="equipos"
+    insumos_asociados: Mapped[list["EquipoInsumo"]] = relationship(
+        "EquipoInsumo",
+        back_populates="equipo",
+        cascade="all, delete-orphan",
+    )
+    insumos_series: Mapped[list["InsumoSerie"]] = relationship(
+        "InsumoSerie",
+        back_populates="equipo",
     )
     acta_items: Mapped[list["ActaItem"]] = relationship("ActaItem", back_populates="equipo")
     adjuntos: Mapped[list["Adjunto"]] = relationship("Adjunto", back_populates="equipo")
@@ -163,6 +167,24 @@ class Equipo(Base):
         self.historial.append(
             EquipoHistorial(usuario=usuario, accion=accion, descripcion=descripcion)
         )
+
+    @property
+    def insumos(self) -> list["Insumo"]:
+        """Return insumos currently asociados al equipo (compat API)."""
+
+        activos = [
+            asignacion
+            for asignacion in self.insumos_asociados
+            if asignacion.fecha_desasociacion is None
+        ]
+        vistos: set[int] = set()
+        resultado: list["Insumo"] = []
+        for asignacion in activos:
+            if asignacion.insumo_id in vistos:
+                continue
+            vistos.add(asignacion.insumo_id)
+            resultado.append(asignacion.insumo)
+        return resultado
 
 
 class EquipoHistorial(Base):

@@ -5,7 +5,7 @@ from flask_wtf import FlaskForm
 from wtforms import DecimalField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
 
-from app.forms.fields import CSVIntegerListField, HiddenIntegerField
+from app.forms.fields import HiddenIntegerField
 from app.models import Equipo, MovimientoTipo
 
 
@@ -23,17 +23,7 @@ class InsumoForm(FlaskForm):
         validators=[Optional(), NumberRange(min=0)],
         places=2,
     )
-    equipos = CSVIntegerListField("Equipos asociados", validators=[Optional()])
     submit = SubmitField("Guardar")
-
-    def validate_equipos(self, field: CSVIntegerListField) -> None:  # type: ignore[override]
-        if not field.data:
-            return
-        existentes = Equipo.query.filter(Equipo.id.in_(field.data)).all()
-        encontrados = {equipo.id for equipo in existentes}
-        faltantes = [str(eid) for eid in field.data if eid not in encontrados]
-        if faltantes:
-            raise ValidationError("Algunos equipos seleccionados no existen")
 
 
 class MovimientoForm(FlaskForm):

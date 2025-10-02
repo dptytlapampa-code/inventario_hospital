@@ -1,13 +1,13 @@
 """Blueprint for consumable management."""
 from __future__ import annotations
 
-from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, g, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
 from app.extensions import db
 from app.forms.insumo import InsumoForm, MovimientoForm
-from app.models import Equipo, Insumo, MovimientoTipo, Modulo
+from app.models import Equipo, Insumo, InsumoSerie, MovimientoTipo, Modulo, SerieEstado
 from app.security import permissions_required, require_hospital_access
 from app.services import insumo_service
 from app.services.audit_service import log_action
@@ -82,10 +82,6 @@ def crear():
         )
         db.session.add(insumo)
         db.session.flush()
-        if form.equipos.data:
-            insumo.equipos = (
-                Equipo.query.filter(Equipo.id.in_(form.equipos.data)).all()
-            )
         db.session.commit()
         flash("Insumo creado", "success")
         log_action(usuario_id=current_user.id, accion="crear", modulo="insumos", tabla="insumos", registro_id=insumo.id)
@@ -94,7 +90,6 @@ def crear():
         "insumos/formulario.html",
         form=form,
         titulo="Nuevo insumo",
-        equipos_options=equipment_options_for_ids(form.equipos.data),
     )
 
 
@@ -105,8 +100,6 @@ def crear():
 def editar(insumo_id: int):
     insumo = Insumo.query.get_or_404(insumo_id)
     form = InsumoForm(obj=insumo)
-    if request.method == "GET":
-        form.equipos.data = [equipo.id for equipo in insumo.equipos]
     if form.validate_on_submit():
         insumo.nombre = form.nombre.data
         insumo.numero_serie = form.numero_serie.data or None
@@ -115,12 +108,6 @@ def editar(insumo_id: int):
         insumo.stock = form.stock.data
         insumo.stock_minimo = form.stock_minimo.data or 0
         insumo.costo_unitario = form.costo_unitario.data
-        if form.equipos.data:
-            insumo.equipos = (
-                Equipo.query.filter(Equipo.id.in_(form.equipos.data)).all()
-            )
-        else:
-            insumo.equipos = []
         db.session.commit()
         log_action(usuario_id=current_user.id, accion="editar", modulo="insumos", tabla="insumos", registro_id=insumo.id)
         flash("Insumo actualizado", "success")
@@ -130,8 +117,42 @@ def editar(insumo_id: int):
         form=form,
         titulo="Editar insumo",
         insumo=insumo,
-        equipos_options=equipment_options_for_ids(form.equipos.data),
     )
+
+
+@insumos_bp.get("/series")
+@login_required
+@permissions_required("inventario:write")
+def series_disponibles():
+    query = (request.args.get("q") or "").strip()
+    limit = request.args.get("limit", type=int) or 10
+    limit = max(1, min(limit, 20))
+
+    base_query = (
+        InsumoSerie.query.join(Insumo, Insumo.id == InsumoSerie.insumo_id)
+        .filter(InsumoSerie.estado == SerieEstado.LIBRE)
+        .order_by(InsumoSerie.nro_serie.asc())
+    )
+    if query:
+        like = f"%{query}%"
+        base_query = base_query.filter(
+            or_(
+                InsumoSerie.nro_serie.ilike(like),
+                Insumo.nombre.ilike(like),
+            )
+        )
+
+    series = base_query.limit(limit).all()
+    items = [
+        {
+            "id": serie.nro_serie,
+            "text": f"{serie.nro_serie} · {serie.insumo.nombre if serie.insumo else ''}".strip(),
+            "serie_id": serie.id,
+            "insumo_id": serie.insumo_id,
+        }
+        for serie in series
+    ]
+    return jsonify({"items": items})
 
 
 @insumos_bp.route("/<int:insumo_id>")
