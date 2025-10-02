@@ -281,9 +281,11 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         HospitalUsuarioRol,
         Insumo,
         InsumoMovimiento,
+        InsumoSerie,
         Licencia,
         Modulo,
         MovimientoTipo,
+        SerieEstado,
         Oficina,
         Permiso,
         Rol,
@@ -294,8 +296,8 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         TipoEquipo,
         TipoLicencia,
         Usuario,
+        EquipoInsumo,
         EstadoLicencia,
-        equipo_insumos,
     )
 
     _ = (
@@ -312,9 +314,11 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         HospitalUsuarioRol,
         Insumo,
         InsumoMovimiento,
+        InsumoSerie,
         Licencia,
         Modulo,
         MovimientoTipo,
+        SerieEstado,
         Oficina,
         Permiso,
         Rol,
@@ -325,8 +329,9 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         TipoEquipo,
         TipoLicencia,
         Usuario,
+        EquipoInsumo,
         EstadoLicencia,
-        equipo_insumos,
+        SerieEstado,
     )
 
     return app

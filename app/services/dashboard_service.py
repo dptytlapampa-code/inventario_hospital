@@ -8,6 +8,7 @@ from sqlalchemy.sql import false
 
 from app.extensions import db
 from app.models import (
+    EquipoInsumo,
     EstadoEquipo,
     EstadoLicencia,
     Equipo,
@@ -16,7 +17,6 @@ from app.models import (
     Licencia,
     TipoEquipo,
     Usuario,
-    equipo_insumos,
 )
 from app.utils.scope import ScopeValue, get_user_hospital_scope
 
@@ -40,17 +40,22 @@ def _insumo_scope_filter(scope: ScopeValue):
         return false()
     associated = (
         select(1)
-        .select_from(equipo_insumos.join(Equipo, equipo_insumos.c.equipo_id == Equipo.id))
+        .select_from(EquipoInsumo)
+        .join(Equipo, EquipoInsumo.equipo_id == Equipo.id)
         .where(
-            equipo_insumos.c.insumo_id == Insumo.id,
+            EquipoInsumo.insumo_id == Insumo.id,
+            EquipoInsumo.fecha_desasociacion.is_(None),
             Equipo.hospital_id.in_(scope),
         )
         .exists()
     )
     any_association = (
         select(1)
-        .select_from(equipo_insumos)
-        .where(equipo_insumos.c.insumo_id == Insumo.id)
+        .select_from(EquipoInsumo)
+        .where(
+            EquipoInsumo.insumo_id == Insumo.id,
+            EquipoInsumo.fecha_desasociacion.is_(None),
+        )
         .exists()
     )
     return or_(associated, ~any_association)

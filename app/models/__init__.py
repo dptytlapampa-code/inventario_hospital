@@ -10,7 +10,7 @@ from .equipo import Equipo, EquipoHistorial, EstadoEquipo, TipoEquipo
 from .equipo_adjunto import EquipoAdjunto
 from .hospital import Hospital, Oficina, Servicio
 from .hospital_usuario_rol import HospitalUsuarioRol
-from .insumo import Insumo, InsumoMovimiento, MovimientoTipo, equipo_insumos
+from .insumo import EquipoInsumo, Insumo, InsumoMovimiento, InsumoSerie, MovimientoTipo, SerieEstado
 from .licencia import Licencia, TipoLicencia, EstadoLicencia
 from .permisos import Modulo, Permiso
 from .rol import Rol
@@ -37,8 +37,10 @@ __all__ = [
     "HospitalUsuarioRol",
     "Insumo",
     "InsumoMovimiento",
+    "InsumoSerie",
+    "EquipoInsumo",
     "MovimientoTipo",
-    "equipo_insumos",
+    "SerieEstado",
     "Licencia",
     "TipoLicencia",
     "EstadoLicencia",

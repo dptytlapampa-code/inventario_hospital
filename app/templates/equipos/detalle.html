@@ -104,17 +104,48 @@
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-header">Insumos asociados</div>
-      <ul class="list-group list-group-flush">
-        {% for insumo in insumos %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ insumo.nombre }}</span>
-          <span class="badge bg-secondary">Stock: {{ insumo.stock }}</span>
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted">Sin insumos vinculados.</li>
-        {% endfor %}
-      </ul>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Insumos asociados</span>
+        {% if current_user.has_permission('inventario:write') %}
+        <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#asociarInsumoModal">Asociar insumo</button>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle" data-insumos-table data-remove-url="{{ url_for('equipos.quitar_insumo', equipo_id=equipo.id) }}" data-can-remove="{{ '1' if current_user.has_permission('inventario:write') else '0' }}" data-empty-colspan="{% if current_user.has_permission('inventario:write') %}5{% else %}4{% endif %}">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Insumo</th>
+                <th scope="col">Nº de serie</th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Asignado por</th>
+                {% if current_user.has_permission('inventario:write') %}
+                <th scope="col" class="text-end">Acciones</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for asignacion in insumos %}
+              <tr data-insumo-row data-serie-id="{{ asignacion.serie.id }}">
+                <td>{{ asignacion.insumo.nombre }}</td>
+                <td class="font-monospace">{{ asignacion.serie.nro_serie }}</td>
+                <td>{{ asignacion.fecha_asociacion.strftime('%d/%m/%Y %H:%M') if asignacion.fecha_asociacion else '—' }}</td>
+                <td>{{ asignacion.asociado_por.nombre if asignacion.asociado_por else '—' }}</td>
+                {% if current_user.has_permission('inventario:write') %}
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-danger" type="button" data-remove-insumo>Quitar</button>
+                </td>
+                {% endif %}
+              </tr>
+              {% else %}
+              <tr data-empty-row>
+                <td colspan="{% if current_user.has_permission('inventario:write') %}5{% else %}4{% endif %}" class="text-muted text-center py-3">Sin insumos vinculados.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
   <div class="col-md-6">
@@ -297,6 +328,31 @@
     </div>
   </div>
 </div>
+{% if current_user.has_permission('inventario:write') %}
+<div class="modal fade" id="asociarInsumoModal" tabindex="-1" aria-labelledby="asociarInsumoLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" data-associate-form data-associate-url="{{ url_for('equipos.asociar_insumo', equipo_id=equipo.id) }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="asociarInsumoLabel">Asociar insumo por Nº de serie</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="nroSerieSelect">Número de serie</label>
+          <select class="form-select" id="nroSerieSelect" name="nro_serie" data-control="tom-select" data-endpoint="{{ url_for('insumos.series_disponibles') }}" data-placeholder="Buscar serie disponible…" data-min-chars="2" required></select>
+          <div class="form-text">Se muestran únicamente series disponibles para asociar.</div>
+        </div>
+        <div class="alert alert-danger d-none" role="alert" data-associate-error></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" type="submit" data-associate-submit>Asociar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" data-toast-container aria-live="polite" aria-atomic="true"></div>
 {% endblock %}
 
 {% block scripts %}
