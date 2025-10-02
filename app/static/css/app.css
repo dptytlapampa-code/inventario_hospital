@@ -11,14 +11,35 @@
 }
 
 /* Dark */
-[data-bs-theme='dark']{
+[data-bs-theme='dark'] {
   --sidebar-bg: #101828;
-  --sidebar-link-color: #ffffff;        /* blanco */
-  --sidebar-section-title-color: rgba(255,255,255,.95);
-  --sidebar-link-hover-bg: rgba(255,255,255,.08);
-  --sidebar-link-active-bg: rgba(255,255,255,.12);
+  --sidebar-link-color: #ffffff;
+  --sidebar-section-title-color: rgba(255, 255, 255, .95);
+  --sidebar-link-hover-bg: rgba(255, 255, 255, .08);
+  --sidebar-link-active-bg: rgba(255, 255, 255, .12);
   --sidebar-link-active-border: #6ea8fe;
+
+  /* Fix para formularios */
+  --bs-body-color: #f8f9fa;
+  --bs-body-bg: #101828;
+
+  /* Inputs, selects, textarea */
+  input, select, textarea {
+    background-color: #1e293b !important;  /* gris oscuro */
+    color: #ffffff !important;             /* texto blanco */
+    border: 1px solid #334155;             /* borde gris */
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;  /* gris claro */
+  }
+
+  label, .form-label, .form-text {
+    color: #f8f9fa !important;
+  }
 }
+
 
 /* Garantiza que el menú use esas variables */
 .sidebar .nav-link{
