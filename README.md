@@ -17,6 +17,12 @@ Sistema web completo y listo para producción para la gestión de inventario hos
    .\scripts\run_dev.ps1
    ```
 
+   Si preferís especificar la política de ejecución en el mismo comando, podés usar:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\run_dev.ps1
+   ```
+
    El script crea `.venv`, instala dependencias, aplica migraciones y corre `flask seed demo` si la base `inventario.db` no existe.
 
 4. Ingresá a <http://127.0.0.1:5000>. Usuario demo listo: **admin / Cambiar123!**.
