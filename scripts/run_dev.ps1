@@ -54,17 +54,26 @@ try {
     $isNewDatabase = -not (Test-Path $databasePath)
 
     Write-Host "Aplicando migraciones..." -ForegroundColor Cyan
-    flask db upgrade
+    flask dbsafe-upgrade
+    if ($LASTEXITCODE -ne 0) {
+        throw "La migración falló con código de salida $LASTEXITCODE."
+    }
 
     if ($isNewDatabase) {
         Write-Host "Base de datos nueva detectada. Ejecutando seed demo..." -ForegroundColor Cyan
         flask seed demo
+        if ($LASTEXITCODE -ne 0) {
+            throw "La carga de datos demo falló con código de salida $LASTEXITCODE."
+        }
     } else {
         Write-Host "Base de datos existente detectada en $databasePath. Puede ejecutar 'flask seed demo' manualmente si necesita resembrar." -ForegroundColor DarkGray
     }
 
     Write-Host "Levantando servidor en http://127.0.0.1:5000 ..." -ForegroundColor Green
     flask run --host=127.0.0.1 --port=5000
+    if ($LASTEXITCODE -ne 0) {
+        throw "El servidor Flask terminó con código de salida $LASTEXITCODE."
+    }
 }
 catch [System.Management.Automation.CommandNotFoundException] {
     Write-Error $_.Exception.Message
