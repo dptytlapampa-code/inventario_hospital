@@ -1,50 +1,38 @@
-/* Light por defecto */
-:root,
+/* Light */
 [data-bs-theme='light']{
   --sidebar-width: 260px;
   --sidebar-bg: #f8fafc;
-  --sidebar-link-color: #0f172a;        /* negro/azul muy oscuro */
-  --sidebar-section-title-color: rgba(15, 23, 42, .95);
-  --sidebar-link-hover-bg: rgba(15, 23, 42, .06);
-  --sidebar-link-active-bg: rgba(15, 23, 42, .08);
+  --sidebar-link-color: #0f172a;                /* texto oscuro */
+  --sidebar-section-title-color: rgba(15,23,42,.95);
+  --sidebar-link-hover-bg: rgba(15,23,42,.06);
+  --sidebar-link-active-bg: rgba(15,23,42,.08);
   --sidebar-link-active-border: #0d6efd;
 }
 
 /* Dark */
-[data-bs-theme='dark'] {
-  --sidebar-bg: #101828;
-  --sidebar-link-color: #ffffff;
-  --sidebar-section-title-color: rgba(255, 255, 255, .95);
-  --sidebar-link-hover-bg: rgba(255, 255, 255, .08);
-  --sidebar-link-active-bg: rgba(255, 255, 255, .12);
+[data-bs-theme='dark']{
+  --sidebar-bg: #0f1f33;                        /* fondo oscuro */
+  --sidebar-link-color: #ffffff;                /* texto blanco */
+  --sidebar-section-title-color: rgba(255,255,255,.95);
+  --sidebar-link-hover-bg: rgba(255,255,255,.08);
+  --sidebar-link-active-bg: rgba(255,255,255,.12);
   --sidebar-link-active-border: #6ea8fe;
-
-  /* Fix para formularios */
-  --bs-body-color: #f8f9fa;
-  --bs-body-bg: #101828;
-
-  /* Inputs, selects, textarea */
-  input, select, textarea {
-    background-color: #1e293b !important;  /* gris oscuro */
-    color: #ffffff !important;             /* texto blanco */
-    border: 1px solid #334155;             /* borde gris */
-  }
-
-  input::placeholder,
-  textarea::placeholder {
-    color: rgba(255, 255, 255, 0.6) !important;  /* gris claro */
-  }
-
-  label, .form-label, .form-text {
-    color: #f8f9fa !important;
-  }
 }
-
 
 /* Garantiza que el menú use esas variables */
-.sidebar .nav-link{
+.sidebar{ background-color: var(--sidebar-bg); }
+.sidebar .nav-link,
+.sidebar .nav-link .submenu-toggle,
+.sidebar .submenu .nav-link{
   color: var(--sidebar-link-color) !important;
 }
+.sidebar .nav-link:hover{ background-color: var(--sidebar-link-hover-bg); }
+.sidebar .nav-link.active{
+  background-color: var(--sidebar-link-active-bg);
+  border-left: 3px solid var(--sidebar-link-active-border);
+}
+.sidebar .section-title{ color: var(--sidebar-section-title-color); }
+
 
 body {
   min-height: 100vh;
