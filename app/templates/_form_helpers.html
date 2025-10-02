@@ -23,6 +23,36 @@
   {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=select_class|trim, extra_attrs=attrs) }}
 {%- endmacro %}
 
+{% macro render_equipo_selector(field, form_group_class='mb-3', label='Equipo', placeholder='Buscar equipo…', multiple=False, allow_clear=False, initial_options=None, help_text=None, min_chars=1) -%}
+  {% set select_id = field.id ~ '-select' %}
+  {% set options_json = (initial_options or []) | tojson %}
+  <div class="{{ form_group_class }}">
+    <label class="form-label" for="{{ select_id }}">{{ label }}</label>
+    <select
+      id="{{ select_id }}"
+      class="form-select"
+      {% if multiple %}multiple{% endif %}
+      data-equipo-select
+      data-target="#{{ field.id }}"
+      data-placeholder="{{ placeholder }}"
+      data-multiple="{{ 'true' if multiple else 'false' }}"
+      data-allow-clear="{{ 'true' if allow_clear else 'false' }}"
+      data-endpoint="{{ url_for('api.search_equipos') }}"
+      data-initial-options='{{ options_json|safe }}'
+      data-min-chars="{{ min_chars }}"
+    ></select>
+    {{ field() }}
+    {% if help_text %}
+      <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+    {% if field.errors %}
+      {% for error in field.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+{%- endmacro %}
+
 {% macro render_lookup(field, hidden_field, endpoint, form_group_class='mb-3', label_class='form-label', placeholder='', params=None, required_params=None, reset_targets=None, requires_message=None, extra_attrs=None, allow_empty=False, empty_label='Sin definir', min_chars=2) -%}
   {% set attrs = {
     'class': 'form-control' ~ (' is-invalid' if field.errors else ''),

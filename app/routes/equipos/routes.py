@@ -21,6 +21,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from werkzeug.utils import secure_filename
 
@@ -844,19 +845,24 @@ def actas_completas(equipo_id: int):
 
 @equipos_bp.route("/tipos", methods=["GET", "POST"])
 @login_required
-@require_roles("superadmin")
+@require_roles("admin", "superadmin")
 def gestionar_tipos():
     """Allow superadministrators to create and maintain equipment types."""
 
     create_form = TipoEquipoCreateForm(prefix="nuevo")
     if create_form.validate_on_submit():
-        nombre = (create_form.nombre.data or "").strip()
-        if not nombre:
-            create_form.nombre.errors.append("Ingrese un nombre válido")
-        else:
-            nuevo = TipoEquipo(nombre=nombre, activo=True)
-            db.session.add(nuevo)
+        nuevo = TipoEquipo(
+            nombre=(create_form.nombre.data or "").strip(),
+            descripcion=(create_form.descripcion.data or "").strip() or None,
+            activo=bool(create_form.activo.data),
+        )
+        db.session.add(nuevo)
+        try:
             db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            create_form.nombre.errors.append("Ya existe un tipo con ese nombre")
+        else:
             flash("Tipo de equipo agregado", "success")
             return redirect(url_for("equipos.gestionar_tipos"))
 
@@ -869,6 +875,7 @@ def gestionar_tipos():
         form = TipoEquipoUpdateForm(prefix=f"tipo-{tipo.id}")
         form.tipo_id.data = str(tipo.id)
         form.nombre.data = tipo.nombre
+        form.descripcion.data = tipo.descripcion
         form.activo.data = tipo.activo
         update_forms.append((tipo, form))
 
@@ -882,7 +889,7 @@ def gestionar_tipos():
 
 @equipos_bp.route("/tipos/<int:tipo_id>", methods=["POST"])
 @login_required
-@require_roles("superadmin")
+@require_roles("admin", "superadmin")
 def actualizar_tipo(tipo_id: int):
     """Persist updates to an equipment type."""
 
@@ -905,7 +912,13 @@ def actualizar_tipo(tipo_id: int):
         return redirect(url_for("equipos.gestionar_tipos"))
 
     tipo.nombre = (form.nombre.data or "").strip()
+    tipo.descripcion = (form.descripcion.data or "").strip() or None
     tipo.activo = bool(form.activo.data)
-    db.session.commit()
-    flash("Tipo de equipo actualizado", "success")
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Ya existe un tipo con ese nombre", "danger")
+    else:
+        flash("Tipo de equipo actualizado", "success")
     return redirect(url_for("equipos.gestionar_tipos"))

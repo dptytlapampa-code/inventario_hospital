@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from '_form_helpers.html' import render_select, render_textarea, render_ajax_select %}
+{% from '_form_helpers.html' import render_select, render_textarea, render_ajax_select, render_equipo_selector %}
 {% block title %}Generar acta{% endblock %}
 {% block header_title %}Generar acta{% endblock %}
 {% block content %}
@@ -29,7 +29,15 @@
   <div class="form-section">
     <div class="section-header">Equipos y observaciones</div>
     <div class="section-body row g-3">
-      {{ render_select(form.equipos, form_group_class='col-12', multiple=true, size=8, label_class='form-label') }}
+      {{ render_equipo_selector(
+        form.equipos,
+        form_group_class='col-12',
+        label='Equipos',
+        placeholder='Busque equipos por tipo, marca o serie…',
+        multiple=True,
+        allow_clear=True,
+        initial_options=equipos_options or []
+      ) }}
       {{ render_textarea(form.observaciones, form_group_class='col-12', rows=3, placeholder='Observaciones adicionales') }}
     </div>
   </div>

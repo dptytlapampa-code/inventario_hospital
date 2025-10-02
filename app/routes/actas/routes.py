@@ -23,6 +23,7 @@ from app.forms.acta import ActaForm
 from app.models import Acta, ActaItem, Modulo
 from app.security import permissions_required, require_hospital_access
 from app.services.audit_service import log_action
+from app.services.equipo_service import equipment_options_for_ids
 from app.services.pdf_service import build_acta_pdf
 
 actas_bp = Blueprint("actas", __name__, url_prefix="/actas")
@@ -97,7 +98,11 @@ def crear():
         log_action(usuario_id=current_user.id, accion="crear", modulo="actas", tabla="actas", registro_id=acta.id)
         flash("Acta generada correctamente", "success")
         return redirect(url_for("actas.detalle", acta_id=acta.id))
-    return render_template("actas/crear.html", form=form)
+    return render_template(
+        "actas/crear.html",
+        form=form,
+        equipos_options=equipment_options_for_ids(form.equipos.data),
+    )
 
 
 @actas_bp.route("/<int:acta_id>")

@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
-from wtforms import SelectField, SelectMultipleField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, Optional
+from wtforms import SelectField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
+from app.forms.fields import CSVIntegerListField
 from app.models import Equipo, Hospital, Oficina, Servicio, TipoActa
 
 
@@ -31,7 +32,7 @@ class ActaForm(FlaskForm):
         validate_choice=False,
         render_kw={"data-placeholder": "Seleccione un servicio para buscar oficinas"},
     )
-    equipos = SelectMultipleField("Equipos", coerce=int, validators=[DataRequired()])
+    equipos = CSVIntegerListField("Equipos", validators=[DataRequired()])
     observaciones = TextAreaField("Observaciones", validators=[Optional(), Length(max=500)])
     submit = SubmitField("Generar acta")
 
@@ -40,9 +41,8 @@ class ActaForm(FlaskForm):
         self.hospital_id.choices = [(h.id, h.nombre) for h in Hospital.query.order_by(Hospital.nombre)]
         self._preload_selected_servicio()
         self._preload_selected_oficina()
-        self.equipos.choices = [
-            (e.id, f"{e.codigo or e.descripcion or e.id}") for e in Equipo.query.order_by(Equipo.descripcion)
-        ]
+        if not self.equipos.data:
+            self.equipos.data = []
 
     def _preload_selected_servicio(self) -> None:
         value = self.servicio_id.data or (self.servicio_id.raw_data[0] if self.servicio_id.raw_data else None)
@@ -77,6 +77,15 @@ class ActaForm(FlaskForm):
             self.oficina_id.choices = [(oficina.id, label)]
         else:
             self.oficina_id.choices = []
+
+    def validate_equipos(self, field: CSVIntegerListField) -> None:  # type: ignore[override]
+        if not field.data:
+            raise ValidationError("Seleccione al menos un equipo")
+        existentes = Equipo.query.filter(Equipo.id.in_(field.data)).all()
+        encontrados = {equipo.id for equipo in existentes}
+        faltantes = [str(eid) for eid in field.data if eid not in encontrados]
+        if faltantes:
+            raise ValidationError("Algunos equipos seleccionados no existen")
 
 
 __all__ = ["ActaForm"]
