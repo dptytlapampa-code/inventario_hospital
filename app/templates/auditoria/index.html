@@ -66,7 +66,7 @@
     <tbody>
       {% for log in pagination.items %}
         <tr>
-          <td>{{ log.created_at.strftime('%d/%m/%Y %H:%M') if log.created_at else '' }}</td>
+          <td>{{ log.created_at|fecha(True) if log.created_at else '' }}</td>
           <td>{{ log.usuario.nombre if log.usuario else 'Sistema' }}</td>
           <td>{{ log.hospital.nombre if log.hospital else '-' }}</td>
           <td>{{ log.modulo or '-' }}</td>

@@ -27,7 +27,7 @@
         <td>{{ adjunto.equipo.descripcion or adjunto.equipo.codigo }}</td>
         <td>{{ adjunto.filename }}</td>
         <td class="text-capitalize">{{ normalize_enum_value(adjunto.tipo).replace('_',' ') }}</td>
-        <td>{{ adjunto.uploaded_at.strftime('%d/%m/%Y') }}</td>
+        <td>{{ adjunto.uploaded_at|fecha(False) }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('adjuntos.detalle', adjunto_id=adjunto.id) }}">Ver</a>
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>

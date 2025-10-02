@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 from pathlib import Path
-from typing import Iterable
 from uuid import uuid4
 
 from flask import (
@@ -16,7 +15,6 @@ from flask import (
     redirect,
     render_template,
     request,
-    send_file,
     url_for,
 )
 from flask_login import current_user, login_required
@@ -28,7 +26,6 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.forms.equipo import (
     EquipoActaFiltroForm,
-    EquipoAdjuntoDeleteForm,
     EquipoAdjuntoForm,
     EquipoFiltroForm,
     EquipoForm,
@@ -58,6 +55,7 @@ from app.models import (
 from app.security import permissions_required, require_hospital_access, require_roles
 from app.services.audit_service import log_action
 from app.services.equipo_service import generate_internal_serial
+from app.services.file_service import equipment_upload_dir, generate_image_thumbnail
 from app.utils import normalize_enum_value
 
 
@@ -451,55 +449,64 @@ def detalle(equipo_id: int):
         )
         .get_or_404(equipo_id)
     )
+
     form_adjuntos = EquipoAdjuntoForm()
+    per_page = current_app.config.get("DEFAULT_PAGE_SIZE", 25)
 
-    historial_entries = sorted(
-        equipo.historial,
-        key=lambda item: item.fecha or datetime.min,
-        reverse=True,
+    insumos_page = request.args.get("insumos_page", type=int, default=1)
+    insumos_query = (
+        EquipoInsumo.query.options(
+            selectinload(EquipoInsumo.insumo),
+            selectinload(EquipoInsumo.serie).selectinload(InsumoSerie.insumo),
+            selectinload(EquipoInsumo.asociado_por),
+        )
+        .filter(
+            EquipoInsumo.equipo_id == equipo.id,
+            EquipoInsumo.fecha_desasociacion.is_(None),
+        )
+        .order_by(EquipoInsumo.fecha_asociacion.desc())
     )
-    historial_recent = historial_entries[:3]
-
-    acta_items: Iterable[ActaItem] = (
-        entry for entry in equipo.acta_items if entry.acta is not None
-    )
-    actas_sorted = sorted(
-        acta_items,
-        key=lambda entry: entry.acta.fecha if entry.acta and entry.acta.fecha else datetime.min,
-        reverse=True,
-    )
-    seen_actas: set[int] = set()
-    actas_unique = []
-    for entry in actas_sorted:
-        acta = entry.acta
-        if not acta or acta.id in seen_actas:
-            continue
-        seen_actas.add(acta.id)
-        actas_unique.append(acta)
-    actas_recent = actas_unique[:3]
-
-    archivos = sorted(
-        equipo.archivos,
-        key=lambda item: item.created_at or item.id,
-        reverse=True,
+    insumos_pagination = insumos_query.paginate(
+        page=insumos_page, per_page=per_page, error_out=False
     )
 
-    insumos_activos = [
-        asignacion
-        for asignacion in equipo.insumos_asociados
-        if asignacion.fecha_desasociacion is None
-    ]
+    historial_page = request.args.get("historial_page", type=int, default=1)
+    historial_query = (
+        EquipoHistorial.query.options(selectinload(EquipoHistorial.usuario))
+        .filter(EquipoHistorial.equipo_id == equipo.id)
+        .order_by(EquipoHistorial.fecha.desc())
+    )
+    historial_pagination = historial_query.paginate(
+        page=historial_page, per_page=per_page, error_out=False
+    )
+
+    actas_page = request.args.get("actas_page", type=int, default=1)
+    actas_query = (
+        Acta.query.join(Acta.items)
+        .filter(ActaItem.equipo_id == equipo.id)
+        .order_by(Acta.fecha.desc())
+        .distinct()
+    )
+    actas_pagination = actas_query.paginate(
+        page=actas_page, per_page=per_page, error_out=False
+    )
+
+    evidencias_page = request.args.get("evidencias_page", type=int, default=1)
+    evidencias_query = (
+        EquipoAdjunto.query.filter(EquipoAdjunto.equipo_id == equipo.id)
+        .order_by(EquipoAdjunto.created_at.desc(), EquipoAdjunto.id.desc())
+    )
+    evidencias_pagination = evidencias_query.paginate(
+        page=evidencias_page, per_page=per_page, error_out=False
+    )
 
     return render_template(
         "equipos/detalle.html",
         equipo=equipo,
-        historial=historial_recent,
-        historial_total=len(historial_entries),
-        actas=actas_recent,
-        actas_total=len(actas_unique),
-        adjuntos=equipo.adjuntos,
-        archivos=archivos,
-        insumos=insumos_activos,
+        insumos_pagination=insumos_pagination,
+        historial_pagination=historial_pagination,
+        actas_pagination=actas_pagination,
+        evidencias_pagination=evidencias_pagination,
         adjunto_form=form_adjuntos,
         tipos_acta=list(TipoActa),
         max_upload_size=current_app.config.get("EQUIPOS_MAX_FILE_SIZE", 10 * 1024 * 1024),
@@ -794,14 +801,6 @@ def _compute_file_size(file_storage) -> int:
     return size
 
 
-def _equipment_upload_dir(equipo_id: int) -> Path:
-    base = Path(current_app.config["EQUIPOS_UPLOAD_FOLDER"])
-    base.mkdir(parents=True, exist_ok=True)
-    target = base / str(equipo_id)
-    target.mkdir(parents=True, exist_ok=True)
-    return target
-
-
 @equipos_bp.route("/<int:equipo_id>/adjuntos/subir", methods=["POST"])
 @login_required
 @permissions_required("inventario:write")
@@ -829,9 +828,12 @@ def subir_adjunto(equipo_id: int):
     original_name = secure_filename(file.filename or "archivo")
     extension = Path(original_name).suffix.lower()
     unique_name = f"{uuid4().hex}{extension}"
-    directory = _equipment_upload_dir(equipo.id)
+    directory = equipment_upload_dir(equipo.id)
     storage_path = directory / unique_name
     file.save(storage_path)
+
+    if (file.mimetype or "").startswith("image/"):
+        generate_image_thumbnail(storage_path)
 
     adjunto = EquipoAdjunto(
         equipo_id=equipo.id,
@@ -853,78 +855,6 @@ def subir_adjunto(equipo_id: int):
     )
     flash("Archivo adjuntado correctamente.", "success")
     return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
-
-
-def _resolve_storage_path(adjunto: EquipoAdjunto) -> Path:
-    configured = Path(current_app.config["EQUIPOS_UPLOAD_FOLDER"]).resolve()
-    stored = Path(adjunto.filepath)
-    if not stored.is_absolute():
-        stored = configured / stored
-    stored = stored.resolve()
-    if configured not in stored.parents and stored != configured:
-        raise FileNotFoundError("Ubicación fuera del directorio permitido")
-    return stored
-
-
-@equipos_bp.route("/<int:equipo_id>/adjuntos/<int:adjunto_id>/descargar")
-@login_required
-@permissions_required("inventario:read")
-@require_hospital_access(Modulo.INVENTARIO)
-def descargar_adjunto(equipo_id: int, adjunto_id: int):
-    adjunto = EquipoAdjunto.query.get_or_404(adjunto_id)
-    if adjunto.equipo_id != equipo_id:
-        abort(404)
-    try:
-        stored_path = _resolve_storage_path(adjunto)
-    except FileNotFoundError:
-        flash("El archivo del adjunto no está disponible.", "warning")
-        return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
-    if not stored_path.exists():
-        flash("El archivo del adjunto no está disponible.", "warning")
-        return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
-    inline = request.args.get("preview") == "1"
-    return send_file(
-        stored_path,
-        as_attachment=not inline,
-        download_name=adjunto.filename,
-    )
-
-
-@equipos_bp.route("/<int:equipo_id>/adjuntos/<int:adjunto_id>/eliminar", methods=["POST"])
-@login_required
-@permissions_required("inventario:write")
-@require_hospital_access(Modulo.INVENTARIO)
-def eliminar_adjunto(equipo_id: int, adjunto_id: int):
-    form = EquipoAdjuntoDeleteForm()
-    if not form.validate_on_submit():
-        flash("No se pudo validar la solicitud. Actualice la página e intente nuevamente.", "danger")
-        return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
-    adjunto = EquipoAdjunto.query.get_or_404(adjunto_id)
-    if adjunto.equipo_id != equipo_id:
-        abort(404)
-    try:
-        stored_path = _resolve_storage_path(adjunto)
-    except FileNotFoundError:
-        stored_path = None
-    if stored_path and stored_path.exists():
-        stored_path.unlink(missing_ok=True)
-        parent = stored_path.parent
-        if parent != stored_path and parent.exists() and not any(parent.iterdir()):
-            parent.rmdir()
-    equipo = Equipo.query.get(equipo_id)
-    db.session.delete(adjunto)
-    if equipo:
-        equipo.registrar_evento(current_user, "Adjunto", f"Archivo {adjunto.filename} eliminado")
-    db.session.commit()
-    log_action(
-        usuario_id=current_user.id,
-        accion="eliminar_adjunto",
-        modulo="inventario",
-        tabla="equipos_adjuntos",
-        registro_id=adjunto.id,
-    )
-    flash("Adjunto eliminado correctamente.", "success")
-    return redirect(url_for("equipos.detalle", equipo_id=equipo_id))
 
 
 @equipos_bp.route("/<int:equipo_id>/historial")

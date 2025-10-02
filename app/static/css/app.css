@@ -483,6 +483,12 @@ body {
   border: 1px solid rgba(191, 119, 6, 0.36);
 }
 
+.status-badge--info {
+  background: rgba(37, 99, 235, 0.15);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.3);
+}
+
 .status-badge--danger {
   background: rgba(185, 28, 28, 0.16);
   color: #7f1d1d;
@@ -503,4 +509,77 @@ body {
 
 .object-fit-cover {
   object-fit: cover;
+}
+
+.pre-wrap {
+  white-space: pre-wrap;
+}
+
+.evidencias-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 576px) {
+  .evidencias-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 992px) {
+  .evidencias-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.evidencia-card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0.75rem;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--bs-card-box-shadow, 0 0.5rem 1rem rgba(15, 23, 42, 0.08));
+}
+
+.evidencia-thumb-wrapper {
+  position: relative;
+  padding-top: 66.66%;
+  background: #f8fafc;
+}
+
+.evidencia-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.evidencia-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #475569;
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.35));
+}
+
+.evidencia-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.evidencia-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from math import log
 from urllib.parse import urljoin, urlparse
+from datetime import date, datetime
 
-from flask import Request, request
+from flask import Request, current_app, request
 
 from .forms import build_select_attrs, render_input_field
 
@@ -58,10 +59,63 @@ def is_safe_redirect_target(target: str | None, req: Request | None = None) -> b
     )
 
 
+def format_spanish_date(value: object, include_time: bool | None = None) -> str:
+    """Return ``value`` formatted as ``dd/mm/aaaa`` (optionally with time).
+
+    ``include_time`` defaults to ``True`` when ``value`` is a :class:`datetime`
+    instance and ``False`` otherwise. Strings in ISO format are parsed
+    opportunistically to provide consistent output without raising errors.
+    """
+
+    if value in {None, "", "null"}:
+        return "—"
+
+    parsed_value: date | datetime | None
+    parsed_value = None
+
+    if isinstance(value, datetime):
+        parsed_value = value
+    elif isinstance(value, date):
+        parsed_value = value
+    elif isinstance(value, str):
+        candidate = value.strip()
+        if not candidate:
+            return "—"
+        try:
+            parsed_value = datetime.fromisoformat(candidate.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                parsed_value = datetime.strptime(candidate, "%d/%m/%Y")
+            except ValueError:
+                try:
+                    current_app.logger.debug(
+                        "No se pudo convertir la fecha '%s' al formato esperado.",
+                        candidate,
+                    )
+                except RuntimeError:
+                    pass
+                return candidate
+
+    if parsed_value is None:
+        return "—"
+
+    show_time = include_time
+    if show_time is None:
+        show_time = isinstance(parsed_value, datetime)
+
+    if isinstance(parsed_value, datetime):
+        if show_time:
+            return parsed_value.strftime("%d/%m/%Y %H:%M")
+        return parsed_value.strftime("%d/%m/%Y")
+
+    return parsed_value.strftime("%d/%m/%Y")
+
+
 __all__ = [
     "render_input_field",
     "build_select_attrs",
     "normalize_enum_value",
     "is_safe_redirect_target",
     "humanize_bytes",
+    "format_spanish_date",
 ]

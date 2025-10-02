@@ -5,7 +5,7 @@
 <div class="card mb-3">
   <div class="card-body">
     <p><strong>Tipo:</strong> {{ normalize_enum_value(acta.tipo)|title }}</p>
-    <p><strong>Fecha:</strong> {{ acta.fecha.strftime('%d/%m/%Y') }}</p>
+    <p><strong>Fecha:</strong> {{ acta.fecha|fecha }}</p>
     <p><strong>Hospital:</strong> {{ acta.hospital.nombre if acta.hospital else '—' }}</p>
     <p><strong>Observaciones:</strong> {{ acta.observaciones or '—' }}</p>
     <p><strong>Equipos:</strong></p>

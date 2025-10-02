@@ -7,7 +7,7 @@
     <p><strong>Equipo:</strong> {{ adjunto.equipo.descripcion or adjunto.equipo.codigo }}</p>
     <p><strong>Tipo:</strong> {{ normalize_enum_value(adjunto.tipo) }}</p>
     <p><strong>Subido por:</strong> {{ adjunto.uploaded_by.nombre if adjunto.uploaded_by else '—' }}</p>
-    <p><strong>Fecha:</strong> {{ adjunto.uploaded_at.strftime('%d/%m/%Y') }}</p>
+    <p><strong>Fecha:</strong> {{ adjunto.uploaded_at|fecha(False) }}</p>
     <p><strong>Descripción:</strong> {{ adjunto.descripcion or '—' }}</p>
     <a class="btn btn-primary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>
     <a class="btn btn-outline-secondary" href="{{ url_for('adjuntos.listar') }}">Volver</a>

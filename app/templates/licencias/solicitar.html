@@ -6,8 +6,8 @@
 <form method="post" class="row g-3" novalidate>
   {{ form.hidden_tag() }}
   {{ render_select(form.tipo, form_group_class='col-md-4') }}
-  {{ render_field(form.fecha_inicio, form_group_class='col-md-4', input_class='form-control', input_type='date') }}
-  {{ render_field(form.fecha_fin, form_group_class='col-md-4', input_class='form-control', input_type='date') }}
+  {{ render_field(form.fecha_inicio, form_group_class='col-md-4', input_class='form-control', input_type='text') }}
+  {{ render_field(form.fecha_fin, form_group_class='col-md-4', input_class='form-control', input_type='text') }}
   {{ render_textarea(form.motivo, form_group_class='col-12', rows=3) }}
   <div class="col-12">
     {{ form.submit(class="btn btn-primary") }}

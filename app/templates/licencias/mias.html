@@ -16,10 +16,10 @@
         {{ render_select(form.tipo, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-select form-select-sm') }}
       </div>
       <div class="col-6 col-md-2">
-        {{ render_field(form.fecha_desde, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-control form-control-sm', input_type='date') }}
+        {{ render_field(form.fecha_desde, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-control form-control-sm', input_type='text') }}
       </div>
       <div class="col-6 col-md-2">
-        {{ render_field(form.fecha_hasta, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-control form-control-sm', input_type='date') }}
+        {{ render_field(form.fecha_hasta, form_group_class='mb-0', label_class='form-label fw-semibold', input_class='form-control form-control-sm', input_type='text') }}
       </div>
       <div class="col-12 col-md-2 d-flex gap-2">
         {{ form.submit(class_='btn btn-primary btn-sm flex-grow-1') }}
@@ -49,7 +49,7 @@
           <tr data-license-row="{{ licencia.id }}">
             <td class="fw-semibold">{{ normalize_enum_value(licencia.tipo) }}</td>
             <td>
-              <div>{{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} – {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</div>
+              <div>{{ licencia.fecha_inicio|fecha }} – {{ licencia.fecha_fin|fecha }}</div>
               <div class="text-muted small">{{ licencia.dias_habiles() }} días hábiles</div>
             </td>
             <td>{{ licencia.hospital.nombre if licencia.hospital else '—' }}</td>
@@ -64,7 +64,7 @@
               <div class="text-danger">{{ licencia.motivo_rechazo }}</div>
               {% endif %}
               {% if licencia.decisor %}
-              <div class="small text-muted mt-2">Decidido por {{ licencia.decisor.nombre }}{% if licencia.decidido_en %} el {{ licencia.decidido_en.strftime('%d/%m/%Y %H:%M') }}{% endif %}</div>
+              <div class="small text-muted mt-2">Decidido por {{ licencia.decisor.nombre }}{% if licencia.decidido_en %} el {{ licencia.decidido_en|fecha(True) }}{% endif %}</div>
               {% endif %}
             </td>
             <td class="text-end" data-license-actions>

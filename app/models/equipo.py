@@ -80,6 +80,7 @@ class EstadoEquipo(str, Enum):
 
     OPERATIVO = "operativo"
     SERVICIO_TECNICO = "servicio_tecnico"
+    EN_TALLER = "en_taller"
     DE_BAJA = "de_baja"
     PRESTADO = "prestado"
 

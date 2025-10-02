@@ -44,7 +44,7 @@
       <tr>
         <td>{{ licencia.usuario.nombre }}</td>
         <td>{{ licencia.hospital.nombre if licencia.hospital else '—' }}</td>
-        <td>{{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} - {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</td>
+        <td>{{ licencia.fecha_inicio|fecha }} - {{ licencia.fecha_fin|fecha }}</td>
         <td class="text-capitalize">{{ normalize_enum_value(licencia.estado) }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('licencias.detalle', licencia_id=licencia.id) }}">Detalle</a>

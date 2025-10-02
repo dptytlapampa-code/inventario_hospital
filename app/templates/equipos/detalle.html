@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_pagination.html' import render_pagination %}
 {% block title %}Detalle de equipo{% endblock %}
 {% block content %}
 {% set equipo_titulo = equipo.titulo %}
@@ -6,6 +7,7 @@
 {% set estado_clases = {
   'OPERATIVO': 'status-badge--success',
   'SERVICIO_TECNICO': 'status-badge--warning',
+  'EN_TALLER': 'status-badge--info',
   'DE_BAJA': 'status-badge--danger',
   'PRESTADO': 'status-badge--secondary'
 } %}
@@ -76,7 +78,7 @@
     <div class="card h-100">
       <div class="card-body">
         <h6 class="text-muted">Fechas</h6>
-        <p class="mb-0">Ingreso: {{ equipo.fecha_ingreso or '—' }}<br>Instalación: {{ equipo.fecha_instalacion or '—' }}<br>Garantía: {{ equipo.garantia_hasta or '—' }}</p>
+        <p class="mb-0">Ingreso: {{ equipo.fecha_ingreso|fecha }}<br>Instalación: {{ equipo.fecha_instalacion|fecha }}<br>Garantía: {{ equipo.garantia_hasta|fecha }}</p>
       </div>
     </div>
   </div>
@@ -97,6 +99,14 @@
           <dt class="col-6">Tipo adquisición</dt>
           <dd class="col-6">{{ equipo.tipo_adquisicion|replace('_', ' ')|title if equipo.tipo_adquisicion else '—' }}</dd>
         </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Observaciones</h6>
+        <p class="mb-0 pre-wrap">{{ equipo.observaciones or 'Sin observaciones registradas.' }}</p>
       </div>
     </div>
   </div>
@@ -125,11 +135,11 @@
               </tr>
             </thead>
             <tbody>
-              {% for asignacion in insumos %}
+              {% for asignacion in insumos_pagination.items %}
               <tr data-insumo-row data-serie-id="{{ asignacion.serie.id }}">
                 <td>{{ asignacion.insumo.nombre }}</td>
                 <td class="font-monospace">{{ asignacion.serie.nro_serie }}</td>
-                <td>{{ asignacion.fecha_asociacion.strftime('%d/%m/%Y %H:%M') if asignacion.fecha_asociacion else '—' }}</td>
+                <td>{{ asignacion.fecha_asociacion|fecha(True) if asignacion.fecha_asociacion else '—' }}</td>
                 <td>{{ asignacion.asociado_por.nombre if asignacion.asociado_por else '—' }}</td>
                 {% if current_user.has_permission('inventario:write') %}
                 <td class="text-end">
@@ -146,6 +156,11 @@
           </table>
         </div>
       </div>
+      {% if insumos_pagination.pages > 1 %}
+      <div class="card-footer bg-transparent">
+        {{ render_pagination(insumos_pagination, param_name='insumos_page') }}
+      </div>
+      {% endif %}
     </div>
   </div>
   <div class="col-md-6">
@@ -158,7 +173,7 @@
             <span class="fw-semibold">{{ adjunto.filename }}</span>
             <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('adjuntos.descargar', adjunto_id=adjunto.id) }}">Descargar</a>
           </div>
-          <small class="text-muted">{{ normalize_enum_value(adjunto.tipo)|title }} · {{ adjunto.created_at.strftime('%d/%m/%Y %H:%M') if adjunto.created_at else '' }}</small>
+          <small class="text-muted">{{ normalize_enum_value(adjunto.tipo)|title }} · {{ adjunto.created_at|fecha(True) if adjunto.created_at else '' }}</small>
         </li>
         {% else %}
         <li class="list-group-item text-muted">No hay documentos adjuntos.</li>
@@ -182,149 +197,98 @@
     </form>
   </div>
   <div class="card-body">
-    <div class="row g-3">
-      {% for archivo in archivos %}
-      <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm">
+    {% if evidencias_pagination.items %}
+    <div class="evidencias-grid">
+      {% for archivo in evidencias_pagination.items %}
+      <article class="evidencia-card">
+        <div class="evidencia-thumb-wrapper">
           {% if archivo.mime_type.startswith('image/') %}
-          <div class="ratio ratio-4x3">
-            <img src="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id, preview=1) }}" alt="{{ archivo.filename }}" class="w-100 h-100 object-fit-cover rounded-top">
-          </div>
-          {% elif archivo.mime_type == 'application/pdf' %}
-          <div class="ratio ratio-4x3 bg-light border-bottom">
-            <object data="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id, preview=1) }}" type="application/pdf" class="w-100 h-100 rounded-top">PDF</object>
-          </div>
+          <img src="{{ url_for('files.thumbnail', file_id=archivo.id) }}" alt="{{ archivo.filename }}" class="evidencia-thumb">
           {% else %}
-          <div class="d-flex align-items-center justify-content-center py-4 bg-light border-bottom">
-            <span class="fw-semibold text-secondary">Archivo</span>
+          <div class="evidencia-placeholder">
+            <span class="fw-semibold">{{ archivo.mime_type.split('/')[-1]|upper if archivo.mime_type else 'FILE' }}</span>
           </div>
           {% endif %}
-          <div class="card-body d-flex flex-column gap-2">
-            <div class="small fw-semibold" title="{{ archivo.filename }}">{{ archivo.filename }}</div>
-            <div class="text-muted small">
-              {{ humanize_bytes(archivo.size_in_bytes()) }} · {{ archivo.mime_type or 'application/octet-stream' }} ·
-              {{ archivo.created_at.strftime('%d/%m/%Y %H:%M') if archivo.created_at else '' }}
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id) }}">Descargar</a>
-              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('equipos.descargar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id, preview=1) }}" target="_blank" rel="noopener">Ver</a>
-              <form method="post" action="{{ url_for('equipos.eliminar_adjunto', equipo_id=equipo.id, adjunto_id=archivo.id) }}" onsubmit="return confirm('¿Eliminar adjunto?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
-              </form>
-            </div>
+        </div>
+        <div class="evidencia-body">
+          <div class="evidencia-name" title="{{ archivo.filename }}">{{ archivo.filename }}</div>
+          <div class="text-muted small">
+            {{ humanize_bytes(archivo.size_in_bytes()) }} · {{ archivo.mime_type or 'application/octet-stream' }} · {{ archivo.created_at|fecha(True) if archivo.created_at else '' }}
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('files.view_file', file_id=archivo.id) }}" target="_blank" rel="noopener">Ver</a>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('files.download_file', file_id=archivo.id) }}">Descargar</a>
+            <form method="post" action="{{ url_for('files.delete_file', file_id=archivo.id) }}" onsubmit="return confirm('¿Eliminar adjunto?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="next" value="{{ request.full_path }}">
+              <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
+            </form>
           </div>
         </div>
-      </div>
-      {% else %}
-      <div class="col-12">
-        <div class="alert alert-light border mb-0">No hay adjuntos cargados.</div>
-      </div>
+      </article>
       {% endfor %}
     </div>
+    {% else %}
+    <div class="alert alert-light border mb-0">No hay adjuntos cargados.</div>
+    {% endif %}
   </div>
+  {% if evidencias_pagination.pages > 1 %}
+  <div class="card-footer bg-transparent">
+    {{ render_pagination(evidencias_pagination, param_name='evidencias_page') }}
+  </div>
+  {% endif %}
 </div>
 <div class="row g-3 mt-3">
   <div class="col-md-6">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span>Historial reciente</span>
-        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#historialPanel" aria-expanded="false" aria-controls="historialPanel">Ver más</button>
+        <span>Historial</span>
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.historial_completo', equipo_id=equipo.id) }}">Ver todo</a>
       </div>
       <ul class="list-group list-group-flush mb-0">
-        {% for entrada in historial %}
+        {% for entrada in historial_pagination.items %}
         <li class="list-group-item">
-          <strong>{{ entrada.accion }}</strong><br>
-          {{ entrada.descripcion or '' }}<br>
-          <small class="text-muted">{{ entrada.fecha }}{% if entrada.usuario %} · {{ entrada.usuario.nombre }}{% endif %}</small>
+          <div class="d-flex justify-content-between align-items-start">
+            <span class="fw-semibold">{{ entrada.accion }}</span>
+            <small class="text-muted">{{ entrada.fecha|fecha(True) if entrada.fecha else '' }}</small>
+          </div>
+          {% if entrada.descripcion %}
+          <p class="mb-1 small pre-wrap">{{ entrada.descripcion }}</p>
+          {% endif %}
+          <div class="small text-muted">{{ entrada.usuario.nombre if entrada.usuario else '—' }}</div>
         </li>
         {% else %}
         <li class="list-group-item text-muted">Sin movimientos registrados.</li>
         {% endfor %}
       </ul>
-      <div class="collapse border-top" id="historialPanel" data-remote-panel="historial" data-endpoint="{{ url_for('equipos.historial_datos', equipo_id=equipo.id) }}" data-limit="5">
-        <div class="p-3">
-          <form class="row g-2 align-items-end" data-panel-form>
-            <div class="col-12">
-              <label class="form-label small" for="historialTipo">Tipo</label>
-              <input type="text" class="form-control form-control-sm" id="historialTipo" placeholder="Acción o descripción" data-filter="tipo">
-            </div>
-            <div class="col-6">
-              <label class="form-label small" for="historialDesde">Desde</label>
-              <input type="date" class="form-control form-control-sm" id="historialDesde" data-filter="desde">
-            </div>
-            <div class="col-6">
-              <label class="form-label small" for="historialHasta">Hasta</label>
-              <input type="date" class="form-control form-control-sm" id="historialHasta" data-filter="hasta">
-            </div>
-            <div class="col-12 d-flex gap-2">
-              <button class="btn btn-sm btn-primary" type="submit">Aplicar</button>
-              <button class="btn btn-sm btn-outline-secondary" type="button" data-panel-reset>Limpiar</button>
-            </div>
-          </form>
-          <div class="mt-3" data-panel-results>
-            <div class="text-muted small">Sin resultados cargados.</div>
-          </div>
-          <div class="d-flex justify-content-between align-items-center mt-3 d-none" data-panel-pagination>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-panel-prev disabled>Anterior</button>
-            <div class="text-muted small" data-panel-summary>Mostrando 0 de 0</div>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-panel-next disabled>Siguiente</button>
-          </div>
-        </div>
+      {% if historial_pagination.pages > 1 %}
+      <div class="card-footer bg-transparent">
+        {{ render_pagination(historial_pagination, param_name='historial_page') }}
       </div>
+      {% endif %}
     </div>
   </div>
   <div class="col-md-6">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>Actas vinculadas</span>
-        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#actasPanel" aria-expanded="false" aria-controls="actasPanel">Ver más</button>
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('equipos.actas_completas', equipo_id=equipo.id) }}">Ver todo</a>
       </div>
       <ul class="list-group list-group-flush mb-0">
-        {% for acta in actas %}
+        {% for acta in actas_pagination.items %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ normalize_enum_value(acta.tipo)|title }} - {{ acta.fecha.strftime('%d/%m/%Y') }}</span>
+          <span>{{ normalize_enum_value(acta.tipo)|title }} - {{ acta.fecha|fecha }}</span>
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('actas.detalle', acta_id=acta.id) }}">Ver</a>
         </li>
         {% else %}
         <li class="list-group-item text-muted">Sin actas relacionadas.</li>
         {% endfor %}
       </ul>
-      <div class="collapse border-top" id="actasPanel" data-remote-panel="actas" data-endpoint="{{ url_for('equipos.actas_datos', equipo_id=equipo.id) }}" data-limit="5">
-        <div class="p-3">
-          <form class="row g-2 align-items-end" data-panel-form>
-            <div class="col-12">
-              <label class="form-label small" for="actasTipo">Tipo</label>
-              <select class="form-select form-select-sm" id="actasTipo" data-filter="tipo">
-                <option value="">Todos</option>
-                {% for tipo in tipos_acta %}
-                <option value="{{ tipo.value }}">{{ normalize_enum_value(tipo)|title }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-6">
-              <label class="form-label small" for="actasDesde">Desde</label>
-              <input type="date" class="form-control form-control-sm" id="actasDesde" data-filter="desde">
-            </div>
-            <div class="col-6">
-              <label class="form-label small" for="actasHasta">Hasta</label>
-              <input type="date" class="form-control form-control-sm" id="actasHasta" data-filter="hasta">
-            </div>
-            <div class="col-12 d-flex gap-2">
-              <button class="btn btn-sm btn-primary" type="submit">Aplicar</button>
-              <button class="btn btn-sm btn-outline-secondary" type="button" data-panel-reset>Limpiar</button>
-            </div>
-          </form>
-          <div class="mt-3" data-panel-results>
-            <div class="text-muted small">Sin resultados cargados.</div>
-          </div>
-          <div class="d-flex justify-content-between align-items-center mt-3 d-none" data-panel-pagination>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-panel-prev disabled>Anterior</button>
-            <div class="text-muted small" data-panel-summary>Mostrando 0 de 0</div>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-panel-next disabled>Siguiente</button>
-          </div>
-        </div>
+      {% if actas_pagination.pages > 1 %}
+      <div class="card-footer bg-transparent">
+        {{ render_pagination(actas_pagination, param_name='actas_page') }}
       </div>
+      {% endif %}
     </div>
   </div>
 </div>

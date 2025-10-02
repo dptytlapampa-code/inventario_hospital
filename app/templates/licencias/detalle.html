@@ -6,12 +6,12 @@
   <div class="card-body">
     <p><strong>Empleado:</strong> {{ licencia.usuario.nombre }}</p>
     <p><strong>Hospital:</strong> {{ licencia.hospital.nombre if licencia.hospital else '—' }}</p>
-    <p><strong>Período:</strong> {{ licencia.fecha_inicio.strftime('%d/%m/%Y') }} - {{ licencia.fecha_fin.strftime('%d/%m/%Y') }}</p>
+    <p><strong>Período:</strong> {{ licencia.fecha_inicio|fecha }} - {{ licencia.fecha_fin|fecha }}</p>
     <p><strong>Tipo:</strong> {{ normalize_enum_value(licencia.tipo)|title }}</p>
     <p><strong>Estado:</strong> {{ normalize_enum_value(licencia.estado) }}</p>
     <p><strong>Motivo:</strong> {{ licencia.motivo }}</p>
     {% if licencia.decisor %}
-    <p><strong>Gestionado por:</strong> {{ licencia.decisor.nombre }} el {{ licencia.decidido_en.strftime('%d/%m/%Y %H:%M') if licencia.decidido_en else '—' }}</p>
+    <p><strong>Gestionado por:</strong> {{ licencia.decisor.nombre }} el {{ licencia.decidido_en|fecha(True) if licencia.decidido_en else '—' }}</p>
     {% endif %}
     <a class="btn btn-outline-secondary" href="{{ url_for('licencias.listar') }}">Volver</a>
   </div>
