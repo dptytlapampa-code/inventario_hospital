@@ -12,15 +12,29 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Resolve-Path (Join-Path $scriptDir "..")
 Set-Location $projectRoot
 
+function Invoke-CheckedCommand {
+    param(
+        [Parameter(Mandatory = $true)] [scriptblock]$Command,
+        [Parameter(Mandatory = $true)] [string]$ErrorMessage
+    )
+
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "${ErrorMessage} (código de salida $LASTEXITCODE)."
+    }
+}
+
 try {
     if (-not (Get-Command $Python -ErrorAction SilentlyContinue)) {
-        throw [System.Management.Automation.CommandNotFoundException]::new("No se encontró '$Python'. Instale Python 3 y agrégelo al PATH.")
+        throw [System.Management.Automation.CommandNotFoundException]::new(
+            "No se encontró '$Python'. Instale Python 3 y agréguelo al PATH."
+        )
     }
 
     $venvPath = Join-Path $projectRoot ".venv"
     if (-not (Test-Path $venvPath)) {
         Write-Host "Creando entorno virtual en $venvPath ..." -ForegroundColor Cyan
-        & $Python -m venv $venvPath
+        Invoke-CheckedCommand -Command { & $Python -m venv $venvPath } -ErrorMessage "No se pudo crear el entorno virtual"
     } else {
         Write-Host "Usando entorno virtual existente ($venvPath)." -ForegroundColor DarkGray
     }
@@ -38,14 +52,14 @@ try {
         python -m pip --version | Out-Null
     } catch {
         Write-Warning "pip no estaba disponible. Ejecutando ensurepip..."
-        python -m ensurepip --upgrade
+        Invoke-CheckedCommand -Command { python -m ensurepip --upgrade } -ErrorMessage "No se pudo inicializar pip"
     }
 
     Write-Host "Actualizando pip..." -ForegroundColor Cyan
-    python -m pip install --upgrade pip
+    Invoke-CheckedCommand -Command { python -m pip install --upgrade pip } -ErrorMessage "No se pudo actualizar pip"
 
     Write-Host "Instalando dependencias del proyecto..." -ForegroundColor Cyan
-    python -m pip install -r requirements.txt
+    Invoke-CheckedCommand -Command { python -m pip install -r requirements.txt } -ErrorMessage "No se pudieron instalar las dependencias"
 
     if (-not $env:FLASK_APP) { $env:FLASK_APP = "wsgi.py" }
     $env:FLASK_ENV = "development"
@@ -54,25 +68,20 @@ try {
     $isNewDatabase = -not (Test-Path $databasePath)
 
     Write-Host "Aplicando migraciones..." -ForegroundColor Cyan
-    flask dbsafe-upgrade
-    if ($LASTEXITCODE -ne 0) {
-        throw "La migración falló con código de salida $LASTEXITCODE."
-    }
+    Invoke-CheckedCommand -Command { flask dbsafe-upgrade } -ErrorMessage "La migración falló"
 
     if ($isNewDatabase) {
         Write-Host "Base de datos nueva detectada. Ejecutando seed demo..." -ForegroundColor Cyan
-        flask seed demo
-        if ($LASTEXITCODE -ne 0) {
-            throw "La carga de datos demo falló con código de salida $LASTEXITCODE."
-        }
+        Invoke-CheckedCommand -Command { flask seed demo } -ErrorMessage "La carga de datos demo falló"
     } else {
         Write-Host "Base de datos existente detectada en $databasePath. Puede ejecutar 'flask seed demo' manualmente si necesita resembrar." -ForegroundColor DarkGray
     }
 
     Write-Host "Levantando servidor en http://127.0.0.1:5000 ..." -ForegroundColor Green
     flask run --host=127.0.0.1 --port=5000
-    if ($LASTEXITCODE -ne 0) {
-        throw "El servidor Flask terminó con código de salida $LASTEXITCODE."
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        throw "El servidor Flask terminó con código de salida $exitCode."
     }
 }
 catch [System.Management.Automation.CommandNotFoundException] {

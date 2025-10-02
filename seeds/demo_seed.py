@@ -59,6 +59,27 @@ def _log(message: str, *, force_info: bool = False) -> None:
         LOGGER.info(message)
 
 
+def _apply_updates(instance: Any, **values: Any) -> bool:
+    """Assign attributes when they differ and return ``True`` if changes occurred."""
+
+    updated = False
+    for key, value in values.items():
+        if value is None:
+            continue
+        if getattr(instance, key, None) != value:
+            setattr(instance, key, value)
+            updated = True
+    return updated
+
+
+def _action_label(created: bool, updated: bool) -> str:
+    if created:
+        return "creado"
+    if updated:
+        return "actualizado"
+    return "ya existe"
+
+
 def ensure_superadmin(
     session: Session,
     *,
@@ -68,22 +89,20 @@ def ensure_superadmin(
 ) -> Usuario:
     """Ensure the Superadmin role, permissions and default user exist."""
 
-    role, role_created = _get_or_create(
+    role, role_created, role_updated = _get_or_create(
         session,
         Rol,
         defaults={"descripcion": "Rol con todos los permisos"},
         nombre="Superadmin",
     )
-    role.descripcion = "Rol con todos los permisos"
-    _log(
-        "Rol Superadmin %s."
-        % ("creado" if role_created else "encontrado"),
-        force_info=True,
+    role_updated = role_updated or _apply_updates(
+        role, descripcion="Rol con todos los permisos"
     )
+    _log(f"Rol Superadmin {_action_label(role_created, role_updated)}.", force_info=True)
     session.flush()
 
     for modulo in Modulo:
-        permiso, created_permiso = _get_or_create(
+        permiso, created_permiso, permiso_updated = _get_or_create(
             session,
             Permiso,
             defaults={
@@ -96,26 +115,18 @@ def ensure_superadmin(
             modulo=modulo,
             hospital_id=None,
         )
-        updated = False
-        if not permiso.can_read:
-            permiso.can_read = True
-            updated = True
-        if not permiso.can_write:
-            permiso.can_write = True
-            updated = True
-        if not permiso.allow_export:
-            permiso.allow_export = True
-            updated = True
-        if created_permiso:
-            _log(
-                f"Permiso global para Superadmin sobre {modulo.value} creado.",
-                force_info=True,
-            )
-        elif updated:
-            _log(
-                f"Permiso global para Superadmin sobre {modulo.value} actualizado.",
-                force_info=True,
-            )
+        permiso_updated = permiso_updated or _apply_updates(
+            permiso,
+            rol=role,
+            can_read=True,
+            can_write=True,
+            allow_export=True,
+        )
+        action = _action_label(created_permiso, permiso_updated)
+        _log(
+            f"Permiso global para Superadmin sobre {modulo.value} {action}.",
+            force_info=True,
+        )
 
     usuario_defaults = {
         "nombre": "Super Administrador",
@@ -125,24 +136,27 @@ def ensure_superadmin(
         "activo": True,
         "password_hash": generate_password_hash(password),
     }
-    usuario, user_created = _get_or_create(
+    usuario, user_created, usuario_updated = _get_or_create(
         session,
         Usuario,
         defaults=usuario_defaults,
         username=username,
     )
-    usuario.nombre = "Super Administrador"
-    if not usuario.apellido:
-        usuario.apellido = "Principal"
-    usuario.email = email
-    if not usuario.dni:
-        usuario.dni = usuario_defaults["dni"]
-    usuario.rol = role
-    usuario.activo = True
-    usuario.set_password(password)
+    usuario_updated = usuario_updated or _apply_updates(
+        usuario,
+        nombre="Super Administrador",
+        apellido=usuario.apellido or "Principal",
+        email=email,
+        dni=usuario.dni or usuario_defaults["dni"],
+        rol=role,
+        activo=True,
+    )
+    if not usuario.check_password(password):
+        usuario.set_password(password)
+        usuario_updated = True
     _log(
-        "Usuario %s %s como Superadmin (password por defecto actualizada)."
-        % (usuario.username, "creado" if user_created else "actualizado"),
+        "Usuario %s %s como Superadmin (password por defecto asegurada)."
+        % (usuario.username, _action_label(user_created, usuario_updated)),
         force_info=True,
     )
     return usuario
@@ -184,10 +198,13 @@ def promote_to_superadmin(
     return usuario
 
 
-def _get_or_create(session: Session, model, defaults: dict[str, Any] | None = None, **filters: Any):
+def _get_or_create(
+    session: Session, model, defaults: dict[str, Any] | None = None, **filters: Any
+) -> tuple[Any, bool, bool]:
     stmt = select(model).filter_by(**filters)
     instance = session.execute(stmt).scalar_one_or_none()
     created = False
+    updated = False
     if instance is None:
         params = dict(filters)
         if defaults:
@@ -197,10 +214,8 @@ def _get_or_create(session: Session, model, defaults: dict[str, Any] | None = No
         session.flush()
         created = True
     elif defaults:
-        for key, value in defaults.items():
-            if value is not None:
-                setattr(instance, key, value)
-    return instance, created
+        updated = _apply_updates(instance, **defaults)
+    return instance, created, updated
 
 
 def _ensure_roles(session: Session) -> dict[str, Rol]:
@@ -211,13 +226,13 @@ def _ensure_roles(session: Session) -> dict[str, Rol]:
         ("Tecnico", "Gestión operativa"),
         ("Lectura", "Solo consulta"),
     ):
-        rol, created = _get_or_create(
+        rol, created, updated = _get_or_create(
             session,
             Rol,
             defaults={"descripcion": descripcion},
             nombre=nombre,
         )
-        action = "creado" if created else "actualizado"
+        action = _action_label(created, updated)
         _log(f"Rol {nombre} {action}.", force_info=True)
         roles[nombre.lower()] = rol
     return roles
@@ -244,7 +259,7 @@ def _ensure_hospital_structure(session: Session) -> tuple[list[Hospital], list[S
     )
 
     for spec in hospital_specs:
-        hospital, created = _get_or_create(
+        hospital, created, hospital_updated = _get_or_create(
             session,
             Hospital,
             defaults={
@@ -254,10 +269,10 @@ def _ensure_hospital_structure(session: Session) -> tuple[list[Hospital], list[S
             },
             nombre=spec["nombre"],
         )
-        _log(f"Hospital {hospital.nombre} {'creado' if created else 'actualizado'}.")
+        _log(f"Hospital {hospital.nombre} {_action_label(created, hospital_updated)}.")
         hospitales.append(hospital)
 
-        servicio, created_serv = _get_or_create(
+        servicio, created_serv, servicio_updated = _get_or_create(
             session,
             Servicio,
             defaults={
@@ -267,13 +282,18 @@ def _ensure_hospital_structure(session: Session) -> tuple[list[Hospital], list[S
             nombre="Soporte Informático",
             hospital_id=hospital.id,
         )
+        servicio_updated = servicio_updated or _apply_updates(
+            servicio,
+            descripcion="Área responsable del parque informático",
+            hospital=hospital,
+        )
         _log(
             "Servicio Soporte Informático %s para %s."
-            % ("creado" if created_serv else "actualizado", hospital.nombre)
+            % (_action_label(created_serv, servicio_updated), hospital.nombre)
         )
         servicios.append(servicio)
 
-        oficina, created_off = _get_or_create(
+        oficina, created_off, oficina_updated = _get_or_create(
             session,
             Oficina,
             defaults={
@@ -285,9 +305,15 @@ def _ensure_hospital_structure(session: Session) -> tuple[list[Hospital], list[S
             servicio_id=servicio.id,
             hospital_id=hospital.id,
         )
+        oficina_updated = oficina_updated or _apply_updates(
+            oficina,
+            piso="PB",
+            servicio=servicio,
+            hospital=hospital,
+        )
         _log(
             "Oficina Deposito Central %s para %s."
-            % ("creada" if created_off else "actualizada", hospital.nombre)
+            % (_action_label(created_off, oficina_updated), hospital.nombre)
         )
         oficinas.append(oficina)
 
@@ -303,19 +329,18 @@ def _ensure_equipment_types(session: Session) -> dict[str, TipoEquipo]:
         ("switch", "Switch"),
         ("proyector", "Proyector"),
     ):
-        tipo, created = _get_or_create(
+        tipo, created, tipo_updated = _get_or_create(
             session,
             TipoEquipo,
             defaults={"nombre": nombre, "activo": True},
             slug=slug,
         )
-        if created:
-            tipo.nombre = nombre
-            tipo.activo = True
-        else:
-            tipo.nombre = nombre
-            tipo.activo = True
-        _log(f"Tipo de equipo {nombre} {'creado' if created else 'sin cambios'}.")
+        tipo_updated = tipo_updated or _apply_updates(
+            tipo,
+            nombre=nombre,
+            activo=True,
+        )
+        _log(f"Tipo de equipo {nombre} {_action_label(created, tipo_updated)}.")
         tipos[slug] = tipo
     return tipos
 
@@ -409,23 +434,30 @@ def _ensure_users(
             "activo": True,
             "password_hash": generate_password_hash(spec["password"]),
         }
-        usuario, created = _get_or_create(
+        usuario, created, usuario_updated = _get_or_create(
             session,
             Usuario,
             defaults=defaults,
             username=spec["username"],
         )
-        usuario.nombre = spec["nombre"]
-        usuario.dni = spec["dni"]
-        usuario.email = spec["email"]
-        usuario.rol = spec["rol"]
-        usuario.hospital = spec["hospital"]
-        usuario.servicio = spec["servicio"]
-        usuario.oficina = spec["oficina"]
-        usuario.activo = True
-        usuario.set_password(spec["password"])
-        action = "creado" if created else "actualizado"
-        _log(f"Usuario {usuario.username} {action}.", force_info=True)
+        usuario_updated = usuario_updated or _apply_updates(
+            usuario,
+            nombre=spec["nombre"],
+            dni=spec["dni"],
+            email=spec["email"],
+            rol=spec["rol"],
+            hospital=spec["hospital"],
+            servicio=spec["servicio"],
+            oficina=spec["oficina"],
+            activo=True,
+        )
+        if not usuario.check_password(spec["password"]):
+            usuario.set_password(spec["password"])
+            usuario_updated = True
+        _log(
+            f"Usuario {usuario.username} {_action_label(created, usuario_updated)}.",
+            force_info=True,
+        )
         usuarios[spec["username"]] = usuario
 
     return usuarios
@@ -435,7 +467,7 @@ def _ensure_permissions(
     session: Session, roles: dict[str, Rol], hospitales: Iterable[Hospital]
 ) -> None:
     for modulo in Modulo:
-        permiso, created = _get_or_create(
+        permiso, created, permiso_updated = _get_or_create(
             session,
             Permiso,
             defaults={
@@ -448,13 +480,15 @@ def _ensure_permissions(
             modulo=modulo,
             hospital_id=None,
         )
-        if created:
-            permiso.rol = roles["superadmin"]
-        permiso.can_read = True
-        permiso.can_write = True
-        permiso.allow_export = True
+        permiso_updated = permiso_updated or _apply_updates(
+            permiso,
+            rol=roles["superadmin"],
+            can_read=True,
+            can_write=True,
+            allow_export=True,
+        )
         _log(
-            f"Permiso global para Superadmin sobre {modulo.value} garantizado.",
+            f"Permiso global para Superadmin sobre {modulo.value} {_action_label(created, permiso_updated)}.",
             force_info=True,
         )
 
@@ -470,7 +504,7 @@ def _ensure_permissions(
 
     for hospital in hospitales:
         for modulo in admin_modules:
-            permiso, _ = _get_or_create(
+            permiso, created_admin, updated_admin = _get_or_create(
                 session,
                 Permiso,
                 defaults={
@@ -484,13 +518,18 @@ def _ensure_permissions(
                 modulo=modulo,
                 hospital_id=hospital.id,
             )
-            permiso.can_read = True
-            permiso.can_write = True
-            permiso.allow_export = modulo == Modulo.REPORTES
-        _log(
-            f"Permisos de admin asegurados para {hospital.nombre}.",
-            force_info=True,
-        )
+            updated_admin = updated_admin or _apply_updates(
+                permiso,
+                rol=roles["admin"],
+                hospital=hospital,
+                can_read=True,
+                can_write=True,
+                allow_export=modulo == Modulo.REPORTES,
+            )
+            _log(
+                f"Permiso admin {hospital.nombre} / {modulo.value} {_action_label(created_admin, updated_admin)}.",
+                force_info=True,
+            )
 
         tecnico_permisos = [
             (Modulo.INVENTARIO, True),
@@ -498,7 +537,7 @@ def _ensure_permissions(
             (Modulo.INSUMOS, False),
         ]
         for modulo, can_write in tecnico_permisos:
-            permiso, _ = _get_or_create(
+            permiso, created_tecnico, updated_tecnico = _get_or_create(
                 session,
                 Permiso,
                 defaults={
@@ -511,11 +550,20 @@ def _ensure_permissions(
                 modulo=modulo,
                 hospital_id=hospital.id,
             )
-            permiso.can_read = True
-            permiso.can_write = can_write
-            permiso.allow_export = False
+            updated_tecnico = updated_tecnico or _apply_updates(
+                permiso,
+                rol=roles["tecnico"],
+                hospital=hospital,
+                can_read=True,
+                can_write=can_write,
+                allow_export=False,
+            )
+            _log(
+                f"Permiso técnico {hospital.nombre} / {modulo.value} {_action_label(created_tecnico, updated_tecnico)}.",
+                force_info=True,
+            )
 
-        permiso, _ = _get_or_create(
+        permiso, created_lectura, updated_lectura = _get_or_create(
             session,
             Permiso,
             defaults={
@@ -527,11 +575,16 @@ def _ensure_permissions(
             modulo=Modulo.INVENTARIO,
             hospital_id=hospital.id,
         )
-        permiso.can_read = True
-        permiso.can_write = False
-        permiso.allow_export = False
+        updated_lectura = updated_lectura or _apply_updates(
+            permiso,
+            rol=roles["lectura"],
+            hospital=hospital,
+            can_read=True,
+            can_write=False,
+            allow_export=False,
+        )
         _log(
-            f"Permisos de lectura garantizados para {hospital.nombre}.",
+            f"Permiso de lectura {hospital.nombre} {_action_label(created_lectura, updated_lectura)}.",
             force_info=True,
         )
 
@@ -600,14 +653,17 @@ def _ensure_inventory(
             "oficina": spec["oficina"],
             "responsable": spec["responsable"],
         }
-        equipo, created = _get_or_create(
+        equipo, created, equipo_updated = _get_or_create(
             session,
             Equipo,
             defaults=defaults,
             codigo=spec["codigo"],
         )
-        for key, value in defaults.items():
-            setattr(equipo, key, value)
+        equipo_updated = equipo_updated or _apply_updates(equipo, **defaults)
+        _log(
+            f"Equipo {equipo.codigo} {_action_label(created, equipo_updated)}.",
+            force_info=True,
+        )
         equipos_context[spec["codigo"]] = equipo
         if created and not equipo.historial:
             equipo.registrar_evento(
@@ -649,7 +705,7 @@ def _ensure_inventory(
     )
 
     for spec in insumo_specs:
-        insumo, _ = _get_or_create(
+        insumo, created_insumo, insumo_updated = _get_or_create(
             session,
             Insumo,
             defaults={
@@ -659,12 +715,21 @@ def _ensure_inventory(
             },
             nombre=spec["nombre"],
         )
-        insumo.numero_serie = spec["numero_serie"]
-        insumo.descripcion = spec["descripcion"]
-        insumo.unidad_medida = spec["unidad_medida"]
-        insumo.stock = spec["stock"]
-        insumo.stock_minimo = spec["stock_minimo"]
-        insumo.costo_unitario = spec["costo_unitario"]
+        insumo_updated = insumo_updated or _apply_updates(
+            insumo,
+            numero_serie=spec["numero_serie"],
+            descripcion=spec["descripcion"],
+            unidad_medida=spec["unidad_medida"],
+        )
+        for attr in ("stock", "stock_minimo", "costo_unitario"):
+            value = spec[attr]
+            if getattr(insumo, attr) != value:
+                setattr(insumo, attr, value)
+                insumo_updated = True
+        _log(
+            f"Insumo {insumo.nombre} {_action_label(created_insumo, insumo_updated)}.",
+            force_info=True,
+        )
         insumos_context[spec["nombre"]] = insumo
 
     # Vincular insumos a equipos para mostrar relaciones.
@@ -729,7 +794,7 @@ def _ensure_licenses(
     )
 
     for spec in licencia_specs:
-        licencia, _ = _get_or_create(
+        licencia, created_licencia, licencia_updated = _get_or_create(
             session,
             Licencia,
             defaults={
@@ -744,11 +809,20 @@ def _ensure_licenses(
             user_id=spec["usuario"].id,
             motivo=spec["motivo"],
         )
-        licencia.hospital = spec["hospital"]
-        licencia.tipo = spec["tipo"]
-        licencia.estado = spec["estado"]
-        licencia.fecha_inicio = spec["fecha_inicio"]
-        licencia.fecha_fin = spec["fecha_fin"]
+        licencia_updated = licencia_updated or _apply_updates(
+            licencia,
+            usuario=spec["usuario"],
+            hospital=spec["hospital"],
+            tipo=spec["tipo"],
+            motivo=spec["motivo"],
+            fecha_inicio=spec["fecha_inicio"],
+            fecha_fin=spec["fecha_fin"],
+            estado=spec["estado"],
+        )
+        _log(
+            f"Licencia {licencia.motivo} {_action_label(created_licencia, licencia_updated)}.",
+            force_info=True,
+        )
 
 
 def _ensure_supporting_records(
@@ -760,7 +834,7 @@ def _ensure_supporting_records(
     equipos = inventory["equipos"]
     superadmin_usuario = usuarios[SUPERADMIN_USERNAME]
 
-    acta, _ = _get_or_create(
+    acta, created_acta, acta_updated = _get_or_create(
         session,
         Acta,
         defaults={
@@ -772,11 +846,18 @@ def _ensure_supporting_records(
         },
         numero="ACT-0001",
     )
-    acta.tipo = TipoActa.ENTREGA
-    acta.hospital = hospitales[0]
-    acta.usuario = usuarios["admin_molas"]
-    acta.observaciones = "Entrega inicial de equipamiento para el área administrativa."
-    acta.pdf_path = "uploads/actas/acta_demo.pdf"
+    acta_updated = acta_updated or _apply_updates(
+        acta,
+        tipo=TipoActa.ENTREGA,
+        hospital=hospitales[0],
+        usuario=usuarios["admin_molas"],
+        observaciones="Entrega inicial de equipamiento para el área administrativa.",
+        pdf_path="uploads/actas/acta_demo.pdf",
+    )
+    _log(
+        f"Acta {acta.numero} {_action_label(created_acta, acta_updated)}.",
+        force_info=True,
+    )
 
     stmt = select(ActaItem).filter_by(acta_id=acta.id, equipo_id=equipos["EQ-0001"].id)
     if session.execute(stmt).scalar_one_or_none() is None:
