@@ -12,30 +12,50 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("tipo_equipo", sa.Column("descripcion", sa.Text(), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {column["name"] for column in inspector.get_columns("tipo_equipo")}
 
-    op.create_index(
-        "ix_equipos_descripcion",
-        "equipos",
-        ["descripcion"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_equipos_marca",
-        "equipos",
-        ["marca"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_equipos_modelo",
-        "equipos",
-        ["modelo"],
-        unique=False,
-    )
+    if "descripcion" not in existing_columns:
+        op.add_column("tipo_equipo", sa.Column("descripcion", sa.Text(), nullable=True))
+
+    existing_indexes = {index["name"] for index in inspector.get_indexes("equipos")}
+
+    if "ix_equipos_descripcion" not in existing_indexes:
+        op.create_index(
+            "ix_equipos_descripcion",
+            "equipos",
+            ["descripcion"],
+            unique=False,
+        )
+    if "ix_equipos_marca" not in existing_indexes:
+        op.create_index(
+            "ix_equipos_marca",
+            "equipos",
+            ["marca"],
+            unique=False,
+        )
+    if "ix_equipos_modelo" not in existing_indexes:
+        op.create_index(
+            "ix_equipos_modelo",
+            "equipos",
+            ["modelo"],
+            unique=False,
+        )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_equipos_modelo", table_name="equipos")
-    op.drop_index("ix_equipos_marca", table_name="equipos")
-    op.drop_index("ix_equipos_descripcion", table_name="equipos")
-    op.drop_column("tipo_equipo", "descripcion")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {column["name"] for column in inspector.get_columns("tipo_equipo")}
+    existing_indexes = {index["name"] for index in inspector.get_indexes("equipos")}
+
+    if "ix_equipos_modelo" in existing_indexes:
+        op.drop_index("ix_equipos_modelo", table_name="equipos")
+    if "ix_equipos_marca" in existing_indexes:
+        op.drop_index("ix_equipos_marca", table_name="equipos")
+    if "ix_equipos_descripcion" in existing_indexes:
+        op.drop_index("ix_equipos_descripcion", table_name="equipos")
+
+    if "descripcion" in existing_columns:
+        op.drop_column("tipo_equipo", "descripcion")
