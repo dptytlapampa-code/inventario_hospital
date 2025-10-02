@@ -9,6 +9,7 @@ from typing import Any, Iterable
 from flask import current_app
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from werkzeug.security import generate_password_hash
 
 from app.models import (
     Acta,
@@ -122,6 +123,7 @@ def ensure_superadmin(
         "email": email,
         "rol": role,
         "activo": True,
+        "password_hash": generate_password_hash(password),
     }
     usuario, user_created = _get_or_create(
         session,
@@ -405,6 +407,7 @@ def _ensure_users(
             "servicio": spec["servicio"],
             "oficina": spec["oficina"],
             "activo": True,
+            "password_hash": generate_password_hash(spec["password"]),
         }
         usuario, created = _get_or_create(
             session,
@@ -734,8 +737,11 @@ def _ensure_licenses(
                 "hospital": spec["hospital"],
                 "tipo": spec["tipo"],
                 "motivo": spec["motivo"],
+                "fecha_inicio": spec["fecha_inicio"],
+                "fecha_fin": spec["fecha_fin"],
+                "estado": spec["estado"],
             },
-            usuario_id=spec["usuario"].id,
+            user_id=spec["usuario"].id,
             motivo=spec["motivo"],
         )
         licencia.hospital = spec["hospital"]
@@ -752,6 +758,7 @@ def _ensure_supporting_records(
     inventory: dict[str, Any],
 ) -> None:
     equipos = inventory["equipos"]
+    superadmin_usuario = usuarios[SUPERADMIN_USERNAME]
 
     acta, _ = _get_or_create(
         session,
@@ -806,7 +813,7 @@ def _ensure_supporting_records(
             filename="nota_pedido.pdf",
             path="uploads/docscan/nota_pedido.pdf",
             comentario="Solicitud firmada por dirección",
-            usuario=usuarios["superadmin"],
+            usuario=superadmin_usuario,
             hospital=hospitales[0],
         )
         session.add(documento)
@@ -819,7 +826,7 @@ def _ensure_supporting_records(
     )
     if session.execute(auditoria_stmt).scalar_one_or_none() is None:
         auditoria = Auditoria(
-            usuario=usuarios["superadmin"],
+            usuario=superadmin_usuario,
             hospital=hospitales[0],
             modulo="setup",
             accion="seed",
