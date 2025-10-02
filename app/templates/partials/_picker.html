@@ -1,3 +1,4 @@
+{% macro picker(id, label, placeholder='') %}
 <div class="picker mb-3">
   <label class="form-label" for="{{ id }}">{{ label }}</label>
   <input
@@ -9,3 +10,4 @@
   />
   <ul id="{{ id }}Results" class="list-group mt-2"></ul>
 </div>
+{% endmacro %}

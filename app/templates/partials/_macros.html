@@ -1,0 +1,5 @@
+{% from 'partials/_picker.html' import picker as _picker %}
+
+{% macro picker(id, label, placeholder='') %}
+  {{ _picker(id, label, placeholder)|safe }}
+{% endmacro %}

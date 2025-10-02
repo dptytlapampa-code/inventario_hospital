@@ -71,6 +71,7 @@ class Config:
     """Base configuration for all environments."""
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me")
+    DEFAULT_PASSWORD: str = os.getenv("DEFAULT_PASSWORD", "Cambiar123!")
     SQLALCHEMY_DATABASE_URI: str = _database_uri_from_env()
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}

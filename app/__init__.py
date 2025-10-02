@@ -251,9 +251,9 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
 
     _register_cli(app)
 
-    from app.cli import seed_demo
+    from app.cli import register_commands
 
-    app.cli.add_command(seed_demo)
+    register_commands(app)
 
     @app.errorhandler(401)
     def unauthorized(error):  # type: ignore[override]
