@@ -14,7 +14,7 @@ Set-Location $projectRoot
 
 try {
     if (-not (Get-Command $Python -ErrorAction SilentlyContinue)) {
-        throw [System.Management.Automation.CommandNotFoundException]::new("No se encontró '$Python'. Instale Python 3 y agrégelo al PATH.")
+        throw [System.Management.Automation.CommandNotFoundException]::new("No se encontró '$Python'. Instale Python 3 y agréguelo al PATH.")
     }
 
     $venvPath = Join-Path $projectRoot ".venv"
@@ -50,12 +50,34 @@ try {
     if (-not $env:FLASK_APP) { $env:FLASK_APP = "wsgi.py" }
     $env:FLASK_ENV = "development"
 
-    $databasePath = Join-Path $projectRoot "inventario.db"
-    $isNewDatabase = -not (Test-Path $databasePath)
+    $instanceDir = Join-Path $projectRoot "instance"
+    if (-not (Test-Path $instanceDir)) {
+        New-Item -ItemType Directory -Path $instanceDir | Out-Null
+    }
+
+    $candidateDatabases = @(
+        Join-Path $instanceDir "inventario.db",
+        Join-Path $projectRoot "inventario.db"
+    )
+
+    $existingDatabase = $candidateDatabases |
+        Where-Object { Test-Path $_ } |
+        Select-Object -First 1
+
+    if ($existingDatabase) {
+        $databasePath = $existingDatabase
+        $isNewDatabase = $false
+    } else {
+        $databasePath = $candidateDatabases[0]
+        $isNewDatabase = $true
+    }
 
     Write-Host "Aplicando migraciones..." -ForegroundColor Cyan
     flask dbsafe-upgrade
     if ($LASTEXITCODE -ne 0) {
+        Write-Error "Las migraciones no pudieron aplicarse (código $LASTEXITCODE)."
+        Write-Host "Revise el estado con 'flask db current', 'flask db heads' y 'flask db history'." -ForegroundColor Yellow
+        Write-Host "Solucione el problema y vuelva a ejecutar scripts/run_dev.ps1." -ForegroundColor Yellow
         throw "La migración falló con código de salida $LASTEXITCODE."
     }
 
@@ -82,6 +104,7 @@ catch [System.Management.Automation.CommandNotFoundException] {
 }
 catch {
     Write-Error $_.Exception.Message
+    Write-Host "Recomendaciones: ejecute 'flask db current', 'flask db heads' y 'flask db history' para diagnosticar el estado de Alembic." -ForegroundColor Yellow
     Write-Host "Para problemas de políticas ejecute: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned" -ForegroundColor Yellow
     Write-Host "Si falta SQLite instale el componente 'Optional Feature: SQLite' o revise la instalación de Python." -ForegroundColor Yellow
     exit 1

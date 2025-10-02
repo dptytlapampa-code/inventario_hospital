@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.engine import Connection
 
 # revision identifiers, used by Alembic.
 revision = "0004_equipos_observaciones_en_taller"
@@ -19,6 +20,13 @@ def _add_enum_value() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
         op.execute("ALTER TYPE estado_equipo ADD VALUE IF NOT EXISTS '%s'" % NEW_ESTADO)
+
+
+def _column_exists(bind: Connection, table_name: str, column_name: str) -> bool:
+    inspector = sa.inspect(bind)
+    if not inspector.has_table(table_name):
+        return False
+    return column_name in {column["name"] for column in inspector.get_columns(table_name)}
 
 
 def _insert_catalog_state() -> None:
@@ -82,7 +90,9 @@ def _remove_catalog_state() -> None:
 
 
 def upgrade() -> None:
-    op.add_column("equipos", sa.Column("observaciones", sa.Text(), nullable=True))
+    bind = op.get_bind()
+    if not _column_exists(bind, "equipos", "observaciones"):
+        op.add_column("equipos", sa.Column("observaciones", sa.Text(), nullable=True))
     _add_enum_value()
     _insert_catalog_state()
 
@@ -105,4 +115,5 @@ def downgrade() -> None:
             {"nuevo": NEW_ESTADO, "fallback": "servicio_tecnico"},
         )
         op.execute("DROP TYPE estado_equipo_old")
-    op.drop_column("equipos", "observaciones")
+    if _column_exists(bind, "equipos", "observaciones"):
+        op.drop_column("equipos", "observaciones")
