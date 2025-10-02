@@ -2,6 +2,7 @@
   --sidebar-width: 260px;
   --sidebar-bg: #0f1f33;
   --sidebar-link-color: rgba(255, 255, 255, 0.78);
+  --sidebar-section-title-color: rgba(255, 255, 255, 0.9);
   --sidebar-link-hover-bg: rgba(255, 255, 255, 0.12);
   --sidebar-link-active-bg: rgba(255, 255, 255, 0.08);
   --sidebar-link-active-border: #5aa9ff;
@@ -12,6 +13,7 @@
   --sidebar-link-color: rgba(255, 255, 255, 0.82);
   --sidebar-link-hover-bg: rgba(255, 255, 255, 0.18);
   --sidebar-link-active-bg: rgba(255, 255, 255, 0.16);
+  --sidebar-section-title-color: rgba(255, 255, 255, 0.95);
 }
 
 body {
@@ -92,7 +94,7 @@ body {
 .sidebar-accordion .accordion-button {
   padding: 0.75rem 1.5rem;
   background: transparent;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--sidebar-section-title-color);
   font-weight: 600;
   border-radius: 0.75rem;
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -119,7 +121,7 @@ body {
 .sidebar-sublink {
   display: block;
   padding: 0.4rem 2.75rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--sidebar-section-title-color);
   text-decoration: none;
   transition: color 0.2s ease, background-color 0.2s ease;
 }
