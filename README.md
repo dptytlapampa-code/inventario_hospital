@@ -19,7 +19,7 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 
    El script crea `.venv`, instala dependencias, aplica migraciones y corre `flask seed demo` si la base `inventario.db` no existe.
 
-4. Ingresá a <http://127.0.0.1:5000>. Usuario demo listo: **admin / 123456**.
+4. Ingresá a <http://127.0.0.1:5000>. Usuario demo listo: **admin / Cambiar123!**.
 5. Para promocionar otro usuario al rol Superadmin (por ejemplo `fpla`):
 
    ```powershell
@@ -66,7 +66,7 @@ Sistema web completo y listo para producción para la gestión de inventario hos
 
 ## 2. Alcance funcional
 
-- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `admin / 123456` (Superadmin). Otros usuarios de ejemplo se crean con `flask seed demo`.
+- Autenticación y roles: Superadmin, Admin, Técnico y Lectura. Usuario inicial: `admin / Cambiar123!` (Superadmin). Otros usuarios de ejemplo se crean con `flask seed demo`.
 - Permisos granulares por hospital y módulo (inventario, insumos, actas, adjuntos, docscan, reportes, auditoría, licencias).
 - Ubicaciones jerárquicas: Hospital → Servicio → Oficina (ABM, validaciones de duplicados, edición sin cambiar IDs).
 - Equipos: tipos predefinidos, estados (Operativo, En Servicio Técnico, De baja), expediente/año opcionales, historial.
@@ -229,7 +229,7 @@ El repositorio incluye una migración inicial con todas las tablas declaradas en
 
 Seeds (`flask seed demo` o auto-seed en desarrollo): reutiliza la aplicación Flask (misma configuración `.env`), verifica la conexión configurada (SQLite o PostgreSQL) y carga los catálogos de manera idempotente:
 
-- `admin / 123456` (Superadmin global)
+- `admin / Cambiar123!` (Superadmin global)
 - `admin_molas / Cambiar123!` y `admin_favaloro / Cambiar123!` (Admins locales)
 - `tecnico_molas / Cambiar123!` y `tecnico_favaloro / Cambiar123!` (Técnicos por hospital)
 - `consulta / Cambiar123!` (Usuario de solo lectura)
