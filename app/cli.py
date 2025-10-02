@@ -22,13 +22,25 @@ def register_commands(app: Flask) -> None:
     def seed_demo_command() -> None:
         """Populate the database with demo data and default credentials."""
 
-        from seeds.demo_seed import ensure_superadmin, load_demo_data
+        from seeds.demo_seed import (
+            SUPERADMIN_PASSWORD,
+            SUPERADMIN_USERNAME,
+            ensure_superadmin,
+            load_demo_data,
+        )
 
         ensure_superadmin(db.session)
         load_demo_data(db)
         db.session.commit()
+        default_username = current_app.config.get(
+            "DEFAULT_SUPERADMIN_USERNAME", SUPERADMIN_USERNAME
+        )
+        default_password = (
+            current_app.config.get("DEFAULT_PASSWORD") or SUPERADMIN_PASSWORD
+        )
         click.secho(
-            "Seed de demo cargado. Usuario admin / 123456 disponible.", fg="green"
+            f"Seed de demo cargado. Usuario {default_username} / {default_password} disponible.",
+            fg="green",
         )
 
     @app.cli.command("promote-superadmin")
