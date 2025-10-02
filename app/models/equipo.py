@@ -18,6 +18,7 @@ from sqlalchemy import (
     Text,
     event,
     func,
+    Index,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,6 +42,7 @@ class TipoEquipo(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     nombre: Mapped[str] = mapped_column(String(160), unique=True, nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(Text())
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
@@ -98,8 +100,8 @@ class Equipo(Base):
         nullable=False,
     )
     descripcion: Mapped[str | None] = mapped_column(Text())
-    marca: Mapped[str | None] = mapped_column(String(100))
-    modelo: Mapped[str | None] = mapped_column(String(100))
+    marca: Mapped[str | None] = mapped_column(String(100), index=True)
+    modelo: Mapped[str | None] = mapped_column(String(100), index=True)
     numero_serie: Mapped[str | None] = mapped_column(String(120), index=True)
     sin_numero_serie: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitales.id"), nullable=False)
@@ -196,3 +198,6 @@ def _tipo_equipo_before_insert(mapper, connection, target: TipoEquipo) -> None: 
 @event.listens_for(TipoEquipo, "before_update")
 def _tipo_equipo_before_update(mapper, connection, target: TipoEquipo) -> None:  # pragma: no cover
     _ensure_tipo_equipo_slug(target)
+
+
+Index("ix_equipos_descripcion", Equipo.descripcion)

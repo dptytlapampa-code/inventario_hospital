@@ -24,6 +24,7 @@ from app.forms.adjunto import AdjuntoForm
 from app.models import Adjunto, Equipo, Modulo
 from app.security import permissions_required, require_hospital_access
 from app.services.audit_service import log_action
+from app.services.equipo_service import equipment_options_for_ids
 from sqlalchemy import or_
 
 adjuntos_bp = Blueprint("adjuntos", __name__, url_prefix="/adjuntos")
@@ -92,7 +93,12 @@ def subir():
         log_action(usuario_id=current_user.id, accion="subir", modulo="adjuntos", tabla="adjuntos", registro_id=adjunto.id)
         flash("Adjunto subido correctamente", "success")
         return redirect(url_for("adjuntos.listar"))
-    return render_template("adjuntos/formulario.html", form=form, titulo="Nuevo adjunto")
+    return render_template(
+        "adjuntos/formulario.html",
+        form=form,
+        titulo="Nuevo adjunto",
+        equipo_options=equipment_options_for_ids([form.equipo_id.data]),
+    )
 
 
 @adjuntos_bp.route("/<int:adjunto_id>")

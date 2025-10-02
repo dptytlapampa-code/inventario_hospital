@@ -4,16 +4,18 @@ from __future__ import annotations
 import json
 
 from flask import current_app, jsonify, request
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy import asc, or_
 
-from app.models import Hospital, Insumo, Oficina, Servicio
+from app.models import Equipo, Hospital, Insumo, Oficina, Servicio, TipoEquipo
+from app.services.equipo_service import format_equipo_option
 
 from . import api_bp
 
 DEFAULT_PAGE_SIZE = 20
 LOOKUP_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 50
+EQUIPO_PAGE_SIZE = 20
 
 
 def _sanitize_query_param() -> str:
@@ -172,6 +174,45 @@ def search_oficinas_lookup():
         pagination,
         lambda oficina: {"id": oficina.id, "label": oficina.nombre},
     )
+
+
+@api_bp.route("/equipos/search")
+@login_required
+def search_equipos():
+    query_value = _sanitize_query_param()
+    page = request.args.get("page", type=int, default=1)
+    per_page = _get_page_size(EQUIPO_PAGE_SIZE)
+
+    search = (
+        Equipo.query.join(Equipo.tipo)
+        .filter(TipoEquipo.activo.is_(True))
+        .order_by(asc(TipoEquipo.nombre), asc(Equipo.marca), asc(Equipo.modelo))
+    )
+
+    allowed = current_user.allowed_hospital_ids()
+    if allowed:
+        search = search.filter(Equipo.hospital_id.in_(allowed))
+
+    if query_value:
+        like = f"%{query_value}%"
+        filters = [
+            TipoEquipo.nombre.ilike(like),
+            Equipo.descripcion.ilike(like),
+            Equipo.marca.ilike(like),
+            Equipo.modelo.ilike(like),
+            Equipo.numero_serie.ilike(like),
+        ]
+        codigo_column = getattr(Equipo, "codigo", None)
+        if codigo_column is not None:
+            filters.append(codigo_column.ilike(like))
+        patrimonial_column = getattr(Equipo, "bien_patrimonial", None)
+        if patrimonial_column is not None:
+            filters.append(patrimonial_column.ilike(like))
+        search = search.filter(or_(*filters))
+
+    pagination = search.paginate(page=page, per_page=per_page, error_out=False)
+    items = [format_equipo_option(equipo) for equipo in pagination.items]
+    return jsonify({"results": items, "pagination": {"more": pagination.has_next}})
 
 
 @api_bp.route("/servicios/search")

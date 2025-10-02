@@ -231,9 +231,11 @@ class EquipoActaFiltroForm(FlaskForm):
 
 
 class TipoEquipoCreateForm(FlaskForm):
-    """Form used by superadmins to create new equipment types."""
+    """Form used by administrators to create new equipment types."""
 
     nombre = StringField("Nombre", validators=[DataRequired(), Length(max=160)])
+    descripcion = TextAreaField("Descripción", validators=[Optional(), Length(max=500)])
+    activo = BooleanField("Activo", default=True)
     submit = SubmitField("Agregar tipo")
 
     def validate(self, extra_validators=None):  # type: ignore[override]
@@ -253,12 +255,24 @@ class TipoEquipoCreateForm(FlaskForm):
         if existing:
             raise ValidationError("Ya existe un tipo con ese nombre")
 
+    def _deduplicate_errors(self) -> None:
+        for field in self._fields.values():
+            if getattr(field, "errors", None):
+                seen: set[str] = set()
+                deduped: list[str] = []
+                for error in field.errors:
+                    if error not in seen:
+                        seen.add(error)
+                        deduped.append(error)
+                field.errors[:] = deduped
+
 
 class TipoEquipoUpdateForm(FlaskForm):
     """Form to rename or toggle availability of existing types."""
 
     tipo_id = HiddenField(validators=[DataRequired()])
     nombre = StringField("Nombre", validators=[DataRequired(), Length(max=160)])
+    descripcion = TextAreaField("Descripción", validators=[Optional(), Length(max=500)])
     activo = BooleanField("Activo")
     submit = SubmitField("Guardar cambios")
 

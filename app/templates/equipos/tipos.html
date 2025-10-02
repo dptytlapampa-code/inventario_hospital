@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_field, render_checkbox %}
+{% from '_form_helpers.html' import render_field, render_checkbox, render_textarea %}
 {% block title %}Tipos de equipo{% endblock %}
 {% block header_title %}Tipos de equipo{% endblock %}
 {% block content %}
@@ -17,6 +17,8 @@
         <form method="post" novalidate>
           {{ create_form.hidden_tag() }}
           {{ render_field(create_form.nombre, form_group_class='mb-3', label_class='form-label fw-semibold', input_class='form-control', placeholder='Nombre del tipo (p. ej. Notebook)') }}
+          {{ render_textarea(create_form.descripcion, form_group_class='mb-3', label_class='form-label fw-semibold', rows=3, placeholder='Descripción u observaciones (opcional)') }}
+          {{ render_checkbox(create_form.activo, form_group_class='form-check form-switch mb-3', input_class='form-check-input', label_class='form-check-label fw-semibold') }}
           <div class="d-flex justify-content-end">
             {{ create_form.submit(class='btn btn-primary') }}
           </div>
@@ -36,16 +38,15 @@
           {% for tipo, form in update_forms %}
           <form method="post" action="{{ url_for('equipos.actualizar_tipo', tipo_id=tipo.id) }}" class="list-group-item list-group-item-action py-3" novalidate>
             {{ form.hidden_tag() }}
-            <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
+            <div class="d-flex flex-column flex-lg-row gap-3 align-items-start">
               <div class="flex-fill">
                 <label class="form-label small text-muted mb-1" for="{{ form.nombre.id }}">Nombre</label>
-                {{ render_field(form.nombre, form_group_class='mb-0', label_class='visually-hidden', input_class='form-control form-control-sm', extra_attrs={'aria-describedby': 'tipo-ayuda-' ~ tipo.id}) }}
-                <div id="tipo-ayuda-{{ tipo.id }}" class="form-text">Se muestra como “{{ tipo.nombre }}” en los listados.</div>
+                {{ render_field(form.nombre, form_group_class='mb-2', label_class='visually-hidden', input_class='form-control form-control-sm', extra_attrs={'aria-describedby': 'tipo-ayuda-' ~ tipo.id}) }}
+                <div id="tipo-ayuda-{{ tipo.id }}" class="form-text mb-2">Se muestra como “{{ tipo.nombre }}” en los listados.</div>
+                {{ render_textarea(form.descripcion, form_group_class='mb-2', label_class='form-label small text-muted', rows=3, placeholder='Descripción (opcional)') }}
               </div>
-              <div class="form-check form-switch align-self-start">
-                {{ render_checkbox(form.activo, form_group_class='form-check form-switch mb-0', input_class='form-check-input', label_class='form-check-label fw-semibold') }}
-              </div>
-              <div class="text-lg-end">
+              {{ render_checkbox(form.activo, form_group_class='form-check form-switch mb-0 mt-1 align-self-stretch', input_class='form-check-input', label_class='form-check-label fw-semibold') }}
+              <div class="text-lg-end ms-lg-auto">
                 {% if not tipo.activo %}
                 <span class="badge bg-secondary mb-2">Inactivo</span>
                 {% else %}

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea, render_equipo_selector %}
 {% block title %}Detalle de insumo{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -55,7 +55,13 @@
           {{ movimiento_form.hidden_tag() }}
           {{ render_select(movimiento_form.tipo) }}
           {{ render_field(movimiento_form.cantidad, input_class='form-control', min_value=1) }}
-          {{ render_select(movimiento_form.equipo_id) }}
+          {{ render_equipo_selector(
+            movimiento_form.equipo_id,
+            label='Equipo relacionado',
+            allow_clear=True,
+            initial_options=movimiento_equipo_options or [],
+            help_text='Opcional'
+          ) }}
           {{ render_field(movimiento_form.motivo) }}
           {{ render_textarea(movimiento_form.observaciones, rows=3) }}
           {{ movimiento_form.submit(class="btn btn-primary") }}

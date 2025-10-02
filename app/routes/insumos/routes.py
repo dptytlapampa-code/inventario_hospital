@@ -11,6 +11,7 @@ from app.models import Equipo, Insumo, MovimientoTipo, Modulo
 from app.security import permissions_required, require_hospital_access
 from app.services import insumo_service
 from app.services.audit_service import log_action
+from app.services.equipo_service import equipment_options_for_ids
 
 insumos_bp = Blueprint("insumos", __name__, url_prefix="/insumos")
 
@@ -82,14 +83,19 @@ def crear():
         db.session.add(insumo)
         db.session.flush()
         if form.equipos.data:
-            equipos_ids = [int(i) for i in form.equipos.data]
-            equipos = Equipo.query.filter(Equipo.id.in_(equipos_ids)).all()
-            insumo.equipos = equipos
+            insumo.equipos = (
+                Equipo.query.filter(Equipo.id.in_(form.equipos.data)).all()
+            )
         db.session.commit()
         flash("Insumo creado", "success")
         log_action(usuario_id=current_user.id, accion="crear", modulo="insumos", tabla="insumos", registro_id=insumo.id)
         return redirect(url_for("insumos.listar"))
-    return render_template("insumos/formulario.html", form=form, titulo="Nuevo insumo")
+    return render_template(
+        "insumos/formulario.html",
+        form=form,
+        titulo="Nuevo insumo",
+        equipos_options=equipment_options_for_ids(form.equipos.data),
+    )
 
 
 @insumos_bp.route("/<int:insumo_id>/editar", methods=["GET", "POST"])
@@ -110,15 +116,22 @@ def editar(insumo_id: int):
         insumo.stock_minimo = form.stock_minimo.data or 0
         insumo.costo_unitario = form.costo_unitario.data
         if form.equipos.data:
-            equipos_ids = [int(i) for i in form.equipos.data]
-            insumo.equipos = Equipo.query.filter(Equipo.id.in_(equipos_ids)).all()
+            insumo.equipos = (
+                Equipo.query.filter(Equipo.id.in_(form.equipos.data)).all()
+            )
         else:
             insumo.equipos = []
         db.session.commit()
         log_action(usuario_id=current_user.id, accion="editar", modulo="insumos", tabla="insumos", registro_id=insumo.id)
         flash("Insumo actualizado", "success")
         return redirect(url_for("insumos.detalle", insumo_id=insumo.id))
-    return render_template("insumos/formulario.html", form=form, titulo="Editar insumo", insumo=insumo)
+    return render_template(
+        "insumos/formulario.html",
+        form=form,
+        titulo="Editar insumo",
+        insumo=insumo,
+        equipos_options=equipment_options_for_ids(form.equipos.data),
+    )
 
 
 @insumos_bp.route("/<int:insumo_id>")
@@ -133,6 +146,9 @@ def detalle(insumo_id: int):
         insumo=insumo,
         movimientos=insumo.movimientos[-20:],
         movimiento_form=movimiento_form,
+        movimiento_equipo_options=equipment_options_for_ids([
+            movimiento_form.equipo_id.data
+        ]),
     )
 
 
@@ -145,8 +161,6 @@ def registrar_movimiento(insumo_id: int):
     form = MovimientoForm()
     if form.validate_on_submit():
         equipo_id = form.equipo_id.data or None
-        if equipo_id == 0:
-            equipo_id = None
         movimiento = insumo_service.registrar_movimiento(
             insumo=insumo,
             tipo=MovimientoTipo(form.tipo.data),
