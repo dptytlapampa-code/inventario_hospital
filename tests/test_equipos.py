@@ -66,8 +66,12 @@ def test_equipo_requires_valid_hospital_lookup(client, admin_credentials, data):
 def test_equipo_adjuntos_upload_download_and_delete(client, admin_credentials, data):
     login(client, **admin_credentials)
     equipo = data["equipo"]
+    png_bytes = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+        b"\x00\x00\x00\x0cIDATx\x9cc`\x00\x00\x00\x02\x00\x01\xe2!\xbc3\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
     upload_data = {
-        "archivo": (BytesIO(b"fake image data"), "foto.jpg"),
+        "archivo": (BytesIO(png_bytes), "foto.png"),
     }
     response = client.post(
         f"/equipos/{equipo.id}/adjuntos/subir",
@@ -81,17 +85,15 @@ def test_equipo_adjuntos_upload_download_and_delete(client, admin_credentials, d
     stored_path = Path(adjunto.filepath)
     assert stored_path.exists()
 
-    preview = client.get(
-        f"/equipos/{equipo.id}/adjuntos/{adjunto.id}/descargar?preview=1",
-        follow_redirects=False,
-    )
+    preview = client.get(f"/files/view/{adjunto.id}", follow_redirects=False)
     assert preview.status_code == 200
     assert preview.mimetype.startswith("image/")
 
-    delete_resp = client.post(
-        f"/equipos/{equipo.id}/adjuntos/{adjunto.id}/eliminar",
-        follow_redirects=False,
-    )
+    thumb_path = Path(adjunto.filepath).with_name(Path(adjunto.filepath).stem + "_thumb.webp")
+    assert thumb_path.exists()
+
+    delete_resp = client.post(f"/files/delete/{adjunto.id}", follow_redirects=False)
     assert delete_resp.status_code == 302
     assert not stored_path.exists()
+    assert not thumb_path.exists()
     assert EquipoAdjunto.query.get(adjunto.id) is None

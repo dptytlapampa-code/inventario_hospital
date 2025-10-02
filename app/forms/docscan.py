@@ -21,7 +21,13 @@ class DocscanForm(FlaskForm):
     hospital_id = SelectField("Hospital", coerce=int, validators=[Optional()])
     servicio_id = SelectField("Servicio", coerce=int, validators=[Optional()])
     oficina_id = SelectField("Oficina", coerce=int, validators=[Optional()])
-    fecha_documento = DateField("Fecha del documento", validators=[Optional()])
+    _date_render = {"placeholder": "dd/mm/aaaa", "data-date-format": "d/m/Y", "autocomplete": "off"}
+    fecha_documento = DateField(
+        "Fecha del documento",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=_date_render,
+    )
     comentario = TextAreaField("Comentario", validators=[Optional(), Length(max=500)])
     archivo = FileField(
         "Archivo",

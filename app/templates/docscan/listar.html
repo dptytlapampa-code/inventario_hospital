@@ -27,7 +27,7 @@
         <td>{{ doc.titulo }}</td>
         <td class="text-capitalize">{{ normalize_enum_value(doc.tipo) }}</td>
         <td>{{ doc.hospital.nombre if doc.hospital else '—' }}</td>
-        <td>{{ doc.uploaded_at.strftime('%d/%m/%Y') }}</td>
+        <td>{{ doc.uploaded_at|fecha(False) }}</td>
         <td class="text-end">
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('docscan.detalle', doc_id=doc.id) }}">Ver</a>
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('docscan.descargar', doc_id=doc.id) }}">Descargar</a>

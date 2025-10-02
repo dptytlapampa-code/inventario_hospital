@@ -24,6 +24,7 @@ from app.extensions import configure_logging, db, init_extensions, login_manager
 from app.security.rbac import has_role
 from app.utils import (
     build_select_attrs,
+    format_spanish_date,
     humanize_bytes,
     normalize_enum_value,
     render_input_field,
@@ -187,6 +188,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     app.jinja_env.filters.setdefault("enum_value", normalize_enum_value)
     app.jinja_env.filters.setdefault("humanize_bytes", humanize_bytes)
     app.jinja_env.filters.setdefault("combine", _combine_dicts)
+    app.jinja_env.filters.setdefault("fecha", format_spanish_date)
 
     from app.models.usuario import Usuario  # imported lazily to avoid circular imports
 
@@ -213,6 +215,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     from app.routes.docscan import docscan_bp
     from app.routes.equipos import equipos_bp
     from app.routes.insumos import insumos_bp
+    from app.routes.files import files_bp
     from app.routes.licencias.routes import licencias_bp
     from app.routes.main import main_bp
     from app.routes.permisos import permisos_bp
@@ -230,6 +233,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         ubicaciones_bp,
         adjuntos_bp,
         docscan_bp,
+        files_bp,
         permisos_bp,
         auditoria_bp,
         actas_bp,

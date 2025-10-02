@@ -1,34 +1,67 @@
-{% macro render_pagination(pagination, endpoint=None) -%}
-  {% if pagination.pages > 1 %}
+{% macro render_pagination(pagination, endpoint=None, param_name='page', params=None) -%}
+  {% if pagination and pagination.pages > 1 %}
     {% set endpoint = endpoint or request.endpoint %}
-    {% set params = request.args.to_dict() %}
+    {% set base_params = params.copy() if params else request.args.to_dict() %}
+    {% set view_args = request.view_args or {} %}
+    {% for key, value in view_args.items() %}
+      {% if key not in base_params %}
+        {% set _ = base_params.update({key: value}) %}
+      {% endif %}
+    {% endfor %}
+    {% set _ = base_params.pop(param_name, None) %}
     <nav aria-label="Paginación">
-      <ul class="pagination justify-content-end">
-        {% if pagination.has_prev %}
-          {% set prev_params = params.copy() %}
-          {% set _ = prev_params.update({'page': pagination.prev_num}) %}
-          <li class="page-item">
-            <a class="page-link" href="{{ url_for(endpoint, **prev_params) }}" aria-label="Anterior">Anterior</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled">
-            <span class="page-link">Anterior</span>
-          </li>
-        {% endif %}
-        <li class="page-item disabled">
-          <span class="page-link">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+      <ul class="pagination justify-content-end mb-0">
+        {% set first_params = base_params.copy() %}
+        {% set _ = first_params.update({param_name: 1}) %}
+        <li class="page-item{% if pagination.page == 1 %} disabled{% endif %}">
+          {% if pagination.page == 1 %}
+          <span class="page-link" aria-hidden="true">&laquo;</span>
+          {% else %}
+          <a class="page-link" href="{{ url_for(endpoint, **first_params) }}" aria-label="Primera">&laquo;</a>
+          {% endif %}
         </li>
-        {% if pagination.has_next %}
-          {% set next_params = params.copy() %}
-          {% set _ = next_params.update({'page': pagination.next_num}) %}
-          <li class="page-item">
-            <a class="page-link" href="{{ url_for(endpoint, **next_params) }}" aria-label="Siguiente">Siguiente</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled">
-            <span class="page-link">Siguiente</span>
-          </li>
-        {% endif %}
+        {% set prev_params = base_params.copy() %}
+        {% set _ = prev_params.update({param_name: pagination.prev_num}) %}
+        <li class="page-item{% if not pagination.has_prev %} disabled{% endif %}">
+          {% if pagination.has_prev %}
+          <a class="page-link" href="{{ url_for(endpoint, **prev_params) }}" aria-label="Anterior">&lsaquo;</a>
+          {% else %}
+          <span class="page-link" aria-hidden="true">&lsaquo;</span>
+          {% endif %}
+        </li>
+        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if page_num %}
+            {% set page_params = base_params.copy() %}
+            {% set _ = page_params.update({param_name: page_num}) %}
+            <li class="page-item{% if page_num == pagination.page %} active{% endif %}">
+              {% if page_num == pagination.page %}
+              <span class="page-link">{{ page_num }}</span>
+              {% else %}
+              <a class="page-link" href="{{ url_for(endpoint, **page_params) }}">{{ page_num }}</a>
+              {% endif %}
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+        {% set next_params = base_params.copy() %}
+        {% set _ = next_params.update({param_name: pagination.next_num}) %}
+        <li class="page-item{% if not pagination.has_next %} disabled{% endif %}">
+          {% if pagination.has_next %}
+          <a class="page-link" href="{{ url_for(endpoint, **next_params) }}" aria-label="Siguiente">&rsaquo;</a>
+          {% else %}
+          <span class="page-link" aria-hidden="true">&rsaquo;</span>
+          {% endif %}
+        </li>
+        {% set last_params = base_params.copy() %}
+        {% set _ = last_params.update({param_name: pagination.pages}) %}
+        <li class="page-item{% if pagination.page == pagination.pages %} disabled{% endif %}">
+          {% if pagination.page == pagination.pages %}
+          <span class="page-link" aria-hidden="true">&raquo;</span>
+          {% else %}
+          <a class="page-link" href="{{ url_for(endpoint, **last_params) }}" aria-label="Última">&raquo;</a>
+          {% endif %}
+        </li>
       </ul>
     </nav>
   {% endif %}

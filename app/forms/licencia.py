@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from datetime import date
+
 from flask_wtf import FlaskForm
 from wtforms import DateField, SelectField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
@@ -13,13 +15,24 @@ from app.models import TipoLicencia
 class LicenciaForm(FlaskForm):
     """Form to request a new license."""
 
+    _date_render = {"placeholder": "dd/mm/aaaa", "data-date-format": "d/m/Y", "autocomplete": "off"}
     tipo = SelectField(
         "Tipo de licencia",
         choices=[(t.value, t.name.title()) for t in TipoLicencia],
         validators=[DataRequired()],
     )
-    fecha_inicio = DateField("Fecha de inicio", validators=[DataRequired()])
-    fecha_fin = DateField("Fecha de fin", validators=[DataRequired()])
+    fecha_inicio = DateField(
+        "Fecha de inicio",
+        validators=[DataRequired()],
+        format="%d/%m/%Y",
+        render_kw=_date_render,
+    )
+    fecha_fin = DateField(
+        "Fecha de fin",
+        validators=[DataRequired()],
+        format="%d/%m/%Y",
+        render_kw=_date_render,
+    )
     hospital_id = SelectField(
         "Hospital",
         coerce=int,
@@ -48,7 +61,13 @@ class AprobarRechazarForm(FlaskForm):
 class CalendarioFiltroForm(FlaskForm):
     """Filter for license calendar."""
 
-    mes = DateField("Mes", default=date.today, validators=[Optional()])
+    mes = DateField(
+        "Mes",
+        default=date.today,
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=LicenciaForm._date_render,
+    )
     submit = SubmitField("Filtrar")
 
 
@@ -67,8 +86,18 @@ class MisLicenciasFiltroForm(FlaskForm):
         validators=[Optional()],
         description="Filtrar por tipo de licencia.",
     )
-    fecha_desde = DateField("Desde", validators=[Optional()])
-    fecha_hasta = DateField("Hasta", validators=[Optional()])
+    fecha_desde = DateField(
+        "Desde",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=LicenciaForm._date_render,
+    )
+    fecha_hasta = DateField(
+        "Hasta",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=LicenciaForm._date_render,
+    )
     submit = SubmitField("Aplicar filtros")
 
 
@@ -88,8 +117,18 @@ class GestionLicenciasFiltroForm(FlaskForm):
         validators=[Optional()],
     )
     estado = SelectField("Estado", choices=[], validators=[Optional()])
-    fecha_desde = DateField("Desde", validators=[Optional()])
-    fecha_hasta = DateField("Hasta", validators=[Optional()])
+    fecha_desde = DateField(
+        "Desde",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=LicenciaForm._date_render,
+    )
+    fecha_hasta = DateField(
+        "Hasta",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=LicenciaForm._date_render,
+    )
     submit = SubmitField("Aplicar filtros")
 
 

@@ -14,10 +14,10 @@
           {{ render_select(form.tipo, label_class='form-label fw-semibold', input_class='form-select') }}
           <div class="row g-3">
             <div class="col-sm-6">
-              {{ render_field(form.fecha_inicio, label_class='form-label fw-semibold', input_class='form-control', input_type='date') }}
+              {{ render_field(form.fecha_inicio, label_class='form-label fw-semibold', input_class='form-control', input_type='text') }}
             </div>
             <div class="col-sm-6">
-              {{ render_field(form.fecha_fin, label_class='form-label fw-semibold', input_class='form-control', input_type='date') }}
+              {{ render_field(form.fecha_fin, label_class='form-label fw-semibold', input_class='form-control', input_type='text') }}
             </div>
           </div>
           {{ render_select(form.hospital_id, label_class='form-label fw-semibold', input_class='form-select') }}

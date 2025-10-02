@@ -26,8 +26,6 @@ from app.models import (
     TipoActa,
     TipoEquipo,
 )
-
-
 class EquipoForm(FlaskForm):
     """Create or edit an equipment entry."""
 
@@ -44,9 +42,28 @@ class EquipoForm(FlaskForm):
     servicio_id = IntegerField("Servicio", validators=[Optional()])
     oficina_id = IntegerField("Oficina", validators=[Optional()])
     responsable = StringField("Responsable", validators=[Optional(), Length(max=120)])
-    fecha_ingreso = DateField("Fecha de ingreso", validators=[Optional()], default=None)
-    fecha_instalacion = DateField("Fecha de instalación", validators=[Optional()], default=None)
-    garantia_hasta = DateField("Garantía hasta", validators=[Optional()], default=None)
+    _date_render = {"placeholder": "dd/mm/aaaa", "data-date-format": "d/m/Y", "autocomplete": "off"}
+    fecha_ingreso = DateField(
+        "Fecha de ingreso",
+        validators=[Optional()],
+        default=None,
+        format="%d/%m/%Y",
+        render_kw=_date_render,
+    )
+    fecha_instalacion = DateField(
+        "Fecha de instalación",
+        validators=[Optional()],
+        default=None,
+        format="%d/%m/%Y",
+        render_kw=_date_render,
+    )
+    garantia_hasta = DateField(
+        "Garantía hasta",
+        validators=[Optional()],
+        default=None,
+        format="%d/%m/%Y",
+        render_kw=_date_render,
+    )
     observaciones = TextAreaField("Observaciones", validators=[Optional(), Length(max=1000)])
     sin_numero_serie = BooleanField("Sin número de serie visible", default=False)
     es_nuevo = BooleanField("Equipo nuevo", default=False)
@@ -179,6 +196,7 @@ class EquipoAdjuntoForm(FlaskForm):
 class EquipoAdjuntoDeleteForm(FlaskForm):
     """Simple CSRF protected form to remove an attachment."""
 
+    next = HiddenField()
     submit = SubmitField("Eliminar")
 
 
@@ -186,8 +204,18 @@ class EquipoHistorialFiltroForm(FlaskForm):
     """Filter historical entries for an equipment."""
 
     accion = StringField("Acción", validators=[Optional(), Length(max=120)])
-    fecha_desde = DateField("Desde", validators=[Optional()])
-    fecha_hasta = DateField("Hasta", validators=[Optional()])
+    fecha_desde = DateField(
+        "Desde",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=EquipoForm._date_render,
+    )
+    fecha_hasta = DateField(
+        "Hasta",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=EquipoForm._date_render,
+    )
     submit = SubmitField("Filtrar")
 
     def validate(self, extra_validators=None):  # type: ignore[override]
@@ -207,8 +235,18 @@ class EquipoActaFiltroForm(FlaskForm):
     """Filter actas associated with an equipment."""
 
     tipo = SelectField("Tipo", coerce=str, validators=[Optional()])
-    fecha_desde = DateField("Desde", validators=[Optional()])
-    fecha_hasta = DateField("Hasta", validators=[Optional()])
+    fecha_desde = DateField(
+        "Desde",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=EquipoForm._date_render,
+    )
+    fecha_hasta = DateField(
+        "Hasta",
+        validators=[Optional()],
+        format="%d/%m/%Y",
+        render_kw=EquipoForm._date_render,
+    )
     submit = SubmitField("Filtrar")
 
     def __init__(self, *args, **kwargs) -> None:
