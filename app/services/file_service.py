@@ -54,18 +54,17 @@ def generate_image_thumbnail(original: Path) -> Path | None:
     thumb = thumbnail_path(original)
     try:
         if Image is None:
-            thumb.parent.mkdir(parents=True, exist_ok=True)
-            thumb.write_bytes(original.read_bytes())
             current_app.logger.warning(
-                "Pillow no está instalado; se generó una miniatura de respaldo para %s.",
+                "Pillow no está instalado; se omite la generación de miniatura para %s.",
                 original,
             )
-        else:
-            with Image.open(original) as image:  # pragma: no cover - exercised in prod envs
-                image = image.convert("RGB")
-                image.thumbnail(THUMBNAIL_SIZE)
-                thumb.parent.mkdir(parents=True, exist_ok=True)
-                image.save(thumb, "WEBP", quality=85, method=6)
+            return None
+
+        with Image.open(original) as image:  # pragma: no cover - exercised in prod envs
+            image = image.convert("RGB")
+            image.thumbnail(THUMBNAIL_SIZE)
+            thumb.parent.mkdir(parents=True, exist_ok=True)
+            image.save(thumb, "WEBP", quality=85, method=6)
     except (OSError, ValueError) as exc:
         current_app.logger.warning("No se pudo generar miniatura para %s: %s", original, exc)
         return None
