@@ -2,6 +2,7 @@ from io import BytesIO
 from pathlib import Path
 
 from app.models import Equipo, EquipoAdjunto, EstadoEquipo
+from app.services import file_service
 
 
 def login(client, username: str, password: str) -> None:
@@ -90,10 +91,56 @@ def test_equipo_adjuntos_upload_download_and_delete(client, admin_credentials, d
     assert preview.mimetype.startswith("image/")
 
     thumb_path = Path(adjunto.filepath).with_name(Path(adjunto.filepath).stem + "_thumb.webp")
-    assert thumb_path.exists()
+    if file_service.Image is None:
+        assert not thumb_path.exists()
+    else:
+        assert thumb_path.exists()
 
     delete_resp = client.post(f"/files/delete/{adjunto.id}", follow_redirects=False)
     assert delete_resp.status_code == 302
     assert not stored_path.exists()
     assert not thumb_path.exists()
+    assert EquipoAdjunto.query.get(adjunto.id) is None
+
+
+def test_equipo_adjuntos_thumbnail_without_pillow(
+    client, admin_credentials, data, monkeypatch
+):
+    login(client, **admin_credentials)
+    equipo = data["equipo"]
+    png_bytes = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+        b"\x00\x00\x00\x0cIDATx\x9cc`\x00\x00\x00\x02\x00\x01\xe2!\xbc3\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
+    monkeypatch.setattr(file_service, "Image", None)
+
+    upload_data = {
+        "archivo": (BytesIO(png_bytes), "foto.png"),
+    }
+    response = client.post(
+        f"/equipos/{equipo.id}/adjuntos/subir",
+        data=upload_data,
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    adjunto = (
+        EquipoAdjunto.query.filter_by(equipo_id=equipo.id)
+        .order_by(EquipoAdjunto.id.desc())
+        .first()
+    )
+    assert adjunto is not None
+
+    thumb_response = client.get(f"/files/thumb/{adjunto.id}")
+    assert thumb_response.status_code == 200
+    assert thumb_response.mimetype == adjunto.mime_type
+    assert thumb_response.data == png_bytes
+
+    thumb_path = Path(adjunto.filepath).with_name(Path(adjunto.filepath).stem + "_thumb.webp")
+    assert not thumb_path.exists()
+
+    delete_resp = client.post(f"/files/delete/{adjunto.id}", follow_redirects=False)
+    assert delete_resp.status_code == 302
     assert EquipoAdjunto.query.get(adjunto.id) is None

@@ -98,12 +98,17 @@ def thumbnail(file_id: int):
         abort(404)
     original = _resolve_or_404(adjunto)
     thumb_path = thumbnail_path(original)
-    if not thumb_path.exists():
-        generated = generate_image_thumbnail(original)
-        if generated:
-            thumb_path = generated
+    if thumb_path.exists():
+        return send_file(thumb_path, as_attachment=False, download_name=thumb_path.name)
+
+    generated = generate_image_thumbnail(original)
+    if generated is None:
+        return send_file(original, as_attachment=False, download_name=adjunto.filename)
+
+    thumb_path = generated
     if not thumb_path.exists():
         return send_file(original, as_attachment=False, download_name=adjunto.filename)
+
     return send_file(thumb_path, as_attachment=False, download_name=thumb_path.name)
 
 
