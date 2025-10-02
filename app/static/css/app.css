@@ -1,23 +1,28 @@
 /* Light por defecto */
 :root,
-[data-bs-theme='light'] {
+[data-bs-theme='light']{
   --sidebar-width: 260px;
   --sidebar-bg: #f8fafc;
-  --sidebar-link-color: #0f172a;
-  --sidebar-section-title-color: rgba(15, 23, 42, 0.95);
-  --sidebar-link-hover-bg: rgba(15, 23, 42, 0.06);
-  --sidebar-link-active-bg: rgba(15, 23, 42, 0.08);
+  --sidebar-link-color: #0f172a;        /* negro/azul muy oscuro */
+  --sidebar-section-title-color: rgba(15, 23, 42, .95);
+  --sidebar-link-hover-bg: rgba(15, 23, 42, .06);
+  --sidebar-link-active-bg: rgba(15, 23, 42, .08);
   --sidebar-link-active-border: #0d6efd;
 }
 
 /* Dark */
-[data-bs-theme='dark'] {
+[data-bs-theme='dark']{
   --sidebar-bg: #101828;
-  --sidebar-link-color: #ffffff;
-  --sidebar-section-title-color: rgba(255, 255, 255, 0.95);
-  --sidebar-link-hover-bg: rgba(255, 255, 255, 0.08);
-  --sidebar-link-active-bg: rgba(255, 255, 255, 0.12);
+  --sidebar-link-color: #ffffff;        /* blanco */
+  --sidebar-section-title-color: rgba(255,255,255,.95);
+  --sidebar-link-hover-bg: rgba(255,255,255,.08);
+  --sidebar-link-active-bg: rgba(255,255,255,.12);
   --sidebar-link-active-border: #6ea8fe;
+}
+
+/* Garantiza que el menú use esas variables */
+.sidebar .nav-link{
+  color: var(--sidebar-link-color) !important;
 }
 
 body {
