@@ -1,15 +1,17 @@
 """Helpers to manage evidence files stored on disk."""
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Iterator
 
 from flask import current_app
 
 try:  # pragma: no cover - dependency optional in some environments
-    from PIL import Image  # type: ignore
+    from PIL import Image, ImageFile  # type: ignore
 except ImportError:  # pragma: no cover - gracefully fallback when Pillow missing
     Image = None  # type: ignore
+    ImageFile = None  # type: ignore
 
 
 THUMBNAIL_SIZE = (300, 300)
@@ -45,6 +47,27 @@ def thumbnail_path(original: Path) -> Path:
     return original.with_name(original.stem + THUMBNAIL_SUFFIX)
 
 
+@contextmanager
+def _open_image_tolerant(path: Path) -> Iterator["Image.Image"]:
+    """Open ``path`` tolerating truncated images when Pillow is available."""
+
+    if Image is None:
+        yield None  # type: ignore[misc]
+        return
+
+    previous_flag = None
+    if ImageFile is not None and hasattr(ImageFile, "LOAD_TRUNCATED_IMAGES"):
+        previous_flag = ImageFile.LOAD_TRUNCATED_IMAGES  # type: ignore[attr-defined]
+        ImageFile.LOAD_TRUNCATED_IMAGES = True  # type: ignore[attr-defined]
+
+    try:
+        with Image.open(path) as img:  # pragma: no cover - depends on Pillow
+            yield img
+    finally:
+        if ImageFile is not None and previous_flag is not None and hasattr(ImageFile, "LOAD_TRUNCATED_IMAGES"):
+            ImageFile.LOAD_TRUNCATED_IMAGES = previous_flag  # type: ignore[attr-defined]
+
+
 def generate_image_thumbnail(original: Path) -> Path | None:
     """Generate a WEBP thumbnail for ``original`` if it is an image."""
 
@@ -60,12 +83,14 @@ def generate_image_thumbnail(original: Path) -> Path | None:
             )
             return None
 
-        with Image.open(original) as image:  # pragma: no cover - exercised in prod envs
+        with _open_image_tolerant(original) as image:
+            if image is None:
+                return None
             image = image.convert("RGB")
             image.thumbnail(THUMBNAIL_SIZE)
             thumb.parent.mkdir(parents=True, exist_ok=True)
             image.save(thumb, "WEBP", quality=85, method=6)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, SyntaxError) as exc:
         current_app.logger.warning("No se pudo generar miniatura para %s: %s", original, exc)
         return None
     return thumb

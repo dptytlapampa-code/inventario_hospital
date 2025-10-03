@@ -25,7 +25,8 @@ function Invoke-CheckedCommand {
 }
 
 try {
-    if (-not (Get-Command $Python -ErrorAction SilentlyContinue)) {
+    $pythonCmd = Get-Command $Python -ErrorAction SilentlyContinue
+    if ($null -eq $pythonCmd) {
         throw [System.Management.Automation.CommandNotFoundException]::new(
             "No se encontró '$Python'. Instale Python 3 y agréguelo al PATH."
         )
