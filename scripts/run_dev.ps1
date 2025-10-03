@@ -63,18 +63,24 @@ try {
 
     if (-not $env:FLASK_APP) { $env:FLASK_APP = "wsgi.py" }
     $env:FLASK_ENV = "development"
+    if (-not $env:SQLALCHEMY_DATABASE_URI) { $env:SQLALCHEMY_DATABASE_URI = "sqlite:///inventario.db" }
 
-    $databasePath = Join-Path $projectRoot "inventario.db"
-    $isNewDatabase = -not (Test-Path $databasePath)
+    $seedFlag = Join-Path $projectRoot ".seeded.flag"
 
     Write-Host "Aplicando migraciones..." -ForegroundColor Cyan
-    Invoke-CheckedCommand -Command { flask dbsafe-upgrade } -ErrorMessage "La migración falló"
+    try {
+        Invoke-CheckedCommand -Command { flask db upgrade } -ErrorMessage "La migración falló"
+    } catch {
+        Write-Host "Sugerencias: ejecute 'flask db heads' y 'flask db history' para diagnosticar conflictos." -ForegroundColor Yellow
+        throw
+    }
 
-    if ($isNewDatabase) {
-        Write-Host "Base de datos nueva detectada. Ejecutando seed demo..." -ForegroundColor Cyan
+    if (-not (Test-Path $seedFlag)) {
+        Write-Host "Ejecutando seed demo (idempotente)..." -ForegroundColor Cyan
         Invoke-CheckedCommand -Command { flask seed demo } -ErrorMessage "La carga de datos demo falló"
+        New-Item -ItemType File -Path $seedFlag -Force | Out-Null
     } else {
-        Write-Host "Base de datos existente detectada en $databasePath. Puede ejecutar 'flask seed demo' manualmente si necesita resembrar." -ForegroundColor DarkGray
+        Write-Host "Seed demo ya ejecutado anteriormente (se omite)." -ForegroundColor DarkGray
     }
 
     Write-Host "Levantando servidor en http://127.0.0.1:5000 ..." -ForegroundColor Green

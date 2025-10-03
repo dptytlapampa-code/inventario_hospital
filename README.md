@@ -23,9 +23,9 @@ Sistema web completo y listo para producción para la gestión de inventario hos
    powershell -ExecutionPolicy Bypass -File .\scripts\run_dev.ps1
    ```
 
-   El script crea `.venv`, instala dependencias, aplica migraciones y corre `flask seed demo` si la base `inventario.db` no existe.
+   El script crea `.venv`, instala dependencias, aplica migraciones y ejecuta un seed idempotente (`flask seed demo`).
 
-4. Ingresá a <http://127.0.0.1:5000>. Usuario demo listo: **admin / Cambiar123!**.
+4. Ingresá a <http://127.0.0.1:5000>. Usuario demo listo: **admin / 123456**.
 5. Para promocionar otro usuario al rol Superadmin (por ejemplo `fpla`):
 
    ```powershell

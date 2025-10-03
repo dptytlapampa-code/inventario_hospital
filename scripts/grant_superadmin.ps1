@@ -22,6 +22,7 @@ try {
     . $activateScript
     if (-not $env:FLASK_APP) { $env:FLASK_APP = "wsgi.py" }
     if (-not $env:FLASK_ENV) { $env:FLASK_ENV = "development" }
+    if (-not $env:SQLALCHEMY_DATABASE_URI) { $env:SQLALCHEMY_DATABASE_URI = "sqlite:///inventario.db" }
 
     Write-Host "Promoviendo usuario '$Username' al rol Superadmin..." -ForegroundColor Cyan
     flask promote-superadmin --username $Username

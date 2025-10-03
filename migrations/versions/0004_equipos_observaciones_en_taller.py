@@ -82,7 +82,12 @@ def _remove_catalog_state() -> None:
 
 
 def upgrade() -> None:
-    op.add_column("equipos", sa.Column("observaciones", sa.Text(), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "equipos" in inspector.get_table_names():
+        existing_columns = {column["name"] for column in inspector.get_columns("equipos")}
+        if "observaciones" not in existing_columns:
+            op.add_column("equipos", sa.Column("observaciones", sa.Text(), nullable=True))
     _add_enum_value()
     _insert_catalog_state()
 
@@ -105,4 +110,8 @@ def downgrade() -> None:
             {"nuevo": NEW_ESTADO, "fallback": "servicio_tecnico"},
         )
         op.execute("DROP TYPE estado_equipo_old")
-    op.drop_column("equipos", "observaciones")
+    inspector = sa.inspect(bind)
+    if "equipos" in inspector.get_table_names():
+        existing_columns = {column["name"] for column in inspector.get_columns("equipos")}
+        if "observaciones" in existing_columns:
+            op.drop_column("equipos", "observaciones")
