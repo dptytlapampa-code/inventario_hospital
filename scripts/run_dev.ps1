@@ -1,111 +1,128 @@
 [CmdletBinding()]
 param(
-    [string]$Python = "python"
+    [string]$Python = "py",
+    [switch]$Rebuild
 )
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Write-Host "== Inventario Hospital :: setup y arranque ==" -ForegroundColor Cyan
-Write-Host "Si PowerShell bloquea el script ejecute: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned" -ForegroundColor Yellow
+$ScriptRoot = $PSScriptRoot
+$ProjectRoot = Split-Path -Parent $ScriptRoot
+$VenvPath = Join-Path -Path $ProjectRoot -ChildPath ".venv"
+$ReqPath = Join-Path -Path $ProjectRoot -ChildPath "requirements.txt"
+$DbPath = Join-Path -Path $ProjectRoot -ChildPath "inventario.db"
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$projectRoot = Resolve-Path (Join-Path $scriptDir "..")
-Set-Location $projectRoot
+Write-Host "== Inventario Hospital :: setup y arranque ==" -ForegroundColor Cyan
+Write-Host "Tip: Si PowerShell bloquea scripts ejecuta: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned" -ForegroundColor Yellow
+
+function Invoke-CheckedCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        [string[]]$Arguments = @(),
+        [string]$ErrorMessage = "El comando falló"
+    )
+
+    & $FilePath @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "$ErrorMessage (código $LASTEXITCODE)."
+    }
+}
 
 try {
-    if (-not (Get-Command $Python -ErrorAction SilentlyContinue)) {
-        throw [System.Management.Automation.CommandNotFoundException]::new("No se encontró '$Python'. Instale Python 3 y agréguelo al PATH.")
+    Write-Host "Verificando intérprete de Python ($Python)..." -ForegroundColor Cyan
+    if (-not (Get-Command -Name $Python -ErrorAction SilentlyContinue)) {
+        throw "No se encontró el comando '$Python'. Instala Python 3 y asegúrate de que esté en el PATH."
     }
 
-    $venvPath = Join-Path $projectRoot ".venv"
-    if (-not (Test-Path $venvPath)) {
-        Write-Host "Creando entorno virtual en $venvPath ..." -ForegroundColor Cyan
-        & $Python -m venv $venvPath
+    if (-not (Test-Path -Path $VenvPath)) {
+        Write-Host "Creando entorno virtual en $VenvPath..." -ForegroundColor Cyan
+        & $Python -m venv $VenvPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "No se pudo crear el entorno virtual (código $LASTEXITCODE)."
+        }
     } else {
-        Write-Host "Usando entorno virtual existente ($venvPath)." -ForegroundColor DarkGray
+        Write-Host "Usando entorno virtual existente en $VenvPath." -ForegroundColor DarkGray
     }
 
-    $activateScript = Join-Path $venvPath "Scripts\Activate.ps1"
-    if (-not (Test-Path $activateScript)) {
-        throw "No se encontró el script de activación ($activateScript). Revise la instalación de Python."
+    $activateDir = Join-Path -Path $VenvPath -ChildPath "Scripts"
+    $activateScript = Join-Path -Path $activateDir -ChildPath "Activate.ps1"
+    if (-not (Test-Path -Path $activateScript)) {
+        throw "No se encontró el script de activación ($activateScript). Verifica la instalación de Python."
     }
 
     Write-Host "Activando entorno virtual..." -ForegroundColor Cyan
     . $activateScript
 
-    Write-Host "Verificando pip..." -ForegroundColor Cyan
+    Push-Location -Path $ProjectRoot
     try {
-        python -m pip --version | Out-Null
-    } catch {
-        Write-Warning "pip no estaba disponible. Ejecutando ensurepip..."
-        python -m ensurepip --upgrade
-    }
+        Write-Host "Actualizando pip..." -ForegroundColor Cyan
+        Invoke-CheckedCommand -FilePath "python" -Arguments @("-m", "pip", "install", "--upgrade", "pip") -ErrorMessage "No se pudo actualizar pip"
 
-    Write-Host "Actualizando pip..." -ForegroundColor Cyan
-    python -m pip install --upgrade pip
+        Write-Host "Instalando dependencias desde $ReqPath..." -ForegroundColor Cyan
+        Invoke-CheckedCommand -FilePath "python" -Arguments @("-m", "pip", "install", "-r", $ReqPath) -ErrorMessage "La instalación de dependencias falló"
 
-    Write-Host "Instalando dependencias del proyecto..." -ForegroundColor Cyan
-    python -m pip install -r requirements.txt
-
-    if (-not $env:FLASK_APP) { $env:FLASK_APP = "wsgi.py" }
-    $env:FLASK_ENV = "development"
-
-    $instanceDir = Join-Path $projectRoot "instance"
-    if (-not (Test-Path $instanceDir)) {
-        New-Item -ItemType Directory -Path $instanceDir | Out-Null
-    }
-
-    $candidateDatabases = @(
-        Join-Path $instanceDir "inventario.db",
-        Join-Path $projectRoot "inventario.db"
-    )
-
-    $existingDatabase = $candidateDatabases |
-        Where-Object { Test-Path $_ } |
-        Select-Object -First 1
-
-    if ($existingDatabase) {
-        $databasePath = $existingDatabase
-        $isNewDatabase = $false
-    } else {
-        $databasePath = $candidateDatabases[0]
-        $isNewDatabase = $true
-    }
-
-    Write-Host "Aplicando migraciones..." -ForegroundColor Cyan
-    flask dbsafe-upgrade
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Las migraciones no pudieron aplicarse (código $LASTEXITCODE)."
-        Write-Host "Revise el estado con 'flask db current', 'flask db heads' y 'flask db history'." -ForegroundColor Yellow
-        Write-Host "Solucione el problema y vuelva a ejecutar scripts/run_dev.ps1." -ForegroundColor Yellow
-        throw "La migración falló con código de salida $LASTEXITCODE."
-    }
-
-    if ($isNewDatabase) {
-        Write-Host "Base de datos nueva detectada. Ejecutando seed demo..." -ForegroundColor Cyan
-        flask seed demo
-        if ($LASTEXITCODE -ne 0) {
-            throw "La carga de datos demo falló con código de salida $LASTEXITCODE."
+        $env:FLASK_APP = "wsgi.py"
+        $env:FLASK_ENV = "development"
+        if (-not $env:SQLALCHEMY_DATABASE_URI) {
+            $sqlitePath = [IO.Path]::Combine($ProjectRoot, "inventario.db")
+            $env:SQLALCHEMY_DATABASE_URI = "sqlite:///$sqlitePath"
         }
-    } else {
-        Write-Host "Base de datos existente detectada en $databasePath. Puede ejecutar 'flask seed demo' manualmente si necesita resembrar." -ForegroundColor DarkGray
-    }
 
-    Write-Host "Levantando servidor en http://127.0.0.1:5000 ..." -ForegroundColor Green
-    flask run --host=127.0.0.1 --port=5000
-    if ($LASTEXITCODE -ne 0) {
-        throw "El servidor Flask terminó con código de salida $LASTEXITCODE."
+        $databaseExisted = Test-Path -Path $DbPath
+        if ($Rebuild.IsPresent) {
+            Write-Host "Reconstruyendo base de datos desde cero..." -ForegroundColor Yellow
+            if (Test-Path -Path $DbPath) {
+                Remove-Item -Path $DbPath -Force
+            }
+            $databaseExisted = $false
+        }
+
+        Write-Host "Aplicando migraciones..." -ForegroundColor Cyan
+        $headsOutput = & flask db heads 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host $headsOutput -ForegroundColor Yellow
+            throw "No se pudo consultar los heads de Alembic (código $LASTEXITCODE)."
+        }
+
+        $headIds = @()
+        foreach ($line in $headsOutput) {
+            $trimmed = $line.Trim()
+            if ($trimmed) {
+                $firstToken = $trimmed.Split(" ", 2)[0]
+                if ($firstToken) {
+                    $headIds += $firstToken
+                }
+            }
+        }
+        $uniqueHeads = $headIds | Sort-Object -Unique
+
+        if ($uniqueHeads.Count -gt 1) {
+            Write-Host "Se detectaron múltiples heads (${($uniqueHeads -join ', ')}). Ejecutando 'flask db upgrade heads'..." -ForegroundColor Yellow
+            Invoke-CheckedCommand -FilePath "flask" -Arguments @("db", "upgrade", "heads") -ErrorMessage "No se pudo aplicar 'flask db upgrade heads'"
+        } else {
+            Invoke-CheckedCommand -FilePath "flask" -Arguments @("db", "upgrade") -ErrorMessage "No se pudo aplicar 'flask db upgrade'"
+        }
+
+        $shouldSeed = (-not $databaseExisted) -or $Rebuild.IsPresent
+        if ($shouldSeed) {
+            Write-Host "Cargando datos de demo..." -ForegroundColor Cyan
+            Invoke-CheckedCommand -FilePath "flask" -Arguments @("seed", "demo") -ErrorMessage "La carga de datos demo falló"
+        } else {
+            Write-Host "La base de datos ya existía. Seeds omitidos." -ForegroundColor DarkGray
+        }
+
+        Write-Host "Levantando servidor Flask en http://127.0.0.1:5000 ..." -ForegroundColor Green
+        Invoke-CheckedCommand -FilePath "flask" -Arguments @("run", "--host", "127.0.0.1", "--port", "5000") -ErrorMessage "El servidor Flask finalizó con errores"
     }
-}
-catch [System.Management.Automation.CommandNotFoundException] {
-    Write-Error $_.Exception.Message
-    Write-Host "Descarga Python desde https://www.python.org/downloads/ y repite la ejecución." -ForegroundColor Yellow
-    exit 1
+    finally {
+        Pop-Location
+    }
 }
 catch {
     Write-Error $_.Exception.Message
-    Write-Host "Recomendaciones: ejecute 'flask db current', 'flask db heads' y 'flask db history' para diagnosticar el estado de Alembic." -ForegroundColor Yellow
-    Write-Host "Para problemas de políticas ejecute: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned" -ForegroundColor Yellow
-    Write-Host "Si falta SQLite instale el componente 'Optional Feature: SQLite' o revise la instalación de Python." -ForegroundColor Yellow
+    Write-Host "Tips: usa 'flask db current', 'flask db heads' y 'flask db history' para diagnosticar." -ForegroundColor Yellow
+    Write-Host "Si el problema es la política de ejecución: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned" -ForegroundColor Yellow
     exit 1
 }

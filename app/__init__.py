@@ -12,7 +12,7 @@ import click
 from alembic.script import ScriptDirectory
 from flask import Flask, current_app, render_template
 from flask.cli import with_appcontext
-from flask_migrate import CommandError, merge as migrate_merge, upgrade as migrate_upgrade
+from flask_migrate import CommandError, upgrade as migrate_upgrade
 from sqlalchemy import inspect, select
 from sqlalchemy.orm import joinedload
 
@@ -70,19 +70,26 @@ def _register_cli(app: Flask) -> None:
     @app.cli.command("dbsafe-upgrade")
     @with_appcontext
     def dbsafe_upgrade_command() -> None:
-        """Upgrade the database after merging stray Alembic heads if needed."""
+        """Upgrade the database handling multiple Alembic heads safely."""
 
         try:
             heads = _get_alembic_heads()
+            head_list = " ".join(heads)
             if len(heads) > 1:
-                revisions = " ".join(heads)
                 click.secho(
-                    f"Se detectaron {len(heads)} heads de Alembic. Realizando merge automático...",
+                    f"Se detectaron múltiples heads ({head_list}). Ejecutando 'flask db upgrade heads'...",
                     fg="yellow",
                 )
-                migrate_merge(revisions=revisions, message="auto merge heads")
-            migrate_upgrade()
+                migrate_upgrade(revision="heads")
+            else:
+                migrate_upgrade()
         except CommandError as exc:  # pragma: no cover - CLI wrapper
+            click.secho("Error al aplicar migraciones.", fg="red")
+            click.secho("Tips: ejecutá 'flask db current', 'flask db heads' y 'flask db history' para más contexto.", fg="yellow")
+            raise click.ClickException(str(exc)) from exc
+        except Exception as exc:  # pragma: no cover - defensive guard
+            click.secho("Fallo inesperado al aplicar migraciones.", fg="red")
+            click.secho("Revisá la configuración de la base y el estado de Alembic.", fg="yellow")
             raise click.ClickException(str(exc)) from exc
 
         click.secho("Migraciones aplicadas correctamente.", fg="green")
