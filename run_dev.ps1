@@ -1,7 +1,8 @@
-Param(
-  [string]$Python = "python"
+[CmdletBinding()]
+param(
+    [string]$Python = "py",
+    [switch]$Rebuild
 )
 
-$script = Join-Path $PSScriptRoot "scripts\run_dev.ps1"
-Write-Host "Este script fue movido a $script" -ForegroundColor Yellow
-& $script -Python $Python
+$child = Join-Path -Path $PSScriptRoot -ChildPath "scripts/run_dev.ps1"
+& $child @PSBoundParameters

@@ -220,6 +220,18 @@ make migrate   # docker compose exec app flask db migrate -m "auto"
 make upgrade   # docker compose exec app flask db upgrade
 ```
 
+### 5.5 Arranque rápido Windows (PowerShell)
+
+1. Abrí PowerShell en la raíz del repositorio.
+2. (Sólo la primera vez) Permití la ejecución de scripts: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+3. Ejecutá `./run_dev.ps1` para crear/usar el entorno virtual, instalar dependencias, aplicar migraciones idempotentes, sembrar datos de demo cuando corresponda y levantar Flask.
+
+Flags útiles:
+
+- `./run_dev.ps1 -Rebuild` elimina `inventario.db`, vuelve a aplicar todas las migraciones desde cero y recarga los seeds.
+
+Usuario demo: `admin` / `123456`.
+
 ## 6. Base de datos, migraciones y seeds
 
 ORM: SQLAlchemy + Flask-Migrate (Alembic).
