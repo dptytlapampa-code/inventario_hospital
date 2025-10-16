@@ -70,6 +70,23 @@ try {
             $env:SQLALCHEMY_DATABASE_URI = "sqlite:///$sqlitePath"
         }
 
+        $dbUri = $env:SQLALCHEMY_DATABASE_URI
+        if ($dbUri -and ($dbUri -notmatch "^sqlite")) {
+            $dbHostMatch = [regex]::Match($dbUri, "://(?:[^@/]+@)?(?<host>[^:/]+)")
+            if ($dbHostMatch.Success) {
+                $dbHost = $dbHostMatch.Groups["host"].Value
+                if ($dbHost) {
+                    Write-Host "Verificando conectividad hacia $dbHost..." -ForegroundColor Cyan
+                    $reachable = Test-Connection -ComputerName $dbHost -Count 1 -Quiet -ErrorAction SilentlyContinue
+                    if ($reachable) {
+                        Write-Host "El host $dbHost respondió al ping." -ForegroundColor DarkGray
+                    } else {
+                        Write-Host "No se pudo contactar $dbHost via ping. Continuando igualmente..." -ForegroundColor Yellow
+                    }
+                }
+            }
+        }
+
         $databaseExisted = Test-Path -Path $DbPath
         if ($Rebuild.IsPresent) {
             Write-Host "Reconstruyendo base de datos desde cero..." -ForegroundColor Yellow
@@ -96,12 +113,14 @@ try {
                 }
             }
         }
-        $uniqueHeads = $headIds | Sort-Object -Unique
+        $uniqueHeads = @($headIds | Sort-Object -Unique)
+        $uniqueHeadCount = $uniqueHeads.Count
 
-        if ($uniqueHeads.Count -gt 1) {
+        if ($uniqueHeadCount -gt 1) {
             Write-Host "Se detectaron múltiples heads (${($uniqueHeads -join ', ')}). Ejecutando 'flask db upgrade heads'..." -ForegroundColor Yellow
             Invoke-CheckedCommand -FilePath "flask" -Arguments @("db", "upgrade", "heads") -ErrorMessage "No se pudo aplicar 'flask db upgrade heads'"
         } else {
+            Write-Host "Base vacía o un solo head. Ejecutando 'flask db upgrade'..." -ForegroundColor Cyan
             Invoke-CheckedCommand -FilePath "flask" -Arguments @("db", "upgrade") -ErrorMessage "No se pudo aplicar 'flask db upgrade'"
         }
 
