@@ -40,7 +40,12 @@ DEFAULT_PASSWORD = "Cambiar123!"
 
 
 def _populate_database() -> dict[str, object]:
-    hospital = Hospital(nombre="Hospital Central", codigo="HCN")
+    hospital = Hospital(
+        nombre="Hospital Central",
+        codigo="HCN",
+        localidad="Santa Rosa",
+        nivel_complejidad=7,
+    )
     db.session.add(hospital)
     db.session.flush()
 

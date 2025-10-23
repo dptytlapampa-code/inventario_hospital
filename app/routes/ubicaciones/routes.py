@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import login_required
+from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 
 from app.extensions import db
@@ -27,7 +28,12 @@ def listar():
     ).order_by(Hospital.nombre)
     if buscar:
         like = f"%{buscar}%"
-        query = query.filter(Hospital.nombre.ilike(like))
+        criterios = [Hospital.nombre.ilike(like)]
+        if hasattr(Hospital, "localidad"):
+            criterios.append(Hospital.localidad.ilike(like))
+        if hasattr(Hospital, "direccion"):
+            criterios.append(Hospital.direccion.ilike(like))
+        query = query.filter(or_(*criterios))
 
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     return render_template(
@@ -47,8 +53,10 @@ def crear_hospital():
         hospital = Hospital(
             nombre=form.nombre.data,
             codigo=form.codigo.data or None,
+            localidad=form.localidad.data or None,
             direccion=form.direccion.data or None,
             telefono=form.telefono.data or None,
+            nivel_complejidad=form.nivel_complejidad.data,
         )
         db.session.add(hospital)
         db.session.commit()
@@ -67,8 +75,10 @@ def editar_hospital(hospital_id: int):
     if form.validate_on_submit():
         hospital.nombre = form.nombre.data
         hospital.codigo = form.codigo.data or None
+        hospital.localidad = form.localidad.data or None
         hospital.direccion = form.direccion.data or None
         hospital.telefono = form.telefono.data or None
+        hospital.nivel_complejidad = form.nivel_complejidad.data
         db.session.commit()
         flash("Hospital actualizado", "success")
         return redirect(url_for("ubicaciones.listar"))

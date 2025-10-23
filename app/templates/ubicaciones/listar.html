@@ -6,7 +6,7 @@
   <h1 class="h3 mb-0">Hospitales</h1>
   <div class="d-flex flex-column flex-sm-row gap-2">
     <form class="d-flex gap-2" method="get">
-      <input class="form-control" type="search" name="q" value="{{ buscar }}" placeholder="Buscar hospital" />
+      <input class="form-control" type="search" name="q" value="{{ buscar }}" placeholder="Buscar hospital o localidad" />
       <button class="btn btn-outline-primary" type="submit">Buscar</button>
     </form>
     <div class="btn-group">
@@ -21,12 +21,39 @@
   <div class="accordion-item">
     <h2 class="accordion-header" id="heading{{ hospital.id }}">
       <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ hospital.id }}" aria-expanded="false" aria-controls="collapse{{ hospital.id }}">
-        {{ hospital.nombre }}
+        <div class="d-flex flex-column flex-lg-row gap-2 w-100 justify-content-lg-between">
+          <span class="fw-semibold">{{ hospital.nombre }}</span>
+          {% if hospital.localidad or hospital.nivel_complejidad %}
+          <span class="text-muted">
+            {% if hospital.localidad %}{{ hospital.localidad }}{% endif %}
+            {% if hospital.localidad and hospital.nivel_complejidad %} · {% endif %}
+            {% if hospital.nivel_complejidad %}Nivel {{ hospital.nivel_complejidad }}{% endif %}
+          </span>
+          {% endif %}
+        </div>
       </button>
     </h2>
     <div id="collapse{{ hospital.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ hospital.id }}" data-bs-parent="#hospitalAccordion">
       <div class="accordion-body">
-        <p><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ubicaciones.editar_hospital', hospital_id=hospital.id) }}">Editar hospital</a></p>
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+          <div>
+            {% if hospital.localidad %}
+            <p class="mb-1"><strong>Localidad:</strong> {{ hospital.localidad }}</p>
+            {% endif %}
+            {% if hospital.direccion %}
+            <p class="mb-1"><strong>Dirección:</strong> {{ hospital.direccion }}</p>
+            {% endif %}
+            {% if hospital.telefono %}
+            <p class="mb-0"><strong>Teléfono:</strong> {{ hospital.telefono }}</p>
+            {% endif %}
+          </div>
+          <div class="text-lg-end">
+            {% if hospital.nivel_complejidad %}
+            <p class="mb-2"><span class="badge bg-info text-dark">Nivel de complejidad {{ hospital.nivel_complejidad }}</span></p>
+            {% endif %}
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ubicaciones.editar_hospital', hospital_id=hospital.id) }}">Editar hospital</a>
+          </div>
+        </div>
         <ul class="list-group">
           {% for servicio in hospital.servicios %}
           <li class="list-group-item">
