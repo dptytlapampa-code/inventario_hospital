@@ -36,7 +36,15 @@ def _format_hospital_label(hospital: Hospital) -> str:
 
 
 def _build_paginated_response(pagination, formatter):
-    items = [formatter(item) for item in pagination.items]
+    items = []
+    for entry in pagination.items:
+        formatted = formatter(entry)
+        if isinstance(formatted, dict):
+            if "text" not in formatted and "label" in formatted:
+                formatted = {**formatted, "text": formatted["label"]}
+            elif "label" not in formatted and "text" in formatted:
+                formatted = {**formatted, "label": formatted["text"]}
+        items.append(formatted)
     return jsonify(
         {
             "items": items,

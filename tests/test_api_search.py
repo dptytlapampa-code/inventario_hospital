@@ -13,6 +13,7 @@ def test_search_servicios_endpoint(client, admin_credentials):
     data = resp.get_json()
     assert data["items"]
     assert any("Emergencias" in item["label"] for item in data["items"])
+    assert all(item["label"] == item["text"] for item in data["items"])
     assert data["total"] >= len(data["items"])
 
 
@@ -22,6 +23,7 @@ def test_search_hospitales_lookup(client, admin_credentials):
     assert resp.status_code == 200
     data = resp.get_json()
     assert any("Hospital Central" in item["label"] for item in data["items"])
+    assert all(item["label"] == item["text"] for item in data["items"])
     resp_all = client.get("/api/search/hospitales?q=...")
     assert resp_all.status_code == 200
     assert resp_all.get_json()["items"]
@@ -36,6 +38,7 @@ def test_search_servicios_lookup_requires_hospital(client, admin_credentials, da
     assert resp_ok.status_code == 200
     payload = resp_ok.get_json()
     assert any(item["label"] == "Emergencias" for item in payload["items"])
+    assert all(item["label"] == item["text"] for item in payload["items"])
 
 
 def test_search_oficinas_lookup_requires_hospital(client, admin_credentials, data):
@@ -50,6 +53,7 @@ def test_search_oficinas_lookup_requires_hospital(client, admin_credentials, dat
     assert resp_ok.status_code == 200
     payload = resp_ok.get_json()
     assert payload["items"]
+    assert all(item["label"] == item["text"] for item in payload["items"])
 
 
 def test_search_oficinas_requires_servicio(client, admin_credentials, data):
@@ -61,6 +65,7 @@ def test_search_oficinas_requires_servicio(client, admin_credentials, data):
     assert resp.status_code == 200
     payload = resp.get_json()
     assert payload["items"]
+    assert all(item["label"] == item["text"] for item in payload["items"])
 
 
 def test_search_insumos_endpoint(client, admin_credentials):
@@ -69,3 +74,4 @@ def test_search_insumos_endpoint(client, admin_credentials):
     assert resp.status_code == 200
     data = resp.get_json()
     assert any("Mouse" in item["label"] for item in data["items"])
+    assert all(item["label"] == item["text"] for item in data["items"])
