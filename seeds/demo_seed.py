@@ -232,14 +232,26 @@ def _ensure_hospital_structure(session: Session) -> tuple[list[Hospital], list[S
         {
             "nombre": "Hospital Dr. Lucio Molas",
             "codigo": "HLM",
+            "localidad": "Santa Rosa",
             "direccion": "Av. Spinetto 1225, Santa Rosa",
             "telefono": "02954-450000",
+            "nivel_complejidad": 6,
         },
         {
             "nombre": "Hospital René Favaloro",
             "codigo": "HRF",
+            "localidad": "General Pico",
             "direccion": "Balcarce 222, General Pico",
             "telefono": "02302-430000",
+            "nivel_complejidad": 7,
+        },
+        {
+            "nombre": "Hospital José Curci",
+            "codigo": "HJC",
+            "localidad": "General Acha",
+            "direccion": "Av. San Martín 350, General Acha",
+            "telefono": "02952-432200",
+            "nivel_complejidad": 3,
         },
     )
 
@@ -249,8 +261,10 @@ def _ensure_hospital_structure(session: Session) -> tuple[list[Hospital], list[S
             Hospital,
             defaults={
                 "codigo": spec["codigo"],
+                "localidad": spec.get("localidad"),
                 "direccion": spec["direccion"],
                 "telefono": spec["telefono"],
+                "nivel_complejidad": spec.get("nivel_complejidad"),
             },
             nombre=spec["nombre"],
         )

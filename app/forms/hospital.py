@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
-from wtforms import SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, Optional
+from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 from app.models import Hospital, Servicio
 
@@ -11,8 +11,14 @@ from app.models import Hospital, Servicio
 class HospitalForm(FlaskForm):
     nombre = StringField("Nombre", validators=[DataRequired(), Length(max=120)])
     codigo = StringField("Código", validators=[Optional(), Length(max=20)])
+    localidad = StringField("Localidad", validators=[Optional(), Length(max=120)])
     direccion = StringField("Dirección", validators=[Optional(), Length(max=255)])
     telefono = StringField("Teléfono", validators=[Optional(), Length(max=50)])
+    nivel_complejidad = IntegerField(
+        "Nivel de complejidad",
+        validators=[Optional(), NumberRange(min=1, max=10)],
+        description="Ingrese un valor entre 1 y 10",
+    )
     submit = SubmitField("Guardar")
 
 

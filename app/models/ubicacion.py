@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -26,8 +26,10 @@ class Hospital(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nombre: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
     codigo: Mapped[str | None] = mapped_column(String(20), unique=True)
+    localidad: Mapped[str | None] = mapped_column(String(120), index=True)
     direccion: Mapped[str | None] = mapped_column(String(255), index=True)
     telefono: Mapped[str | None] = mapped_column(String(50))
+    nivel_complejidad: Mapped[int | None] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
