@@ -4,9 +4,10 @@ from __future__ import annotations
 from flask import Blueprint, current_app, flash, g, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.orm import selectinload
 
 from app.extensions import db
-from app.forms.insumo import InsumoForm, MovimientoForm
+from app.forms.insumo import InsumoForm, InsumoSeriesForm, MovimientoForm
 from app.models import Equipo, Insumo, InsumoSerie, MovimientoTipo, Modulo, SerieEstado
 from app.security import permissions_required, require_hospital_access
 from app.services import insumo_service
@@ -162,11 +163,20 @@ def series_disponibles():
 def detalle(insumo_id: int):
     insumo = Insumo.query.get_or_404(insumo_id)
     movimiento_form = MovimientoForm()
+    serie_form = InsumoSeriesForm()
+    series = (
+        InsumoSerie.query.filter_by(insumo_id=insumo.id)
+        .options(selectinload(InsumoSerie.equipo))
+        .order_by(InsumoSerie.nro_serie.asc())
+        .all()
+    )
     return render_template(
         "insumos/detalle.html",
         insumo=insumo,
         movimientos=insumo.movimientos[-20:],
         movimiento_form=movimiento_form,
+        serie_form=serie_form,
+        series=series,
         movimiento_equipo_options=equipment_options_for_ids([
             movimiento_form.equipo_id.data
         ]),
@@ -201,4 +211,31 @@ def registrar_movimiento(insumo_id: int):
         flash("Movimiento registrado", "success")
     else:
         flash("No se pudo registrar el movimiento", "danger")
+    return redirect(url_for("insumos.detalle", insumo_id=insumo.id))
+
+
+@insumos_bp.route("/<int:insumo_id>/series", methods=["POST"])
+@login_required
+@permissions_required("insumos:write")
+@require_hospital_access(Modulo.INSUMOS)
+def agregar_series(insumo_id: int):
+    insumo = Insumo.query.get_or_404(insumo_id)
+    form = InsumoSeriesForm()
+    if form.validate_on_submit():
+        try:
+            series = insumo_service.agregar_series(
+                insumo=insumo,
+                numeros_serie=form.parsed_series(),
+                ajustar_stock=bool(form.ajustar_stock.data),
+            )
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+        else:
+            cantidad = len(series)
+            mensaje = "Serie agregada" if cantidad == 1 else f"{cantidad} series agregadas"
+            flash(mensaje, "success")
+    else:
+        errores = ", ".join(err for errores in form.errors.values() for err in errores)
+        flash(errores or "No se pudieron agregar las series", "danger")
     return redirect(url_for("insumos.detalle", insumo_id=insumo.id))

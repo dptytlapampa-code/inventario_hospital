@@ -2,7 +2,15 @@
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
-from wtforms import DecimalField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import (
+    BooleanField,
+    DecimalField,
+    IntegerField,
+    SelectField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
 
 from app.forms.fields import HiddenIntegerField
@@ -49,4 +57,54 @@ class MovimientoForm(FlaskForm):
             raise ValidationError("Seleccione un equipo válido")
 
 
-__all__ = ["InsumoForm", "MovimientoForm"]
+class InsumoSeriesForm(FlaskForm):
+    """Agregar números de serie a un insumo."""
+
+    series = TextAreaField(
+        "Números de serie",
+        validators=[DataRequired()],
+        description="Ingrese uno por línea o separados por comas.",
+    )
+    ajustar_stock = BooleanField(
+        "Sumar la cantidad de series creadas al stock actual",
+        default=False,
+    )
+    submit = SubmitField("Agregar series")
+
+    _parsed_series: list[str] | None = None
+
+    def parsed_series(self) -> list[str]:
+        """Return sanitized serial numbers removing blanks."""
+
+        if self._parsed_series is None:
+            raw_value = self.series.data or ""
+            candidates = raw_value.replace(",", "\n").splitlines()
+            parsed: list[str] = []
+            for item in candidates:
+                value = item.strip()
+                if value:
+                    parsed.append(value)
+            self._parsed_series = parsed
+        return self._parsed_series
+
+    def validate_series(self, field: TextAreaField) -> None:  # type: ignore[override]
+        valores = self.parsed_series()
+        if not valores:
+            raise ValidationError("Debe ingresar al menos un número de serie")
+        if len(valores) > 200:
+            raise ValidationError("No se pueden cargar más de 200 series a la vez")
+
+        vistos: set[str] = set()
+        duplicados: set[str] = set()
+        for numero in valores:
+            if numero in vistos:
+                duplicados.add(numero)
+            vistos.add(numero)
+        if duplicados:
+            duplicados_txt = ", ".join(sorted(duplicados))
+            raise ValidationError(
+                f"Los números de serie no pueden repetirse: {duplicados_txt}"
+            )
+
+
+__all__ = ["InsumoForm", "MovimientoForm", "InsumoSeriesForm"]

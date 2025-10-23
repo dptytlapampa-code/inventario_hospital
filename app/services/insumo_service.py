@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import Optional
 
 from app.extensions import db
-from app.models import Insumo, InsumoMovimiento, MovimientoTipo, Usuario
+from sqlalchemy import select
+
+from app.models import Insumo, InsumoMovimiento, InsumoSerie, MovimientoTipo, Usuario
 
 
 def registrar_movimiento(
@@ -41,4 +43,47 @@ def registrar_movimiento(
     return movimiento
 
 
-__all__ = ["registrar_movimiento"]
+def agregar_series(
+    *,
+    insumo: Insumo,
+    numeros_serie: list[str],
+    ajustar_stock: bool = False,
+) -> list[InsumoSerie]:
+    """Crear registros de :class:`InsumoSerie` asegurando unicidad."""
+
+    if not numeros_serie:
+        raise ValueError("Debe indicar al menos un número de serie")
+
+    # Normalizar eliminando espacios extras
+    normalizados: list[str] = []
+    vistos: set[str] = set()
+    for numero in numeros_serie:
+        valor = (numero or "").strip()
+        if not valor:
+            continue
+        if valor in vistos:
+            raise ValueError("Los números de serie no pueden repetirse en el mismo lote")
+        vistos.add(valor)
+        normalizados.append(valor)
+
+    if not normalizados:
+        raise ValueError("Debe indicar al menos un número de serie válido")
+
+    existentes = db.session.scalars(
+        select(InsumoSerie.nro_serie).where(InsumoSerie.nro_serie.in_(normalizados))
+    ).all()
+    if existentes:
+        repetidos = ", ".join(sorted(existentes))
+        raise ValueError(f"Ya existen series con estos números: {repetidos}")
+
+    series_creadas = [InsumoSerie(insumo=insumo, nro_serie=valor) for valor in normalizados]
+    db.session.add_all(series_creadas)
+
+    if ajustar_stock:
+        insumo.ajustar_stock(len(series_creadas))
+
+    db.session.commit()
+    return series_creadas
+
+
+__all__ = ["registrar_movimiento", "agregar_series"]

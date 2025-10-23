@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_field, render_select, render_textarea, render_equipo_selector %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea, render_equipo_selector, render_checkbox %}
 {% block title %}Detalle de insumo{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -85,6 +85,59 @@
         <li class="list-group-item text-muted">No hay movimientos registrados.</li>
         {% endfor %}
       </ul>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mt-1">
+  <div class="col-12">
+    <div class="card h-100">
+      <div class="card-header">Series registradas</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-lg-5">
+            <form method="post" action="{{ url_for('insumos.agregar_series', insumo_id=insumo.id) }}" novalidate>
+              {{ serie_form.hidden_tag() }}
+              {{ render_textarea(serie_form.series, rows=5) }}
+              {{ render_checkbox(serie_form.ajustar_stock) }}
+              {{ serie_form.submit(class="btn btn-primary") }}
+            </form>
+          </div>
+          <div class="col-lg-7">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>N° serie</th>
+                    <th>Estado</th>
+                    <th>Equipo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for serie in series %}
+                  <tr>
+                    <td class="font-monospace">{{ serie.nro_serie }}</td>
+                    <td class="text-capitalize">{{ normalize_enum_value(serie.estado) }}</td>
+                    <td>
+                      {% if serie.equipo %}
+                        <a href="{{ url_for('equipos.detalle', equipo_id=serie.equipo.id) }}">
+                          {{ serie.equipo.descripcion or serie.equipo.codigo or 'Equipo' }}
+                        </a>
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr>
+                    <td colspan="3" class="text-muted text-center">Sin series cargadas.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
