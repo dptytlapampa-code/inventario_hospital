@@ -15,6 +15,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .licencia import Licencia
     from .permisos import Permiso
     from .usuario import Usuario
+    from .vlan import Vlan, VlanDispositivo
 
 
 class Hospital(Base):
@@ -50,6 +51,14 @@ class Hospital(Base):
     licencias: Mapped[list["Licencia"]] = relationship("Licencia", back_populates="hospital")
     equipos: Mapped[list["Equipo"]] = relationship("Equipo", back_populates="hospital")
     permisos: Mapped[list["Permiso"]] = relationship("Permiso", back_populates="hospital")
+    vlans: Mapped[list["Vlan"]] = relationship(
+        "Vlan", back_populates="hospital", cascade="all, delete-orphan"
+    )
+    vlan_dispositivos: Mapped[list["VlanDispositivo"]] = relationship(
+        "VlanDispositivo",
+        back_populates="hospital",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:  # pragma: no cover - representation helper
         return f"Hospital(id={self.id!r}, nombre={self.nombre!r})"

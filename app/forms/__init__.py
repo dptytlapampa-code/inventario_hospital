@@ -10,6 +10,7 @@ from .licencia import LicenciaForm  # type: ignore F401 - legacy import
 from .login import LoginForm  # type: ignore F401 - legacy import
 from .permisos import PermisoForm
 from .usuario import UsuarioForm
+from .vlan import VlanDispositivoForm, VlanForm
 
 __all__ = [
     "ActaForm",
@@ -22,4 +23,6 @@ __all__ = [
     "LoginForm",
     "PermisoForm",
     "UsuarioForm",
+    "VlanForm",
+    "VlanDispositivoForm",
 ]
