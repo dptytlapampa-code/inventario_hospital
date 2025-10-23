@@ -45,16 +45,26 @@
         {% set vlans_open = current_bp == 'vlans' %}
         {% set vista_actual = request.args.get('vista', 'hospitales') %}
         {% set filtro_insumos = request.args.get('criticos') %}
-        {% if has_role('superadmin', 'admin') %}
+        {% if has_role('superadmin') %}
         {% set licencias_url = url_for('licencias.gestion') %}
+        {% set licencias_main_active = current_bp == 'licencias' %}
+        {% elif has_role('admin') %}
+        {% set licencias_url = url_for('licencias.mias') %}
+        {% set licencias_main_active = current_endpoint in ['licencias.mias', 'licencias.nueva'] %}
         {% else %}
         {% set licencias_url = url_for('licencias.mias') %}
+        {% set licencias_main_active = current_bp == 'licencias' %}
         {% endif %}
         <nav class="sidebar-nav" aria-label="Menú principal">
           <ul class="sidebar-nav-list list-unstyled mb-0">
             <li>
               <a class="sidebar-link{% if current_endpoint == 'main.index' %} active{% endif %}" href="{{ url_for('main.index') }}">
                 <span class="sidebar-link-text">Dashboard</span>
+              </a>
+            </li>
+            <li>
+              <a class="sidebar-link{% if licencias_main_active %} active{% endif %}" href="{{ licencias_url }}">
+                <span class="sidebar-link-text">Licencias</span>
               </a>
             </li>
           </ul>
@@ -148,7 +158,7 @@
                     <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Permisos</a></li>
                     <li><a class="sidebar-sublink{% if current_bp == 'auditoria' %} active{% endif %}" href="{{ url_for('auditoria.index') }}">Auditorías</a></li>
                     <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.asignacion' %} active{% endif %}" href="{{ url_for('usuarios.asignacion') }}">Asignación hospitales</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'licencias' %} active{% endif %}" href="{{ url_for('licencias.gestion') }}">Licencias (gestión)</a></li>
+                    <li><a class="sidebar-sublink{% if current_endpoint == 'licencias.gestion' %} active{% endif %}" href="{{ url_for('licencias.gestion') }}">Licencias (gestión)</a></li>
                   </ul>
                 </div>
               </div>
