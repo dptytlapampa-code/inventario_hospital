@@ -46,7 +46,15 @@
         placeholder='Busque equipos por tipo, marca o serie…',
         multiple=True,
         allow_clear=True,
-        initial_options=equipos_options or []
+        initial_options=equipos_options or [],
+        depends_on=form.hospital_id.id,
+        depends_message='Seleccione un hospital para buscar equipos',
+        dependency_param='hospital_id',
+        extra_params=[
+          {'field': form.servicio_id.id, 'param': 'servicio_id'},
+          {'field': form.oficina_id.id, 'param': 'oficina_id'}
+        ],
+        help_text='Seleccione un hospital antes de buscar equipos. Puede filtrar por servicio u oficina si corresponde.'
       ) }}
       {{ render_textarea(form.observaciones, form_group_class='col-12', rows=3, placeholder='Observaciones adicionales') }}
     </div>
