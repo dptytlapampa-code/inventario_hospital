@@ -125,12 +125,11 @@ def editar_servicio(servicio_id: int):
 def crear_oficina():
     form = OficinaForm()
     if form.validate_on_submit():
-        servicio = Servicio.query.get(form.servicio_id.data)
         oficina = Oficina(
             nombre=form.nombre.data,
             piso=form.piso.data or None,
             servicio_id=form.servicio_id.data,
-            hospital_id=servicio.hospital_id if servicio else None,
+            hospital_id=form.hospital_id.data,
         )
         db.session.add(oficina)
         db.session.commit()
@@ -149,8 +148,7 @@ def editar_oficina(oficina_id: int):
         oficina.nombre = form.nombre.data
         oficina.piso = form.piso.data or None
         oficina.servicio_id = form.servicio_id.data
-        servicio = Servicio.query.get(form.servicio_id.data)
-        oficina.hospital_id = servicio.hospital_id if servicio else oficina.hospital_id
+        oficina.hospital_id = form.hospital_id.data
         db.session.commit()
         flash("Oficina actualizada", "success")
         return redirect(url_for("ubicaciones.listar"))
