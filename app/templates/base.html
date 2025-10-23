@@ -42,6 +42,7 @@
         {% set insumos_open = current_bp == 'insumos' %}
         {% set ubicaciones_open = current_bp == 'ubicaciones' %}
         {% set usuarios_open = current_bp in ['usuarios', 'licencias', 'permisos'] %}
+        {% set vlans_open = current_bp == 'vlans' %}
         {% set vista_actual = request.args.get('vista', 'hospitales') %}
         {% set filtro_insumos = request.args.get('criticos') %}
         {% if has_role('superadmin', 'admin') %}
@@ -97,6 +98,25 @@
                 </div>
               </div>
             </div>
+            {% if has_role('superadmin', 'admin', 'tecnico') %}
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="accordionVlans">
+                <button class="accordion-button{% if not vlans_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseVlans" aria-expanded="{{ 'true' if vlans_open else 'false' }}" aria-controls="collapseVlans">
+                  VLANs
+                </button>
+              </h2>
+              <div id="collapseVlans" class="accordion-collapse collapse{% if vlans_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
+                <div class="accordion-body p-0">
+                  <ul class="sidebar-subnav list-unstyled mb-0">
+                    <li><a class="sidebar-sublink{% if current_bp == 'vlans' and current_endpoint != 'vlans.crear_vlan' %} active{% endif %}" href="{{ url_for('vlans.listar') }}">Listado</a></li>
+                    {% if has_role('superadmin') %}
+                    <li><a class="sidebar-sublink{% if current_endpoint == 'vlans.crear_vlan' %} active{% endif %}" href="{{ url_for('vlans.crear_vlan') }}">Nueva VLAN</a></li>
+                    {% endif %}
+                  </ul>
+                </div>
+              </div>
+            </div>
+            {% endif %}
             {% if has_role('admin', 'superadmin') %}
             <div class="accordion-item">
               <h2 class="accordion-header" id="accordionUbicaciones">

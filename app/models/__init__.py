@@ -15,6 +15,7 @@ from .licencia import Licencia, TipoLicencia, EstadoLicencia
 from .permisos import Modulo, Permiso
 from .rol import Rol
 from .usuario import Usuario
+from .vlan import Vlan, VlanDispositivo
 
 __all__ = [
     "Acta",
@@ -48,4 +49,6 @@ __all__ = [
     "Permiso",
     "Rol",
     "Usuario",
+    "Vlan",
+    "VlanDispositivo",
 ]

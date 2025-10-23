@@ -4,12 +4,17 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
+from pathlib import Path
+from typing import Iterable
+
 from flask import current_app
 
 try:  # pragma: no cover - dependency optional in some environments
-    from PIL import Image  # type: ignore
+    from PIL import Image, ImageFile  # type: ignore
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
 except ImportError:  # pragma: no cover - gracefully fallback when Pillow missing
     Image = None  # type: ignore
+    ImageFile = None  # type: ignore
 
 
 THUMBNAIL_SIZE = (300, 300)
@@ -65,7 +70,7 @@ def generate_image_thumbnail(original: Path) -> Path | None:
             image.thumbnail(THUMBNAIL_SIZE)
             thumb.parent.mkdir(parents=True, exist_ok=True)
             image.save(thumb, "WEBP", quality=85, method=6)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, SyntaxError) as exc:
         current_app.logger.warning("No se pudo generar miniatura para %s: %s", original, exc)
         return None
     return thumb

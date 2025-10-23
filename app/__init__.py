@@ -229,6 +229,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     from app.routes.search import search_bp
     from app.routes.search_api import search_api_bp
     from app.routes.usuarios import usuarios_bp
+    from app.routes.vlans import vlans_bp
     from app.routes.ubicaciones import ubicaciones_bp
     from app.routes.ubicaciones_api import ubicaciones_api_bp
 
@@ -250,6 +251,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         search_api_bp,
         ubicaciones_api_bp,
         usuarios_bp,
+        vlans_bp,
     ):
         app.register_blueprint(blueprint)
 
@@ -309,6 +311,8 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         Usuario,
         EquipoInsumo,
         EstadoLicencia,
+        Vlan,
+        VlanDispositivo,
     )
 
     _ = (
@@ -343,6 +347,8 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         EquipoInsumo,
         EstadoLicencia,
         SerieEstado,
+        Vlan,
+        VlanDispositivo,
     )
 
     return app
