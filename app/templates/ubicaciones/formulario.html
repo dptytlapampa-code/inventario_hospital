@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_checkbox, render_field, render_select, render_textarea %}
+{% from '_form_helpers.html' import render_checkbox, render_field, render_select, render_textarea, render_ajax_select %}
 {% block title %}{{ titulo }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">{{ titulo }}</h1>
@@ -7,7 +7,13 @@
   {{ form.hidden_tag() }}
   {% for field in form if field.type != 'CSRFTokenField' and field.name != 'submit' %}
     {% if field.type in ['SelectField', 'SelectMultipleField'] %}
-      {{ render_select(field) }}
+      {% if field.name == 'hospital_id' %}
+        {{ render_ajax_select(field, url_for('api.search_hospitales'), placeholder='Escriba para buscar un hospital') }}
+      {% elif field.name == 'servicio_id' %}
+        {{ render_ajax_select(field, url_for('api.search_servicios'), placeholder='Escriba para buscar un servicio') }}
+      {% else %}
+        {{ render_select(field) }}
+      {% endif %}
     {% elif field.type == 'TextAreaField' %}
       {{ render_textarea(field) }}
     {% elif field.type == 'BooleanField' %}

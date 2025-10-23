@@ -26,6 +26,7 @@ from app.models import (
     TipoActa,
     TipoEquipo,
 )
+from app.utils.forms import preload_model_choice
 class EquipoForm(FlaskForm):
     """Create or edit an equipment entry."""
 
@@ -36,11 +37,27 @@ class EquipoForm(FlaskForm):
     marca = StringField("Marca", validators=[Optional(), Length(max=100)])
     modelo = StringField("Modelo", validators=[Optional(), Length(max=100)])
     numero_serie = StringField("Número de serie", validators=[Optional(), Length(max=120)])
-    hospital_id = IntegerField(
-        "Hospital", validators=[DataRequired(message="Seleccione una opción válida")]
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=int,
+        validators=[DataRequired(message="Seleccione una opción válida")],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Seleccione un hospital"},
     )
-    servicio_id = IntegerField("Servicio", validators=[Optional()])
-    oficina_id = IntegerField("Oficina", validators=[Optional()])
+    servicio_id = SelectField(
+        "Servicio",
+        coerce=lambda value: int(value) if value else 0,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin servicio asignado"},
+    )
+    oficina_id = SelectField(
+        "Oficina",
+        coerce=lambda value: int(value) if value else 0,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin oficina asignada"},
+    )
     responsable = StringField("Responsable", validators=[Optional(), Length(max=120)])
     _date_render = {"placeholder": "dd/mm/aaaa", "data-date-format": "d/m/Y", "autocomplete": "off"}
     fecha_ingreso = DateField(
@@ -95,6 +112,9 @@ class EquipoForm(FlaskForm):
             self.tipo.data = self.tipo.data.id
         self._initial_tipo_id = self.tipo.data if isinstance(self.tipo.data, int) else None
         self.estado.choices = [(estado.value, estado.name.replace("_", " ").title()) for estado in EstadoEquipo]
+        self._preload_hospital()
+        self._preload_servicio()
+        self._preload_oficina()
 
     def _populate_tipo_choices(self) -> None:
         tipos = (
@@ -161,20 +181,48 @@ class EquipoForm(FlaskForm):
                 return False
         return True
 
+    def _preload_hospital(self) -> None:
+        preload_model_choice(self.hospital_id, Hospital, lambda hospital: hospital.nombre)
+
+    def _preload_servicio(self) -> None:
+        self.servicio_id.choices = [(0, "Sin servicio asignado")]
+        value = self.servicio_id.data or 0
+        if value:
+            servicio = Servicio.query.get(value)
+            if servicio:
+                self.servicio_id.choices.append((servicio.id, servicio.nombre))
+
+    def _preload_oficina(self) -> None:
+        self.oficina_id.choices = [(0, "Sin oficina asignada")]
+        value = self.oficina_id.data or 0
+        if value:
+            oficina = Oficina.query.get(value)
+            if oficina:
+                self.oficina_id.choices.append((oficina.id, oficina.nombre))
+
 
 class EquipoFiltroForm(FlaskForm):
     """Filter form for equipment listing."""
 
     buscar = StringField("Buscar", validators=[Optional(), Length(max=120)])
-    hospital_id = SelectField("Hospital", coerce=int, validators=[Optional()])
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=lambda value: int(value) if value else 0,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Todos los hospitales"},
+    )
     estado = SelectField("Estado", coerce=str, validators=[Optional()])
     submit = SubmitField("Filtrar")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.hospital_id.choices = [(0, "Todos")] + [
-            (h.id, h.nombre) for h in Hospital.query.order_by(Hospital.nombre)
-        ]
+        self.hospital_id.choices = [(0, "Todos los hospitales")]
+        value = self.hospital_id.data or 0
+        if value:
+            hospital = Hospital.query.get(value)
+            if hospital:
+                self.hospital_id.choices.append((hospital.id, hospital.nombre))
         self.estado.choices = [("", "Todos")] + [
             (estado.value, estado.name.replace("_", " ").title()) for estado in EstadoEquipo
         ]

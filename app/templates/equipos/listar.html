@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% from '_pagination.html' import render_pagination %}
+{% from '_form_helpers.html' import render_ajax_select %}
 {% block title %}Equipos{% endblock %}
 {% block content %}
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
@@ -12,8 +13,15 @@
     {{ form.buscar(class="form-control", placeholder="Descripción o serie") }}
   </div>
   <div class="col-md-3">
-    {{ form.hospital_id.label(class="form-label") }}
-    {{ form.hospital_id(class="form-select") }}
+    {{ render_ajax_select(
+      form.hospital_id,
+      url_for('api.search_hospitales'),
+      form_group_class='mb-0',
+      label_class='form-label',
+      input_class='form-select',
+      placeholder='Todos los hospitales',
+      allow_clear=True
+    ) }}
   </div>
   <div class="col-md-3">
     {{ form.estado.label(class="form-label") }}

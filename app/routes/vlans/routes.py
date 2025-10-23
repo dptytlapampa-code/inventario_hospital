@@ -67,21 +67,15 @@ def listar():
 
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
-    hospitales_query = Hospital.query.order_by(Hospital.nombre.asc())
-    if allowed is not None:
-        if not allowed:
-            hospitales_query = hospitales_query.filter(false())
-        else:
-            hospitales_query = hospitales_query.filter(Hospital.id.in_(allowed))
-    hospitales = hospitales_query.all()
+    selected_hospital = Hospital.query.get(hospital_id) if hospital_id else None
 
     return render_template(
         "vlans/listar.html",
         vlans=pagination.items,
         pagination=pagination,
-        hospitales=hospitales,
         hospital_id=hospital_id,
         buscar=buscar,
+        selected_hospital=selected_hospital,
     )
 
 
@@ -94,10 +88,10 @@ def crear_vlan():
     form = VlanForm()
     preset_hospital = request.args.get("hospital_id", type=int)
     if request.method == "GET" and preset_hospital:
-        if preset_hospital in {choice[0] for choice in form.hospital_id.choices}:
-            form.hospital_id.data = preset_hospital
-            form._load_servicio_choices(form.hospital_id.data)
-            form._load_oficina_choices(form.hospital_id.data, form.servicio_id.data)
+        form.hospital_id.data = preset_hospital
+        form._preload_hospital()
+        form._preload_servicio()
+        form._preload_oficina()
     if form.validate_on_submit():
         vlan = Vlan(
             nombre=form.nombre.data.strip(),

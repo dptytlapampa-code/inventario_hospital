@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_form_helpers.html" import render_select, render_field, render_textarea %}
+{% from "_form_helpers.html" import render_select, render_field, render_textarea, render_ajax_select %}
 
 {% block title %}Nueva licencia{% endblock %}
 {% block header_title %}Solicitar licencia{% endblock %}
@@ -20,7 +20,14 @@
               {{ render_field(form.fecha_fin, label_class='form-label fw-semibold', input_class='form-control', input_type='text') }}
             </div>
           </div>
-          {{ render_select(form.hospital_id, label_class='form-label fw-semibold', input_class='form-select') }}
+          {{ render_ajax_select(
+            form.hospital_id,
+            url_for('api.search_hospitales'),
+            label_class='form-label fw-semibold',
+            input_class='form-select',
+            placeholder='Sin hospital asignado',
+            allow_clear=True
+          ) }}
           {{ render_textarea(form.motivo, label_class='form-label fw-semibold', rows=4) }}
           <div class="d-flex justify-content-end gap-2">
             <a class="btn btn-outline-secondary" href="{{ url_for('licencias.mias') }}">Cancelar</a>

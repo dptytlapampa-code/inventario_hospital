@@ -6,6 +6,7 @@ from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAre
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 from app.models import Hospital, Servicio
+from app.utils.forms import preload_model_choice
 
 
 class HospitalForm(FlaskForm):
@@ -25,25 +26,39 @@ class HospitalForm(FlaskForm):
 class ServicioForm(FlaskForm):
     nombre = StringField("Nombre del servicio", validators=[DataRequired(), Length(max=120)])
     descripcion = TextAreaField("Descripción", validators=[Optional(), Length(max=255)])
-    hospital_id = SelectField("Hospital", coerce=int, validators=[DataRequired()])
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=int,
+        validators=[DataRequired()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Seleccione un hospital"},
+    )
     submit = SubmitField("Guardar")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.hospital_id.choices = [(h.id, h.nombre) for h in Hospital.query.order_by(Hospital.nombre)]
+        preload_model_choice(self.hospital_id, Hospital, lambda hospital: hospital.nombre)
 
 
 class OficinaForm(FlaskForm):
     nombre = StringField("Nombre de la oficina", validators=[DataRequired(), Length(max=120)])
     piso = StringField("Piso", validators=[Optional(), Length(max=20)])
-    servicio_id = SelectField("Servicio", coerce=int, validators=[DataRequired()])
+    servicio_id = SelectField(
+        "Servicio",
+        coerce=int,
+        validators=[DataRequired()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Seleccione un servicio"},
+    )
     submit = SubmitField("Guardar")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.servicio_id.choices = [
-            (s.id, f"{s.hospital.nombre} / {s.nombre}") for s in Servicio.query.order_by(Servicio.nombre)
-        ]
+        preload_model_choice(
+            self.servicio_id,
+            Servicio,
+            lambda servicio: f"{servicio.hospital.nombre} · {servicio.nombre}",
+        )
 
 
 __all__ = ["HospitalForm", "ServicioForm", "OficinaForm"]

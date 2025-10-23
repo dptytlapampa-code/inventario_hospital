@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_checkbox, render_select %}
+{% from '_form_helpers.html' import render_checkbox, render_select, render_ajax_select %}
 {% block title %}{{ titulo }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">{{ titulo }}</h1>
@@ -8,7 +8,12 @@
   <div class="row g-3">
     {{ render_select(form.rol_id, form_group_class='col-md-4') }}
     {{ render_select(form.modulo, form_group_class='col-md-4') }}
-    {{ render_select(form.hospital_id, form_group_class='col-md-4') }}
+    {{ render_ajax_select(
+      form.hospital_id,
+      url_for('api.search_hospitales'),
+      form_group_class='col-md-4',
+      placeholder='Seleccione un hospital'
+    ) }}
     {{ render_checkbox(form.can_read, form_group_class='col-md-4 form-check mt-4', input_class='form-check-input', label_class='form-check-label', extra_attrs={'id': 'canRead'}) }}
     {{ render_checkbox(form.can_write, form_group_class='col-md-4 form-check mt-4', input_class='form-check-input', label_class='form-check-label', extra_attrs={'id': 'canWrite'}) }}
     {{ render_checkbox(form.allow_export, form_group_class='col-md-4 form-check mt-4', input_class='form-check-input', label_class='form-check-label', extra_attrs={'id': 'allowExport'}) }}

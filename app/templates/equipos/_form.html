@@ -1,90 +1,51 @@
-{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea, render_ajax_select %}
 <form
   method="post"
   novalidate
   class="needs-validation"
-  data-servicios-url="{{ url_for('ubicaciones_api.obtener_servicios') }}"
-  data-oficinas-url="{{ url_for('ubicaciones_api.obtener_oficinas') }}"
 >
   {{ form.hidden_tag() }}
   <div class="form-section">
     <div class="section-header">Ubicación</div>
     <div class="section-body row g-3">
       <div class="col-12 col-md-4">
-        <label class="form-label fw-semibold" for="hospital_id">Hospital</label>
-        <select
-          class="form-select{% if form.hospital_id.errors %} is-invalid{% endif %}"
-          id="hospital_id"
-          name="hospital_id"
-          required
-          data-placeholder="Seleccione un hospital"
-        >
-          <option value="">Seleccione un hospital</option>
-          {% for hospital in hospitales %}
-          <option value="{{ hospital.id }}"{% if form.hospital_id.data == hospital.id %} selected{% endif %}>{{ hospital.nombre }}</option>
-          {% endfor %}
-        </select>
-        {% for error in form.hospital_id.errors %}
-        <div class="invalid-feedback d-block">{{ error }}</div>
-        {% endfor %}
+        {{ render_ajax_select(
+          form.hospital_id,
+          url_for('api.search_hospitales'),
+          form_group_class='mb-3',
+          label_class='form-label fw-semibold',
+          input_class='form-select',
+          placeholder='Seleccione un hospital'
+        ) }}
       </div>
       <div class="col-12 col-md-4">
-        <label class="form-label fw-semibold" for="servicio_id">Servicio</label>
-        <select
-          class="form-select{% if form.servicio_id.errors %} is-invalid{% endif %}"
-          id="servicio_id"
-          name="servicio_id"
-          {% if not servicios_iniciales %}disabled{% endif %}
-          data-placeholder="Seleccione un servicio"
-          data-default-label="Seleccione un hospital para ver servicios"
-          data-empty-label="No hay servicios disponibles"
-          data-loading-label="Cargando servicios..."
-          data-error-label="Error al cargar servicios"
-          data-has-initial="{{ 1 if servicios_iniciales else 0 }}"
-        >
-          {% if servicios_iniciales %}
-          <option value="">Seleccione un servicio</option>
-          {% elif form.hospital_id.data %}
-          <option value="">No hay servicios disponibles</option>
-          {% else %}
-          <option value="">Seleccione un hospital para ver servicios</option>
-          {% endif %}
-          {% for servicio in servicios_iniciales %}
-          <option value="{{ servicio.id }}"{% if form.servicio_id.data == servicio.id %} selected{% endif %}>{{ servicio.nombre }}</option>
-          {% endfor %}
-        </select>
-        {% for error in form.servicio_id.errors %}
-        <div class="invalid-feedback d-block">{{ error }}</div>
-        {% endfor %}
+        {{ render_ajax_select(
+          form.servicio_id,
+          url_for('api.search_servicios'),
+          form_group_class='mb-3',
+          label_class='form-label fw-semibold',
+          input_class='form-select',
+          placeholder='Sin servicio asignado',
+          depends_on=form.hospital_id.id,
+          depends_message='Seleccione un hospital para filtrar servicios',
+          dependency_param='hospital_id',
+          allow_clear=True
+        ) }}
       </div>
       <div class="col-12 col-md-4">
-        <label class="form-label fw-semibold" for="oficina_id">Oficina</label>
-        <select
-          class="form-select{% if form.oficina_id.errors %} is-invalid{% endif %}"
-          id="oficina_id"
-          name="oficina_id"
-          {% if not oficinas_iniciales %}disabled{% endif %}
-          data-placeholder="Seleccione una oficina"
-          data-default-label="Seleccione un servicio para ver oficinas"
-          data-empty-label="No hay oficinas disponibles"
-          data-loading-label="Cargando oficinas..."
-          data-error-label="Error al cargar oficinas"
-          data-has-initial="{{ 1 if oficinas_iniciales else 0 }}"
-        >
-          {% if oficinas_iniciales %}
-          <option value="">Seleccione una oficina</option>
-          {% elif form.servicio_id.data %}
-          <option value="">No hay oficinas disponibles</option>
-          {% else %}
-          <option value="">Seleccione un servicio para ver oficinas</option>
-          {% endif %}
-          {% for oficina in oficinas_iniciales %}
-          <option value="{{ oficina.id }}"{% if form.oficina_id.data == oficina.id %} selected{% endif %}>{{ oficina.nombre }}</option>
-          {% endfor %}
-        </select>
-        {% for error in form.oficina_id.errors %}
-        <div class="invalid-feedback d-block">{{ error }}</div>
-        {% endfor %}
+        {{ render_ajax_select(
+          form.oficina_id,
+          url_for('api.search_oficinas'),
+          form_group_class='mb-3',
+          label_class='form-label fw-semibold',
+          input_class='form-select',
+          placeholder='Sin oficina asignada',
+          depends_on=form.servicio_id.id,
+          depends_message='Seleccione un servicio para filtrar oficinas',
+          dependency_param='servicio_id',
+          extra_params=[{'field': form.hospital_id.id, 'param': 'hospital_id'}],
+          allow_clear=True
+        ) }}
       </div>
       {{ render_field(form.responsable, form_group_class='col-12 col-md-6', placeholder='Responsable del equipo') }}
     </div>
