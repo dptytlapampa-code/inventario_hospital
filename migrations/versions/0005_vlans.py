@@ -1,5 +1,6 @@
 """Create tables to manage VLANs and associated devices."""
 from alembic import op
+from sqlalchemy import inspect
 import sqlalchemy as sa
 
 
@@ -11,7 +12,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
+    bind = op.get_bind()
+    inspector = inspect(bind)
+
+    if not inspector.has_table("vlans"):
+        op.create_table(
         "vlans",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("nombre", sa.String(length=120), nullable=False),
@@ -39,37 +44,38 @@ def upgrade() -> None:
         sa.UniqueConstraint("hospital_id", "identificador", name="uq_vlan_hospital_identificador"),
     )
 
-    op.create_table(
-        "vlan_dispositivos",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("vlan_id", sa.Integer(), nullable=False),
-        sa.Column("nombre_equipo", sa.String(length=150), nullable=False),
-        sa.Column("host", sa.String(length=120), nullable=True),
-        sa.Column("direccion_ip", sa.String(length=45), nullable=False),
-        sa.Column("direccion_mac", sa.String(length=32), nullable=True),
-        sa.Column("hospital_id", sa.Integer(), nullable=False),
-        sa.Column("servicio_id", sa.Integer(), nullable=True),
-        sa.Column("oficina_id", sa.Integer(), nullable=True),
-        sa.Column("notas", sa.String(length=255), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("CURRENT_TIMESTAMP"),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("CURRENT_TIMESTAMP"),
-            server_onupdate=sa.text("CURRENT_TIMESTAMP"),
-            nullable=False,
-        ),
-        sa.ForeignKeyConstraint(["vlan_id"], ["vlans.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["hospital_id"], ["hospitales.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["servicio_id"], ["servicios.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["oficina_id"], ["oficinas.id"], ondelete="SET NULL"),
-        sa.UniqueConstraint("direccion_ip", name="uq_vlan_dispositivo_ip"),
-    )
+    if not inspector.has_table("vlan_dispositivos"):
+        op.create_table(
+            "vlan_dispositivos",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("vlan_id", sa.Integer(), nullable=False),
+            sa.Column("nombre_equipo", sa.String(length=150), nullable=False),
+            sa.Column("host", sa.String(length=120), nullable=True),
+            sa.Column("direccion_ip", sa.String(length=45), nullable=False),
+            sa.Column("direccion_mac", sa.String(length=32), nullable=True),
+            sa.Column("hospital_id", sa.Integer(), nullable=False),
+            sa.Column("servicio_id", sa.Integer(), nullable=True),
+            sa.Column("oficina_id", sa.Integer(), nullable=True),
+            sa.Column("notas", sa.String(length=255), nullable=True),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("CURRENT_TIMESTAMP"),
+                nullable=False,
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("CURRENT_TIMESTAMP"),
+                server_onupdate=sa.text("CURRENT_TIMESTAMP"),
+                nullable=False,
+            ),
+            sa.ForeignKeyConstraint(["vlan_id"], ["vlans.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["hospital_id"], ["hospitales.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["servicio_id"], ["servicios.id"], ondelete="SET NULL"),
+            sa.ForeignKeyConstraint(["oficina_id"], ["oficinas.id"], ondelete="SET NULL"),
+            sa.UniqueConstraint("direccion_ip", name="uq_vlan_dispositivo_ip"),
+        )
 
 
 def downgrade() -> None:
