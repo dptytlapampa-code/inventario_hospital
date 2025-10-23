@@ -10,7 +10,14 @@
       {% if field.name == 'hospital_id' %}
         {{ render_ajax_select(field, url_for('api.search_hospitales'), placeholder='Escriba para buscar un hospital') }}
       {% elif field.name == 'servicio_id' %}
-        {{ render_ajax_select(field, url_for('api.search_servicios'), placeholder='Escriba para buscar un servicio') }}
+        {{ render_ajax_select(
+          field,
+          url_for('api.search_servicios'),
+          placeholder='Escriba para buscar un servicio',
+          depends_on='hospital_id',
+          depends_message='Seleccione un hospital para continuar',
+          dependency_param='hospital_id'
+        ) }}
       {% else %}
         {{ render_select(field) }}
       {% endif %}
