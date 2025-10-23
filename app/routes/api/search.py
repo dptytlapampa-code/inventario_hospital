@@ -201,6 +201,18 @@ def search_equipos():
     if allowed:
         search = search.filter(Equipo.hospital_id.in_(allowed))
 
+    hospital_id = request.args.get("hospital_id", type=int)
+    if hospital_id:
+        search = search.filter(Equipo.hospital_id == hospital_id)
+
+    servicio_id = request.args.get("servicio_id", type=int)
+    if servicio_id:
+        search = search.filter(Equipo.servicio_id == servicio_id)
+
+    oficina_id = request.args.get("oficina_id", type=int)
+    if oficina_id:
+        search = search.filter(Equipo.oficina_id == oficina_id)
+
     if query_value:
         like = f"%{query_value}%"
         filters = [

@@ -23,7 +23,7 @@
   {{ render_field(field, form_group_class=form_group_class, label_class=label_class, input_class=select_class|trim, extra_attrs=attrs) }}
 {%- endmacro %}
 
-{% macro render_equipo_selector(field, form_group_class='mb-3', label='Equipo', placeholder='Buscar equipo…', multiple=False, allow_clear=False, initial_options=None, help_text=None, min_chars=1) -%}
+{% macro render_equipo_selector(field, form_group_class='mb-3', label='Equipo', placeholder='Buscar equipo…', multiple=False, allow_clear=False, initial_options=None, help_text=None, min_chars=1, depends_on=None, depends_message=None, dependency_param=None, extra_params=None) -%}
   {% set select_id = field.id ~ '-select' %}
   {% set options_json = (initial_options or []) | tojson %}
   <div class="{{ form_group_class }}">
@@ -40,6 +40,10 @@
       data-endpoint="{{ url_for('api.search_equipos') }}"
       data-initial-options='{{ options_json|safe }}'
       data-min-chars="{{ min_chars }}"
+      {% if depends_on %}data-dependent-field="{{ depends_on }}"{% endif %}
+      {% if depends_message %}data-dependent-message="{{ depends_message }}"{% endif %}
+      {% if dependency_param %}data-dependent-param="{{ dependency_param }}"{% endif %}
+      {% if extra_params %}data-extra-params='{{ extra_params | tojson }}'{% endif %}
     ></select>
     {{ field() }}
     {% if help_text %}

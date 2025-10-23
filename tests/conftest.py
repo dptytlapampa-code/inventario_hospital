@@ -49,6 +49,15 @@ def _populate_database() -> dict[str, object]:
     db.session.add(hospital)
     db.session.flush()
 
+    second_hospital = Hospital(
+        nombre="Hospital Regional",
+        codigo="HRG",
+        localidad="General Pico",
+        nivel_complejidad=6,
+    )
+    db.session.add(second_hospital)
+    db.session.flush()
+
     rol_super = Rol(nombre="superadmin")
     rol_admin = Rol(nombre="admin")
     rol_gestor = Rol(nombre="gestor")
@@ -194,14 +203,58 @@ def _populate_database() -> dict[str, object]:
     oficina = Oficina(nombre="Oficina Principal", servicio=servicio, hospital=hospital)
     db.session.add(oficina)
 
+    secondary_service = Servicio(nombre="Diagnóstico", hospital=second_hospital)
+    db.session.add(secondary_service)
+    db.session.flush()
+
+    secondary_office = Oficina(
+        nombre="Oficina Regional",
+        servicio=secondary_service,
+        hospital=second_hospital,
+    )
+    db.session.add(secondary_office)
+
     equipo = Equipo(
         codigo="EQ-100",
         tipo=tipo_notebook,
         estado=EstadoEquipo.OPERATIVO,
-        descripcion="Notebook de prueba",
+        descripcion="Notebook Lenovo",
+        marca="Lenovo",
+        modelo="ThinkPad",
+        numero_serie="SN-001",
         hospital=hospital,
+        servicio=servicio,
+        oficina=oficina,
     )
     db.session.add(equipo)
+
+    printer_central = Equipo(
+        codigo="EQ-200",
+        tipo=tipo_impresora,
+        estado=EstadoEquipo.OPERATIVO,
+        descripcion="Impresora HP Central",
+        marca="HP",
+        modelo="LaserJet",
+        numero_serie="IMP-001",
+        hospital=hospital,
+        servicio=servicio,
+        oficina=oficina,
+    )
+    db.session.add(printer_central)
+
+    printer_regional = Equipo(
+        codigo="EQ-300",
+        tipo=tipo_impresora,
+        estado=EstadoEquipo.OPERATIVO,
+        descripcion="Impresora HP Regional",
+        marca="HP",
+        modelo="LaserJet",
+        numero_serie="IMP-002",
+        hospital=second_hospital,
+        servicio=secondary_service,
+        oficina=secondary_office,
+    )
+    db.session.add(printer_regional)
 
     insumo = Insumo(nombre="Mouse óptico", stock=15, stock_minimo=5)
     db.session.add(insumo)
@@ -239,6 +292,7 @@ def _populate_database() -> dict[str, object]:
     db.session.commit()
     return {
         "hospital": hospital,
+        "hospital_secundario": second_hospital,
         "superadmin": superadmin,
         "admin": admin,
         "gestor": gestor,
@@ -246,7 +300,11 @@ def _populate_database() -> dict[str, object]:
         "tecnico": tecnico,
         "servicio": servicio,
         "oficina": oficina,
+        "servicio_secundario": secondary_service,
+        "oficina_secundaria": secondary_office,
         "equipo": equipo,
+        "equipo_impresora": printer_central,
+        "equipo_impresora_regional": printer_regional,
         "insumo": insumo,
         "acta": acta,
         "tipos_equipo": {
@@ -280,18 +338,23 @@ def data(app):
 
     with app.app_context():
         return {
-            "hospital": Hospital.query.first(),
+            "hospital": Hospital.query.filter_by(codigo="HCN").first(),
+            "hospital_secundario": Hospital.query.filter_by(codigo="HRG").first(),
             "superadmin": Usuario.query.filter_by(username="superadmin").first(),
             "admin": Usuario.query.filter_by(username="admin").first(),
             "gestor": Usuario.query.filter_by(username="gestor").first(),
             "visor": Usuario.query.filter_by(username="visor").first(),
             "tecnico": Usuario.query.filter_by(username="tecnico").first(),
-            "equipo": Equipo.query.first(),
+            "equipo": Equipo.query.filter_by(numero_serie="SN-001").first(),
+            "equipo_impresora": Equipo.query.filter_by(numero_serie="IMP-001").first(),
+            "equipo_impresora_regional": Equipo.query.filter_by(numero_serie="IMP-002").first(),
             "insumo": Insumo.query.first(),
             "acta": Acta.query.first(),
             "licencia": Licencia.query.first(),
-            "servicio": Servicio.query.first(),
-            "oficina": Oficina.query.first(),
+            "servicio": Servicio.query.filter_by(nombre="Emergencias").first(),
+            "servicio_secundario": Servicio.query.filter_by(nombre="Diagnóstico").first(),
+            "oficina": Oficina.query.filter_by(nombre="Oficina Principal").first(),
+            "oficina_secundaria": Oficina.query.filter_by(nombre="Oficina Regional").first(),
             "tipos_equipo": {
                 "notebook": TipoEquipo.query.filter_by(nombre="Notebook").first(),
                 "impresora": TipoEquipo.query.filter_by(nombre="Impresora").first(),
