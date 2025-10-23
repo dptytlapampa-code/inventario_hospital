@@ -9,7 +9,8 @@ from flask_wtf import FlaskForm
 from wtforms import DateField, SelectField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
-from app.models import TipoLicencia
+from app.models import Hospital, TipoLicencia
+from app.utils.forms import preload_model_choice
 
 
 class LicenciaForm(FlaskForm):
@@ -35,12 +36,18 @@ class LicenciaForm(FlaskForm):
     )
     hospital_id = SelectField(
         "Hospital",
-        coerce=int,
+        coerce=lambda value: int(value) if value else None,
         validators=[Optional()],
+        validate_choice=False,
         description="Opcional si la licencia está asociada a un hospital específico.",
+        render_kw={"data-placeholder": "Sin hospital asignado"},
     )
     motivo = TextAreaField("Motivo", validators=[DataRequired(), Length(max=500)])
     submit = SubmitField("Enviar solicitud")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        preload_model_choice(self.hospital_id, Hospital, lambda hospital: hospital.nombre)
 
     def validate_fecha_fin(self, field):
         if self.fecha_inicio.data and field.data and field.data < self.fecha_inicio.data:
@@ -115,6 +122,8 @@ class GestionLicenciasFiltroForm(FlaskForm):
         coerce=lambda value: int(value) if value else None,
         choices=[],
         validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Todos los hospitales"},
     )
     estado = SelectField("Estado", choices=[], validators=[Optional()])
     fecha_desde = DateField(
@@ -130,6 +139,10 @@ class GestionLicenciasFiltroForm(FlaskForm):
         render_kw=LicenciaForm._date_render,
     )
     submit = SubmitField("Aplicar filtros")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        preload_model_choice(self.hospital_id, Hospital, lambda hospital: hospital.nombre)
 
 
 class LicenciaAccionForm(FlaskForm):

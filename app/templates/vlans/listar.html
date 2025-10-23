@@ -13,11 +13,19 @@
       </div>
       <div>
         <label class="form-label" for="hospitalFiltro">Hospital</label>
-        <select id="hospitalFiltro" name="hospital_id" class="form-select">
-          <option value="">Todos</option>
-          {% for hospital in hospitales %}
-          <option value="{{ hospital.id }}" {% if hospital_id == hospital.id %}selected{% endif %}>{{ hospital.nombre }}</option>
-          {% endfor %}
+        <select
+          id="hospitalFiltro"
+          name="hospital_id"
+          class="form-select js-tom-select"
+          data-control="tom-select"
+          data-endpoint="{{ url_for('api.search_hospitales') }}"
+          data-placeholder="Todos los hospitales"
+          data-allow-clear="true"
+        >
+          <option value=""></option>
+          {% if selected_hospital %}
+          <option value="{{ selected_hospital.id }}" selected>{{ selected_hospital.nombre }}</option>
+          {% endif %}
         </select>
       </div>
       <div class="align-self-end">

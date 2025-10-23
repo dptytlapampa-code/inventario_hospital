@@ -7,6 +7,7 @@ from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 from app.forms.fields import CSVIntegerListField
 from app.models import Equipo, Hospital, Oficina, Servicio, TipoActa
+from app.utils.forms import preload_model_choice
 
 
 class ActaForm(FlaskForm):
@@ -17,17 +18,23 @@ class ActaForm(FlaskForm):
         choices=[(t.value, t.name.title()) for t in TipoActa],
         validators=[DataRequired()],
     )
-    hospital_id = SelectField("Hospital", coerce=int, validators=[DataRequired()])
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=int,
+        validators=[DataRequired()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Seleccione un hospital"},
+    )
     servicio_id = SelectField(
         "Servicio",
-        coerce=int,
+        coerce=lambda value: int(value) if value else None,
         validators=[Optional()],
         validate_choice=False,
         render_kw={"data-placeholder": "Escriba para buscar un servicio"},
     )
     oficina_id = SelectField(
         "Oficina",
-        coerce=int,
+        coerce=lambda value: int(value) if value else None,
         validators=[Optional()],
         validate_choice=False,
         render_kw={"data-placeholder": "Seleccione un servicio para buscar oficinas"},
@@ -38,45 +45,28 @@ class ActaForm(FlaskForm):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.hospital_id.choices = [(h.id, h.nombre) for h in Hospital.query.order_by(Hospital.nombre)]
+        self._preload_selected_hospital()
         self._preload_selected_servicio()
         self._preload_selected_oficina()
         if not self.equipos.data:
             self.equipos.data = []
 
+    def _preload_selected_hospital(self) -> None:
+        preload_model_choice(self.hospital_id, Hospital, lambda hospital: hospital.nombre)
+
     def _preload_selected_servicio(self) -> None:
-        value = self.servicio_id.data or (self.servicio_id.raw_data[0] if self.servicio_id.raw_data else None)
-        if not value:
-            self.servicio_id.choices = []
-            return
-        try:
-            servicio_id = int(value)
-        except (TypeError, ValueError):
-            self.servicio_id.choices = []
-            return
-        servicio = Servicio.query.get(servicio_id)
-        if servicio:
-            label = f"{servicio.hospital.nombre} · {servicio.nombre}"
-            self.servicio_id.choices = [(servicio.id, label)]
-        else:
-            self.servicio_id.choices = []
+        preload_model_choice(
+            self.servicio_id,
+            Servicio,
+            lambda servicio: f"{servicio.hospital.nombre} · {servicio.nombre}",
+        )
 
     def _preload_selected_oficina(self) -> None:
-        value = self.oficina_id.data or (self.oficina_id.raw_data[0] if self.oficina_id.raw_data else None)
-        if not value:
-            self.oficina_id.choices = []
-            return
-        try:
-            oficina_id = int(value)
-        except (TypeError, ValueError):
-            self.oficina_id.choices = []
-            return
-        oficina = Oficina.query.get(oficina_id)
-        if oficina:
-            label = f"{oficina.hospital.nombre} · {oficina.nombre}"
-            self.oficina_id.choices = [(oficina.id, label)]
-        else:
-            self.oficina_id.choices = []
+        preload_model_choice(
+            self.oficina_id,
+            Oficina,
+            lambda oficina: f"{oficina.hospital.nombre} · {oficina.nombre}",
+        )
 
     def validate_equipos(self, field: CSVIntegerListField) -> None:  # type: ignore[override]
         if not field.data:

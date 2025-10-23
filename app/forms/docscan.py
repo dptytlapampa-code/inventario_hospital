@@ -7,6 +7,7 @@ from wtforms import DateField, SelectField, StringField, SubmitField, TextAreaFi
 from wtforms.validators import DataRequired, Length, Optional
 
 from app.models import Hospital, Oficina, Servicio, TipoDocscan
+from app.utils.forms import preload_model_choice
 
 
 class DocscanForm(FlaskForm):
@@ -18,9 +19,27 @@ class DocscanForm(FlaskForm):
         choices=[(t.value, t.name.title()) for t in TipoDocscan],
         validators=[DataRequired()],
     )
-    hospital_id = SelectField("Hospital", coerce=int, validators=[Optional()])
-    servicio_id = SelectField("Servicio", coerce=int, validators=[Optional()])
-    oficina_id = SelectField("Oficina", coerce=int, validators=[Optional()])
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=lambda value: int(value) if value else None,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin hospital asignado"},
+    )
+    servicio_id = SelectField(
+        "Servicio",
+        coerce=lambda value: int(value) if value else None,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin servicio"},
+    )
+    oficina_id = SelectField(
+        "Oficina",
+        coerce=lambda value: int(value) if value else None,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin oficina"},
+    )
     _date_render = {"placeholder": "dd/mm/aaaa", "data-date-format": "d/m/Y", "autocomplete": "off"}
     fecha_documento = DateField(
         "Fecha del documento",
@@ -40,15 +59,26 @@ class DocscanForm(FlaskForm):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.hospital_id.choices = [(0, "N/A")] + [
-            (h.id, h.nombre) for h in Hospital.query.order_by(Hospital.nombre)
-        ]
-        self.servicio_id.choices = [(0, "N/A")] + [
-            (s.id, f"{s.hospital.nombre} / {s.nombre}") for s in Servicio.query.order_by(Servicio.nombre)
-        ]
-        self.oficina_id.choices = [(0, "N/A")] + [
-            (o.id, f"{o.hospital.nombre} / {o.nombre}") for o in Oficina.query.order_by(Oficina.nombre)
-        ]
+        self._preload_hospital()
+        self._preload_servicio()
+        self._preload_oficina()
+
+    def _preload_hospital(self) -> None:
+        preload_model_choice(self.hospital_id, Hospital, lambda hospital: hospital.nombre)
+
+    def _preload_servicio(self) -> None:
+        preload_model_choice(
+            self.servicio_id,
+            Servicio,
+            lambda servicio: f"{servicio.hospital.nombre} · {servicio.nombre}",
+        )
+
+    def _preload_oficina(self) -> None:
+        preload_model_choice(
+            self.oficina_id,
+            Oficina,
+            lambda oficina: f"{oficina.hospital.nombre} · {oficina.nombre}",
+        )
 
 
 __all__ = ["DocscanForm"]

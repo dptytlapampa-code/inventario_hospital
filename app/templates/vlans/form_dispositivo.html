@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_form_helpers.html' import render_field, render_select, render_textarea %}
+{% from '_form_helpers.html' import render_field, render_select, render_textarea, render_ajax_select %}
 {% block title %}{{ titulo }}{% endblock %}
 {% block header_title %}{{ titulo }}{% endblock %}
 {% block content %}
@@ -18,9 +18,33 @@
   <div class="form-section">
     <div class="section-header">Asignación</div>
     <div class="section-body row g-3">
-      {{ render_select(form.hospital_id, form_group_class='col-12 col-md-6') }}
-      {{ render_select(form.servicio_id, form_group_class='col-12 col-md-6') }}
-      {{ render_select(form.oficina_id, form_group_class='col-12 col-md-6') }}
+      {{ render_ajax_select(
+        form.hospital_id,
+        url_for('api.search_hospitales'),
+        form_group_class='col-12 col-md-6',
+        placeholder='Escriba para buscar un hospital'
+      ) }}
+      {{ render_ajax_select(
+        form.servicio_id,
+        url_for('api.search_servicios'),
+        form_group_class='col-12 col-md-6',
+        placeholder='Sin servicio asignado',
+        depends_on=form.hospital_id.id,
+        depends_message='Seleccione un hospital para filtrar servicios',
+        dependency_param='hospital_id',
+        allow_clear=True
+      ) }}
+      {{ render_ajax_select(
+        form.oficina_id,
+        url_for('api.search_oficinas'),
+        form_group_class='col-12 col-md-6',
+        placeholder='Sin oficina asignada',
+        depends_on=form.servicio_id.id,
+        depends_message='Seleccione un servicio para filtrar oficinas',
+        dependency_param='servicio_id',
+        extra_params=[{'field': form.hospital_id.id, 'param': 'hospital_id'}],
+        allow_clear=True
+      ) }}
       {{ render_select(form.vlan_id, form_group_class='col-12 col-md-6') }}
     </div>
   </div>

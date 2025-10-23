@@ -87,32 +87,6 @@ def _parse_iso_date(raw: str | None) -> date | None:
         return datetime.strptime(raw, "%Y-%m-%d").date()
     except ValueError:
         return None
-
-
-def _load_hospitales() -> list[Hospital]:
-    return Hospital.query.order_by(Hospital.nombre.asc()).all()
-
-
-def _load_servicios(hospital_id: int | None) -> list[Servicio]:
-    if not hospital_id:
-        return []
-    return (
-        Servicio.query.filter_by(hospital_id=hospital_id)
-        .order_by(Servicio.nombre.asc())
-        .all()
-    )
-
-
-def _load_oficinas(servicio_id: int | None) -> list[Oficina]:
-    if not servicio_id:
-        return []
-    return (
-        Oficina.query.filter_by(servicio_id=servicio_id)
-        .order_by(Oficina.nombre.asc())
-        .all()
-    )
-
-
 @equipos_bp.route("/")
 @login_required
 @permissions_required("inventario:read")
@@ -153,26 +127,13 @@ def listar():
 @require_hospital_access(Modulo.INVENTARIO)
 def crear():
     form = EquipoForm()
-    hospitales = _load_hospitales()
-    servicios_iniciales = _load_servicios(form.hospital_id.data)
-    oficinas_iniciales = _load_oficinas(form.servicio_id.data)
 
     if form.validate_on_submit():
         hospital = Hospital.query.get(form.hospital_id.data)
         if not hospital:
             flash("El hospital seleccionado no existe.", "danger")
             form.hospital_id.errors.append("Seleccione un hospital válido")
-            return (
-                render_template(
-                    "equipos/crear.html",
-                    form=form,
-                    titulo="Nuevo equipo",
-                    hospitales=hospitales,
-                    servicios_iniciales=servicios_iniciales,
-                    oficinas_iniciales=oficinas_iniciales,
-                ),
-                400,
-            )
+            return render_template("equipos/crear.html", form=form, titulo="Nuevo equipo"), 400
 
         servicio = None
         if form.servicio_id.data:
@@ -183,65 +144,29 @@ def crear():
                     "danger",
                 )
                 form.servicio_id.errors.append("Seleccione un servicio válido")
-                servicios_iniciales = _load_servicios(hospital.id)
-                oficinas_iniciales = _load_oficinas(form.servicio_id.data)
-                return (
-                    render_template(
-                        "equipos/crear.html",
-                        form=form,
-                        titulo="Nuevo equipo",
-                        hospitales=hospitales,
-                        servicios_iniciales=servicios_iniciales,
-                        oficinas_iniciales=oficinas_iniciales,
-                    ),
-                    400,
-                )
-        else:
-            servicios_iniciales = _load_servicios(hospital.id)
+                return render_template("equipos/crear.html", form=form, titulo="Nuevo equipo"), 400
 
         oficina = None
         if form.oficina_id.data:
             oficina = Oficina.query.get(form.oficina_id.data)
-            if not oficina:
+            if not oficina or oficina.hospital_id != hospital.id:
                 flash("La oficina seleccionada no existe.", "danger")
                 form.oficina_id.errors.append("Seleccione una oficina válida")
-                oficinas_iniciales = _load_oficinas(form.servicio_id.data)
-                return (
-                    render_template(
-                        "equipos/crear.html",
-                        form=form,
-                        titulo="Nuevo equipo",
-                        hospitales=hospitales,
-                        servicios_iniciales=servicios_iniciales,
-                        oficinas_iniciales=oficinas_iniciales,
-                    ),
-                    400,
-                )
-            if not servicio or oficina.servicio_id != servicio.id:
+                return render_template("equipos/crear.html", form=form, titulo="Nuevo equipo"), 400
+            if servicio and oficina.servicio_id != servicio.id:
                 flash(
                     "La oficina seleccionada no pertenece al servicio indicado.",
                     "danger",
                 )
                 form.oficina_id.errors.append("Seleccione una oficina válida")
-                oficinas_iniciales = _load_oficinas(servicio.id if servicio else None)
-                return (
-                    render_template(
-                        "equipos/crear.html",
-                        form=form,
-                        titulo="Nuevo equipo",
-                        hospitales=hospitales,
-                        servicios_iniciales=servicios_iniciales,
-                        oficinas_iniciales=oficinas_iniciales,
-                    ),
-                    400,
-                )
-        else:
-            oficinas_iniciales = _load_oficinas(servicio.id if servicio else None)
+                return render_template("equipos/crear.html", form=form, titulo="Nuevo equipo"), 400
 
-        if form.sin_numero_serie.data:
-            numero_serie = generate_internal_serial(db.session)
-        else:
-            numero_serie = (form.numero_serie.data or "").strip()
+        numero_serie = (
+            generate_internal_serial(db.session)
+            if form.sin_numero_serie.data
+            else (form.numero_serie.data or "").strip()
+        )
+
         equipo = Equipo(
             codigo=form.codigo.data or None,
             tipo_id=form.tipo.data,
@@ -279,16 +204,7 @@ def crear():
         flash("Equipo creado correctamente", "success")
         return redirect(url_for("equipos.listar"))
 
-    servicios_iniciales = _load_servicios(form.hospital_id.data)
-    oficinas_iniciales = _load_oficinas(form.servicio_id.data)
-    return render_template(
-        "equipos/crear.html",
-        form=form,
-        titulo="Nuevo equipo",
-        hospitales=hospitales,
-        servicios_iniciales=servicios_iniciales,
-        oficinas_iniciales=oficinas_iniciales,
-    )
+    return render_template("equipos/crear.html", form=form, titulo="Nuevo equipo")
 
 
 @equipos_bp.route("/<int:equipo_id>/editar", methods=["GET", "POST"])
@@ -300,27 +216,13 @@ def editar(equipo_id: int):
     form = EquipoForm(obj=equipo)
     if request.method == "GET":
         form.sin_numero_serie.data = equipo.sin_numero_serie
-    hospitales = _load_hospitales()
-    servicios_iniciales = _load_servicios(form.hospital_id.data)
-    oficinas_iniciales = _load_oficinas(form.servicio_id.data)
 
     if form.validate_on_submit():
         hospital = Hospital.query.get(form.hospital_id.data)
         if not hospital:
             flash("El hospital seleccionado no existe.", "danger")
             form.hospital_id.errors.append("Seleccione un hospital válido")
-            return (
-                render_template(
-                    "equipos/editar.html",
-                    form=form,
-                    titulo="Editar equipo",
-                    equipo=equipo,
-                    hospitales=hospitales,
-                    servicios_iniciales=servicios_iniciales,
-                    oficinas_iniciales=oficinas_iniciales,
-                ),
-                400,
-            )
+            return render_template("equipos/editar.html", form=form, titulo="Editar equipo", equipo=equipo), 400
 
         servicio = None
         if form.servicio_id.data:
@@ -331,75 +233,36 @@ def editar(equipo_id: int):
                     "danger",
                 )
                 form.servicio_id.errors.append("Seleccione un servicio válido")
-                servicios_iniciales = _load_servicios(hospital.id)
-                oficinas_iniciales = _load_oficinas(form.servicio_id.data)
-                return (
-                    render_template(
-                        "equipos/editar.html",
-                        form=form,
-                        titulo="Editar equipo",
-                        equipo=equipo,
-                        hospitales=hospitales,
-                        servicios_iniciales=servicios_iniciales,
-                        oficinas_iniciales=oficinas_iniciales,
-                    ),
-                    400,
-                )
-        else:
-            servicios_iniciales = _load_servicios(hospital.id)
+                return render_template("equipos/editar.html", form=form, titulo="Editar equipo", equipo=equipo), 400
 
         oficina = None
         if form.oficina_id.data:
             oficina = Oficina.query.get(form.oficina_id.data)
-            if not oficina:
+            if not oficina or oficina.hospital_id != hospital.id:
                 flash("La oficina seleccionada no existe.", "danger")
                 form.oficina_id.errors.append("Seleccione una oficina válida")
-                oficinas_iniciales = _load_oficinas(form.servicio_id.data)
-                return (
-                    render_template(
-                        "equipos/editar.html",
-                        form=form,
-                        titulo="Editar equipo",
-                        equipo=equipo,
-                        hospitales=hospitales,
-                        servicios_iniciales=servicios_iniciales,
-                        oficinas_iniciales=oficinas_iniciales,
-                    ),
-                    400,
-                )
-            if not servicio or oficina.servicio_id != servicio.id:
+                return render_template("equipos/editar.html", form=form, titulo="Editar equipo", equipo=equipo), 400
+            if servicio and oficina.servicio_id != servicio.id:
                 flash(
                     "La oficina seleccionada no pertenece al servicio indicado.",
                     "danger",
                 )
                 form.oficina_id.errors.append("Seleccione una oficina válida")
-                oficinas_iniciales = _load_oficinas(servicio.id if servicio else None)
-                return (
-                    render_template(
-                        "equipos/editar.html",
-                        form=form,
-                        titulo="Editar equipo",
-                        equipo=equipo,
-                        hospitales=hospitales,
-                        servicios_iniciales=servicios_iniciales,
-                        oficinas_iniciales=oficinas_iniciales,
-                    ),
-                    400,
-                )
-        else:
-            oficinas_iniciales = _load_oficinas(servicio.id if servicio else None)
+                return render_template("equipos/editar.html", form=form, titulo="Editar equipo", equipo=equipo), 400
 
-        if form.sin_numero_serie.data:
-            if not equipo.sin_numero_serie or not equipo.numero_serie:
-                equipo.numero_serie = generate_internal_serial(db.session)
-        else:
-            equipo.numero_serie = (form.numero_serie.data or "").strip()
+        numero_serie = (
+            generate_internal_serial(db.session)
+            if form.sin_numero_serie.data
+            else (form.numero_serie.data or "").strip()
+        )
+
         equipo.codigo = form.codigo.data or None
         equipo.tipo_id = form.tipo.data
         equipo.estado = form.estado.data
         equipo.descripcion = form.descripcion.data or None
         equipo.marca = form.marca.data or None
         equipo.modelo = form.modelo.data or None
+        equipo.numero_serie = numero_serie
         equipo.sin_numero_serie = bool(form.sin_numero_serie.data)
         equipo.hospital_id = hospital.id
         equipo.servicio_id = servicio.id if servicio else None
@@ -414,25 +277,22 @@ def editar(equipo_id: int):
         equipo.anio_expediente = form.anio_expediente.data or None
         equipo.orden_compra = form.orden_compra.data or None
         equipo.tipo_adquisicion = form.tipo_adquisicion.data or None
-        equipo.registrar_evento(current_user, "Actualización", "Edición de equipo")
+        equipo.modified_by = current_user.id
+
+        detalle_alta = "Actualización de equipo nuevo" if form.es_nuevo.data else "Actualización de equipo"
+        equipo.registrar_evento(current_user, "Actualización", detalle_alta)
         db.session.commit()
-        log_action(usuario_id=current_user.id, accion="editar", modulo="inventario", tabla="equipos", registro_id=equipo.id)
+        log_action(
+            usuario_id=current_user.id,
+            accion="editar",
+            modulo="inventario",
+            tabla="equipos",
+            registro_id=equipo.id,
+        )
         flash("Equipo actualizado", "success")
         return redirect(url_for("equipos.detalle", equipo_id=equipo.id))
 
-    servicios_iniciales = _load_servicios(form.hospital_id.data)
-    oficinas_iniciales = _load_oficinas(form.servicio_id.data)
-    return render_template(
-        "equipos/editar.html",
-        form=form,
-        titulo="Editar equipo",
-        equipo=equipo,
-        hospitales=hospitales,
-        servicios_iniciales=servicios_iniciales,
-        oficinas_iniciales=oficinas_iniciales,
-    )
-
-
+    return render_template("equipos/editar.html", form=form, titulo="Editar equipo", equipo=equipo)
 @equipos_bp.route("/<int:equipo_id>")
 @login_required
 @permissions_required("inventario:read")

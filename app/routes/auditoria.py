@@ -72,7 +72,7 @@ def index():
     )
 
     usuarios = Usuario.query.order_by(Usuario.nombre).all()
-    hospitales = Hospital.query.order_by(Hospital.nombre).all()
+    selected_hospital = Hospital.query.get(hospital_id) if hospital_id else None
 
     return render_template(
         "auditoria/index.html",
@@ -87,7 +87,7 @@ def index():
             "hasta": fecha_hasta,
         },
         usuarios=usuarios,
-        hospitales=hospitales,
+        selected_hospital=selected_hospital,
     )
 
 

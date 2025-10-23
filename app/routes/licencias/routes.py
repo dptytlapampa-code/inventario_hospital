@@ -23,6 +23,7 @@ from app.services.licencia_service import (
     enviar_licencia,
     rechazar_licencia,
 )
+from app.utils.forms import preload_model_choice
 
 licencias_bp = Blueprint("licencias", __name__, url_prefix="/licencias")
 
@@ -110,12 +111,9 @@ def nueva() -> str:
 
     form = LicenciaForm()
 
-    hospitales = Hospital.query.order_by(Hospital.nombre).all()
-    form.hospital_id.choices = [(0, "Sin hospital asignado")] + [
-        (hospital.id, hospital.nombre) for hospital in hospitales
-    ]
     if request.method == "GET" and current_user.hospital_id:
         form.hospital_id.data = current_user.hospital_id
+        preload_model_choice(form.hospital_id, Hospital, lambda hospital: hospital.nombre)
 
     if form.validate_on_submit():
         hospital_id = form.hospital_id.data or None
@@ -181,10 +179,7 @@ def gestion() -> str:
         for usuario in usuarios
     ]
 
-    hospitales = Hospital.query.order_by(Hospital.nombre).all()
-    form.hospital_id.choices = [("", "Todos los hospitales")] + [
-        (str(hospital.id), hospital.nombre) for hospital in hospitales
-    ]
+    preload_model_choice(form.hospital_id, Hospital, lambda hospital: hospital.nombre)
 
     form.validate()
 

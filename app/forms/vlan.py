@@ -6,6 +6,7 @@ from wtforms import SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, IPAddress, Length, Optional, Regexp, ValidationError
 
 from app.models import Hospital, Oficina, Servicio, Vlan, VlanDispositivo
+from app.utils.forms import preload_model_choice
 
 
 class VlanForm(FlaskForm):
@@ -16,18 +17,36 @@ class VlanForm(FlaskForm):
         "Identificador", validators=[DataRequired(), Length(max=50)]
     )
     descripcion = TextAreaField("Descripción", validators=[Optional(), Length(max=255)])
-    hospital_id = SelectField("Hospital", coerce=int, validators=[DataRequired()])
-    servicio_id = SelectField("Servicio", coerce=int, validators=[Optional()])
-    oficina_id = SelectField("Oficina", coerce=int, validators=[Optional()])
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=int,
+        validators=[DataRequired()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Seleccione un hospital"},
+    )
+    servicio_id = SelectField(
+        "Servicio",
+        coerce=lambda value: int(value) if value else 0,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin servicio asignado"},
+    )
+    oficina_id = SelectField(
+        "Oficina",
+        coerce=lambda value: int(value) if value else 0,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin oficina asignada"},
+    )
     submit = SubmitField("Guardar")
 
     def __init__(self, vlan: Vlan | None = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._vlan = vlan
         self._assign_initial_data()
-        self._load_hospital_choices()
-        self._load_servicio_choices(self.hospital_id.data)
-        self._load_oficina_choices(self.hospital_id.data, self.servicio_id.data)
+        self._preload_hospital()
+        self._preload_servicio()
+        self._preload_oficina()
 
     def _assign_initial_data(self) -> None:
         if not self._vlan:
@@ -39,35 +58,24 @@ class VlanForm(FlaskForm):
         if self.oficina_id.data is None and self._vlan.oficina_id:
             self.oficina_id.data = self._vlan.oficina_id
 
-    def _load_hospital_choices(self) -> None:
-        hospitales = Hospital.query.order_by(Hospital.nombre.asc()).all()
-        self.hospital_id.choices = [(h.id, h.nombre) for h in hospitales]
+    def _preload_hospital(self) -> None:
+        preload_model_choice(self.hospital_id, Hospital, lambda hospital: hospital.nombre)
 
-    def _load_servicio_choices(self, hospital_id: int | None) -> None:
-        choices = [(0, "Sin servicio asignado")]
-        if hospital_id:
-            servicios = (
-                Servicio.query.filter_by(hospital_id=hospital_id)
-                .order_by(Servicio.nombre.asc())
-                .all()
-            )
-            choices.extend((s.id, s.nombre) for s in servicios)
-        self.servicio_id.choices = choices
-        if self.servicio_id.data and self.servicio_id.data not in {c[0] for c in choices}:
-            self.servicio_id.data = 0
+    def _preload_servicio(self) -> None:
+        self.servicio_id.choices = [(0, "Sin servicio asignado")]
+        value = self.servicio_id.data or 0
+        if value:
+            servicio = Servicio.query.get(value)
+            if servicio:
+                self.servicio_id.choices.append((servicio.id, servicio.nombre))
 
-    def _load_oficina_choices(self, hospital_id: int | None, servicio_id: int | None) -> None:
-        choices = [(0, "Sin oficina asignada")]
-        query = Oficina.query
-        if servicio_id:
-            query = query.filter_by(servicio_id=servicio_id)
-        elif hospital_id:
-            query = query.filter_by(hospital_id=hospital_id)
-        oficinas = query.order_by(Oficina.nombre.asc()).all()
-        choices.extend((o.id, o.nombre) for o in oficinas)
-        self.oficina_id.choices = choices
-        if self.oficina_id.data and self.oficina_id.data not in {c[0] for c in choices}:
-            self.oficina_id.data = 0
+    def _preload_oficina(self) -> None:
+        self.oficina_id.choices = [(0, "Sin oficina asignada")]
+        value = self.oficina_id.data or 0
+        if value:
+            oficina = Oficina.query.get(value)
+            if oficina:
+                self.oficina_id.choices.append((oficina.id, oficina.nombre))
 
     def validate_identificador(self, field):  # type: ignore[override]
         hospital_id = self.hospital_id.data
@@ -139,9 +147,27 @@ class VlanDispositivoForm(FlaskForm):
             Length(max=32),
         ],
     )
-    hospital_id = SelectField("Hospital", coerce=int, validators=[DataRequired()])
-    servicio_id = SelectField("Servicio", coerce=int, validators=[Optional()])
-    oficina_id = SelectField("Oficina", coerce=int, validators=[Optional()])
+    hospital_id = SelectField(
+        "Hospital",
+        coerce=int,
+        validators=[DataRequired()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Seleccione un hospital"},
+    )
+    servicio_id = SelectField(
+        "Servicio",
+        coerce=lambda value: int(value) if value else 0,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin servicio asignado"},
+    )
+    oficina_id = SelectField(
+        "Oficina",
+        coerce=lambda value: int(value) if value else 0,
+        validators=[Optional()],
+        validate_choice=False,
+        render_kw={"data-placeholder": "Sin oficina asignada"},
+    )
     vlan_id = SelectField("VLAN", coerce=int, validators=[DataRequired()])
     notas = TextAreaField("Notas", validators=[Optional(), Length(max=255)])
     submit = SubmitField("Guardar")
@@ -157,9 +183,9 @@ class VlanDispositivoForm(FlaskForm):
         self._dispositivo = dispositivo
         self._vlan = vlan
         self._assign_initial_data()
-        self._load_hospital_choices()
-        self._load_servicio_choices(self.hospital_id.data)
-        self._load_oficina_choices(self.hospital_id.data, self.servicio_id.data)
+        self._preload_hospital()
+        self._preload_servicio()
+        self._preload_oficina()
         self._load_vlan_choices(self.hospital_id.data)
 
     def _assign_initial_data(self) -> None:
@@ -177,35 +203,24 @@ class VlanDispositivoForm(FlaskForm):
         elif self._vlan and self.vlan_id.data is None:
             self.vlan_id.data = self._vlan.id
 
-    def _load_hospital_choices(self) -> None:
-        hospitales = Hospital.query.order_by(Hospital.nombre.asc()).all()
-        self.hospital_id.choices = [(h.id, h.nombre) for h in hospitales]
+    def _preload_hospital(self) -> None:
+        preload_model_choice(self.hospital_id, Hospital, lambda hospital: hospital.nombre)
 
-    def _load_servicio_choices(self, hospital_id: int | None) -> None:
-        choices = [(0, "Sin servicio asignado")]
-        if hospital_id:
-            servicios = (
-                Servicio.query.filter_by(hospital_id=hospital_id)
-                .order_by(Servicio.nombre.asc())
-                .all()
-            )
-            choices.extend((s.id, s.nombre) for s in servicios)
-        self.servicio_id.choices = choices
-        if self.servicio_id.data and self.servicio_id.data not in {c[0] for c in choices}:
-            self.servicio_id.data = 0
+    def _preload_servicio(self) -> None:
+        self.servicio_id.choices = [(0, "Sin servicio asignado")]
+        value = self.servicio_id.data or 0
+        if value:
+            servicio = Servicio.query.get(value)
+            if servicio:
+                self.servicio_id.choices.append((servicio.id, servicio.nombre))
 
-    def _load_oficina_choices(self, hospital_id: int | None, servicio_id: int | None) -> None:
-        choices = [(0, "Sin oficina asignada")]
-        query = Oficina.query
-        if servicio_id:
-            query = query.filter_by(servicio_id=servicio_id)
-        elif hospital_id:
-            query = query.filter_by(hospital_id=hospital_id)
-        oficinas = query.order_by(Oficina.nombre.asc()).all()
-        choices.extend((o.id, o.nombre) for o in oficinas)
-        self.oficina_id.choices = choices
-        if self.oficina_id.data and self.oficina_id.data not in {c[0] for c in choices}:
-            self.oficina_id.data = 0
+    def _preload_oficina(self) -> None:
+        self.oficina_id.choices = [(0, "Sin oficina asignada")]
+        value = self.oficina_id.data or 0
+        if value:
+            oficina = Oficina.query.get(value)
+            if oficina:
+                self.oficina_id.choices.append((oficina.id, oficina.nombre))
 
     def _load_vlan_choices(self, hospital_id: int | None) -> None:
         choices: list[tuple[int, str]] = []

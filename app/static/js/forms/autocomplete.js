@@ -71,6 +71,33 @@
     }
   }
 
+  function parseExtraParams(select) {
+    const raw = select.dataset.extraParams;
+    if (!raw) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? parsed
+            .map((item) => {
+              if (!item || !item.field || !item.param) {
+                return null;
+              }
+              const element = document.getElementById(item.field);
+              if (!element) {
+                return null;
+              }
+              return { param: item.param, element };
+            })
+            .filter(Boolean)
+        : [];
+    } catch (error) {
+      console.warn('No se pudieron interpretar los parámetros extra para Tom Select', error);
+      return [];
+    }
+  }
+
   function initTomSelect(select) {
     const endpoint = select.dataset.endpoint;
     if (!endpoint || typeof TomSelect === 'undefined') {
@@ -81,6 +108,16 @@
     const dependsField = select.dataset.dependentField;
     const dependsMessage = select.dataset.dependentMessage || 'Seleccione un valor para continuar';
     const dependencyElement = dependsField ? document.getElementById(dependsField) : null;
+    const dependencyParam = select.dataset.dependentParam || 'servicio_id';
+    const allowClear = select.dataset.allowClear === 'true';
+    const extraParams = parseExtraParams(select);
+
+    const plugins = {};
+    if (select.multiple) {
+      plugins.remove_button = { title: 'Quitar' };
+    } else if (allowClear) {
+      plugins.clear_button = { title: 'Limpiar' };
+    }
 
     const tom = new TomSelect(select, {
       valueField: 'id',
@@ -91,11 +128,7 @@
       persist: false,
       preload: false,
       placeholder,
-      plugins: select.multiple
-        ? {
-            remove_button: { title: 'Quitar' },
-          }
-        : {},
+      plugins,
       shouldLoad(query) {
         return query.length >= minChars;
       },
@@ -110,7 +143,15 @@
         }
         const params = { q: query, page: 1 };
         if (dependsField) {
-          params.servicio_id = getDependencyValue(dependencyElement);
+          params[dependencyParam] = getDependencyValue(dependencyElement);
+        }
+        if (extraParams.length) {
+          extraParams.forEach(({ param, element }) => {
+            const value = getDependencyValue(element);
+            if (value) {
+              params[param] = value;
+            }
+          });
         }
         fetch(buildUrl(endpoint, params), { credentials: 'include' })
           .then((response) => {
@@ -149,6 +190,25 @@
         if (select.dataset.role === 'insumos-selector') {
           updateInsumosTable(tom);
         }
+        if (getDependencyValue(dependencyElement)) {
+          tom.enable();
+        } else {
+          tom.disable();
+        }
+      });
+      if (!getDependencyValue(dependencyElement)) {
+        tom.disable();
+      }
+    }
+
+    if (extraParams.length) {
+      extraParams.forEach(({ element }) => {
+        element.addEventListener('change', () => {
+          if (dependsField && !getDependencyValue(dependencyElement)) {
+            return;
+          }
+          tom.clearOptions();
+        });
       });
     }
 
