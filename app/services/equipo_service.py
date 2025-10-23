@@ -43,7 +43,8 @@ def format_equipo_option(equipo: Equipo) -> dict[str, str]:
     if marca_modelo:
         label_parts.append(marca_modelo)
     label_parts.append(f"S/N: {serie}")
-    return {"id": str(equipo.id), "text": " - ".join(label_parts)}
+    label = " - ".join(label_parts)
+    return {"id": str(equipo.id), "text": label, "label": label}
 
 
 def equipment_options_for_ids(ids: Sequence[int | str | None]) -> list[dict[str, str]]:
