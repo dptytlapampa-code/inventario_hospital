@@ -4,6 +4,14 @@
 
 {% block title %}Mis licencias{% endblock %}
 {% block header_title %}Mis licencias{% endblock %}
+{% block header_content %}
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+    <div class="flex-grow-1">
+      {{ super() }}
+    </div>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('licencias.nueva') }}">Solicitar licencia</a>
+  </div>
+{% endblock %}
 
 {% block content %}
 <div class="card mb-4">
@@ -81,7 +89,11 @@
     </div>
     {{ render_pagination(pagination) }}
     {% else %}
-    <p class="mb-0 text-muted">Aún no registraste solicitudes de licencia.</p>
+    <p class="mb-0 text-muted">
+      Aún no registraste solicitudes de licencia.
+      <a class="text-decoration-none" href="{{ url_for('licencias.nueva') }}">Solicitá una licencia</a>
+      para comenzar.
+    </p>
     {% endif %}
   </div>
 </div>
