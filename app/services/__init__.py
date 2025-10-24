@@ -8,4 +8,5 @@ __all__ = [
     "licencia_service",
     "insumo_service",
     "equipo_service",
+    "reportes_service",
 ]

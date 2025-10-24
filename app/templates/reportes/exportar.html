@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Exportar datos{% endblock %}
+
+{% block header_title %}Exportar datos{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-xl-6 col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <p class="text-muted">
+          Descargá un archivo Excel con los datos principales del sistema.
+          Solo los superadministradores pueden generar este reporte.
+        </p>
+        <form action="{{ url_for('reportes.descargar') }}" method="get" class="row gy-3">
+          <div class="col-12">
+            <label class="form-label" for="hospitalId">Hospital</label>
+            <select class="form-select" id="hospitalId" name="hospital_id">
+              <option value="">Todos los hospitales</option>
+              {% for hospital in hospitales %}
+              <option value="{{ hospital.id }}" {% if hospital.id == selected_id %}selected{% endif %}>{{ hospital.nombre }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              Elegí un hospital para limitar la información exportada.
+            </div>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Descargar Excel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
