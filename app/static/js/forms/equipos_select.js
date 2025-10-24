@@ -5,6 +5,20 @@
 
   const $ = window.jQuery;
 
+  function whenTomSelectReady(element, callback, attempt = 0) {
+    if (!element || typeof callback !== 'function') {
+      return;
+    }
+    if (element.tomselect && typeof element.tomselect.on === 'function') {
+      callback(element.tomselect);
+      return;
+    }
+    if (attempt > 20) {
+      return;
+    }
+    window.setTimeout(() => whenTomSelectReady(element, callback, attempt + 1), 50);
+  }
+
   function getDependencyValue(element) {
     if (!element) {
       return '';
@@ -229,8 +243,14 @@
       }
 
       if (dependencyElement) {
-        dependencyElement.addEventListener('change', () => {
+        const handleDependencyChange = () => {
           resetSelection();
+          updateDependencyState();
+        };
+        dependencyElement.addEventListener('change', handleDependencyChange);
+        whenTomSelectReady(dependencyElement, (instance) => {
+          instance.on('change', handleDependencyChange);
+          instance.on('clear', handleDependencyChange);
           updateDependencyState();
         });
         updateDependencyState();
@@ -238,8 +258,13 @@
 
       if (extraParams.length) {
         extraParams.forEach(({ element: paramElement }) => {
-          paramElement.addEventListener('change', () => {
+          const handleExtraParamChange = () => {
             resetSelection();
+          };
+          paramElement.addEventListener('change', handleExtraParamChange);
+          whenTomSelectReady(paramElement, (instance) => {
+            instance.on('change', handleExtraParamChange);
+            instance.on('clear', handleExtraParamChange);
           });
         });
       }
