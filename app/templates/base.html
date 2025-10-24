@@ -68,14 +68,17 @@
               'label': 'Licencias',
               'url': licencias_url,
               'active': licencias_main_active
-            },
+            }
+          ] %}
+          {% if endpoint_exists('ayuda.index') %}
+          {% set primary_links = primary_links + [
             {
               'label': 'Ayuda',
               'url': url_for('ayuda.index'),
-              'active': current_bp == 'ayuda',
-              'visible': endpoint_exists('ayuda.index')
+              'active': current_bp == 'ayuda'
             }
           ] %}
+          {% endif %}
           {{ nav_links(primary_links) }}
           {% set equipos_links = [
             {
