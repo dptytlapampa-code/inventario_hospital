@@ -70,15 +70,15 @@
               'active': licencias_main_active
             }
           ] %}
-          {% set ayuda_available = endpoint_exists('ayuda.index') %}
-          {% if ayuda_available %}
-          {% set primary_links = primary_links + [
+          {% if endpoint_exists('ayuda.index') %}
+          {% set ayuda_links = [
             {
               'label': 'Ayuda',
               'url': url_for('ayuda.index'),
               'active': current_bp == 'ayuda'
             }
           ] %}
+          {% set primary_links = primary_links + ayuda_links %}
           {% endif %}
           {{ nav_links(primary_links) }}
           {% set equipos_links = [
