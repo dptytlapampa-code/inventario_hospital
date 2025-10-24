@@ -159,7 +159,7 @@
         {% if has_role('admin', 'superadmin') %}
         {% set ubicaciones_links = [
           {
-            'label': 'Hospitales',
+            'label': 'Instituciones',
             'url': url_for('ubicaciones.listar', vista='hospitales'),
             'active': current_bp == 'ubicaciones' and vista_actual == 'hospitales'
           },

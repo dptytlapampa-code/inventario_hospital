@@ -242,7 +242,7 @@ def search_servicios():
     page = request.args.get("page", type=int, default=1)
     per_page = _get_page_size()
 
-    search = Servicio.query.join(Servicio.hospital).order_by(asc(Servicio.nombre))
+    search = Servicio.query.join(Servicio.institucion).order_by(asc(Servicio.nombre))
     if query_value:
         like = f"%{query_value}%"
         search = search.filter(Servicio.nombre.ilike(like))
@@ -252,7 +252,7 @@ def search_servicios():
         pagination,
         lambda servicio: {
             "id": servicio.id,
-            "label": f"{servicio.hospital.nombre} · {servicio.nombre}",
+            "label": f"{servicio.institucion.nombre} · {servicio.nombre}",
         },
     )
 
@@ -282,7 +282,11 @@ def search_oficinas():
     page = request.args.get("page", type=int, default=1)
     per_page = _get_page_size()
 
-    search = Oficina.query.join(Oficina.hospital).filter(Oficina.servicio_id == servicio_id).order_by(asc(Oficina.nombre))
+    search = (
+        Oficina.query.join(Oficina.institucion)
+        .filter(Oficina.servicio_id == servicio_id)
+        .order_by(asc(Oficina.nombre))
+    )
     if query_value:
         like = f"%{query_value}%"
         search = search.filter(Oficina.nombre.ilike(like))
@@ -292,7 +296,7 @@ def search_oficinas():
         pagination,
         lambda oficina: {
             "id": oficina.id,
-            "label": f"{oficina.hospital.nombre} · {oficina.nombre}",
+            "label": f"{oficina.institucion.nombre} · {oficina.nombre}",
         },
     )
 

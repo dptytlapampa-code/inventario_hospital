@@ -1,24 +1,36 @@
-"""Forms for managing hospital hierarchy."""
+"""Forms for managing institution hierarchy."""
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
-from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
+from wtforms import SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 from app.models import Hospital, Servicio
 from app.utils.forms import preload_model_choice
 
 
 class HospitalForm(FlaskForm):
-    nombre = StringField("Nombre", validators=[DataRequired(), Length(max=120)])
-    codigo = StringField("Código", validators=[Optional(), Length(max=20)])
-    localidad = StringField("Localidad", validators=[Optional(), Length(max=120)])
+    nombre = StringField("Nombre", validators=[DataRequired(), Length(max=255)])
+    tipo_institucion = SelectField(
+        "Tipo de institución",
+        choices=[("Hospital", "Hospital")],
+        default="Hospital",
+        validators=[DataRequired()],
+    )
+    codigo = StringField("Código", validators=[Optional(), Length(max=50)])
+    localidad = StringField("Localidad", validators=[DataRequired(), Length(max=120)])
+    provincia = StringField(
+        "Provincia",
+        validators=[DataRequired(), Length(max=120)],
+        default="La Pampa",
+    )
+    zona_sanitaria = StringField("Zona sanitaria", validators=[Optional(), Length(max=120)])
     direccion = StringField("Dirección", validators=[Optional(), Length(max=255)])
-    telefono = StringField("Teléfono", validators=[Optional(), Length(max=50)])
-    nivel_complejidad = IntegerField(
-        "Nivel de complejidad",
-        validators=[Optional(), NumberRange(min=1, max=10)],
-        description="Ingrese un valor entre 1 y 10",
+    estado = SelectField(
+        "Estado",
+        choices=[("Activa", "Activa"), ("Inactiva", "Inactiva")],
+        default="Activa",
+        validators=[DataRequired()],
     )
     submit = SubmitField("Guardar")
 
@@ -27,11 +39,11 @@ class ServicioForm(FlaskForm):
     nombre = StringField("Nombre del servicio", validators=[DataRequired(), Length(max=120)])
     descripcion = TextAreaField("Descripción", validators=[Optional(), Length(max=255)])
     hospital_id = SelectField(
-        "Hospital",
+        "Institución",
         coerce=int,
         validators=[DataRequired()],
         validate_choice=False,
-        render_kw={"data-placeholder": "Seleccione un hospital"},
+        render_kw={"data-placeholder": "Seleccione una institución"},
     )
     submit = SubmitField("Guardar")
 
@@ -44,11 +56,11 @@ class OficinaForm(FlaskForm):
     nombre = StringField("Nombre de la oficina", validators=[DataRequired(), Length(max=120)])
     piso = StringField("Piso", validators=[Optional(), Length(max=20)])
     hospital_id = SelectField(
-        "Hospital",
+        "Institución",
         coerce=int,
         validators=[DataRequired()],
         validate_choice=False,
-        render_kw={"data-placeholder": "Seleccione un hospital"},
+        render_kw={"data-placeholder": "Seleccione una institución"},
     )
     servicio_id = SelectField(
         "Servicio",
@@ -79,7 +91,7 @@ class OficinaForm(FlaskForm):
         hospital_id = self.hospital_id.data
         if hospital_id and servicio.hospital_id != hospital_id:
             raise ValidationError(
-                "Seleccione un servicio perteneciente al hospital indicado"
+                "Seleccione un servicio perteneciente a la institución indicada"
             )
 
 

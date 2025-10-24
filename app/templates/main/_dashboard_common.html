@@ -12,7 +12,7 @@
   {% if metrics.scope and metrics.scope.type == 'todos' %}
     {% set heading_subtitle = 'Acceso completo a <strong>todos los hospitales</strong>' %}
   {% elif metrics.scope and metrics.scope.hospitales %}
-    {% set heading_subtitle = 'Hospitales asignados: <strong>' ~ metrics.scope.summary ~ '</strong>' %}
+    {% set heading_subtitle = 'Instituciones asignadas: <strong>' ~ metrics.scope.summary ~ '</strong>' %}
   {% else %}
     {% set heading_subtitle = 'Sin hospitales asignados' %}
   {% endif %}

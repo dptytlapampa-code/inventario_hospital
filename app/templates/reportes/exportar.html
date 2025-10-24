@@ -15,15 +15,15 @@
         </p>
         <form action="{{ url_for('reportes.descargar') }}" method="get" class="row gy-3">
           <div class="col-12">
-            <label class="form-label" for="hospitalId">Hospital</label>
+            <label class="form-label" for="hospitalId">Institución</label>
             <select class="form-select" id="hospitalId" name="hospital_id">
-              <option value="">Todos los hospitales</option>
+              <option value="">Todas las instituciones</option>
               {% for hospital in hospitales %}
               <option value="{{ hospital.id }}" {% if hospital.id == selected_id %}selected{% endif %}>{{ hospital.nombre }}</option>
               {% endfor %}
             </select>
             <div class="form-text">
-              Elegí un hospital para limitar la información exportada.
+              Elegí una institución para limitar la información exportada.
             </div>
           </div>
           <div class="col-12">

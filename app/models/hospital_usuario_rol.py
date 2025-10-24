@@ -21,7 +21,7 @@ class HospitalUsuarioRol(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
-    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitales.id"), nullable=False)
+    hospital_id: Mapped[int] = mapped_column(ForeignKey("instituciones.id"), nullable=False)
     rol_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False)
 
     usuario = relationship("Usuario", back_populates="hospitales_roles")

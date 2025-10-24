@@ -37,7 +37,7 @@ class Docscan(Base):
     fecha_documento: Mapped[date | None] = mapped_column(Date())
     comentario: Mapped[str | None] = mapped_column(Text())
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
-    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
+    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("instituciones.id"))
     servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
     oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
     uploaded_at: Mapped[datetime] = mapped_column(

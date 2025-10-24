@@ -318,7 +318,7 @@ def collect_dashboard_metrics(user, top_supplies: int = 5) -> dict[str, object]:
             },
             {
                 "key": "hospitales",
-                "label": "Hospitales",
+                "label": "Instituciones",
                 "value": int(hospitales_total),
                 "delta": int(hospitales_delta),
             },

@@ -44,7 +44,7 @@ class Acta(Base):
         DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False
     )
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
-    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
+    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("instituciones.id"))
     servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
     oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
     observaciones: Mapped[str | None] = mapped_column(Text())
