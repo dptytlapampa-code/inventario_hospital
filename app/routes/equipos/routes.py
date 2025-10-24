@@ -30,6 +30,7 @@ from app.forms.equipo import (
     EquipoFiltroForm,
     EquipoForm,
     EquipoHistorialFiltroForm,
+    TipoEquipoDeleteForm,
     TipoEquipoCreateForm,
     TipoEquipoUpdateForm,
 )
@@ -824,6 +825,17 @@ def gestionar_tipos():
         TipoEquipo.query.order_by(TipoEquipo.activo.desc(), TipoEquipo.nombre.asc())
         .all()
     )
+    tipo_ids = [tipo.id for tipo in tipos]
+    equipos_por_tipo: dict[int, int] = {}
+    if tipo_ids:
+        resultados = (
+            db.session.query(Equipo.tipo_id, func.count(Equipo.id))
+            .filter(Equipo.tipo_id.in_(tipo_ids))
+            .group_by(Equipo.tipo_id)
+            .all()
+        )
+        equipos_por_tipo = {tipo_id: total for tipo_id, total in resultados}
+
     update_forms = []
     for tipo in tipos:
         form = TipoEquipoUpdateForm(prefix=f"tipo-{tipo.id}")
@@ -831,7 +843,10 @@ def gestionar_tipos():
         form.nombre.data = tipo.nombre
         form.descripcion.data = tipo.descripcion
         form.activo.data = tipo.activo
-        update_forms.append((tipo, form))
+        delete_form = TipoEquipoDeleteForm(prefix=f"delete-{tipo.id}")
+        delete_form.tipo_id.data = str(tipo.id)
+        has_equipos = equipos_por_tipo.get(tipo.id, 0) > 0
+        update_forms.append((tipo, form, delete_form, has_equipos))
 
     return render_template(
         "equipos/tipos.html",
@@ -848,7 +863,7 @@ def actualizar_tipo(tipo_id: int):
     """Persist updates to an equipment type."""
 
     tipo = TipoEquipo.query.get_or_404(tipo_id)
-    form = TipoEquipoUpdateForm()
+    form = TipoEquipoUpdateForm(prefix=f"tipo-{tipo_id}")
     if not form.validate_on_submit():
         for errors in form.errors.values():
             for message in errors:
@@ -875,4 +890,39 @@ def actualizar_tipo(tipo_id: int):
         flash("Ya existe un tipo con ese nombre", "danger")
     else:
         flash("Tipo de equipo actualizado", "success")
+    return redirect(url_for("equipos.gestionar_tipos"))
+
+
+@equipos_bp.route("/tipos/<int:tipo_id>/eliminar", methods=["POST"])
+@login_required
+@require_roles("admin", "superadmin")
+def eliminar_tipo(tipo_id: int):
+    """Remove an equipment type when it has no associated equipment."""
+
+    tipo = TipoEquipo.query.get_or_404(tipo_id)
+    form = TipoEquipoDeleteForm(prefix=f"delete-{tipo_id}")
+    if not form.validate_on_submit():
+        for errors in form.errors.values():
+            for message in errors:
+                flash(message, "danger")
+        return redirect(url_for("equipos.gestionar_tipos"))
+
+    try:
+        submitted_id = int(form.tipo_id.data)
+    except (TypeError, ValueError):
+        flash("Identificador inválido", "danger")
+        return redirect(url_for("equipos.gestionar_tipos"))
+
+    if submitted_id != tipo_id:
+        flash("El identificador enviado no coincide", "danger")
+        return redirect(url_for("equipos.gestionar_tipos"))
+
+    asociado = Equipo.query.filter(Equipo.tipo_id == tipo_id).first()
+    if asociado is not None:
+        flash("No se puede eliminar el tipo porque tiene equipos asociados", "danger")
+        return redirect(url_for("equipos.gestionar_tipos"))
+
+    db.session.delete(tipo)
+    db.session.commit()
+    flash("Tipo de equipo eliminado", "success")
     return redirect(url_for("equipos.gestionar_tipos"))
