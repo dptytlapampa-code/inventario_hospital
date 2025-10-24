@@ -197,6 +197,13 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     app.jinja_env.filters.setdefault("combine", _combine_dicts)
     app.jinja_env.filters.setdefault("fecha", format_spanish_date)
 
+    # Helper to check if endpoint exists
+    def endpoint_exists(endpoint_name):
+        return endpoint_name in app.view_functions
+
+    # Make available inside Jinja templates
+    app.jinja_env.globals['endpoint_exists'] = endpoint_exists
+
     from app.models.usuario import Usuario  # imported lazily to avoid circular imports
 
     @login_manager.user_loader
