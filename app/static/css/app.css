@@ -12,9 +12,12 @@ Guía rápida de paleta y extensibilidad
   --bs-body-bg: #f4f6f9;
   --bs-body-color: #0f172a;
   --bs-card-bg: #ffffff;
+  --bs-card-cap-bg: transparent;
   --bs-border-color-translucent: rgba(15, 23, 42, 0.12);
   --bs-primary: #6f42c1;
   --bs-primary-rgb: 111, 66, 193;
+  --bs-secondary-color: #64748b;
+  --bs-secondary-rgb: 100, 116, 139;
   --bs-link-color: #6f42c1;
   --muted-color: rgba(15, 23, 42, 0.6);
   --form-control-bg: #ffffff;
@@ -74,9 +77,12 @@ Guía rápida de paleta y extensibilidad
   --bs-body-bg: #0b1220;
   --bs-body-color: #e6eef8;
   --bs-card-bg: #0f1b2b;
+  --bs-card-cap-bg: transparent;
   --bs-border-color-translucent: rgba(230, 238, 248, 0.24);
   --bs-primary: #7a5cff;
   --bs-primary-rgb: 122, 92, 255;
+  --bs-secondary-color: #94a3b8;
+  --bs-secondary-rgb: 148, 163, 184;
   --bs-link-color: #b7a2ff;
   --muted-color: rgba(230, 238, 248, 0.65);
   --form-control-bg: #141f32;
@@ -558,11 +564,20 @@ body {
   color: #ffffff;
 }
 
-.btn-primary:hover,
-.btn-primary:focus {
+.btn-primary:hover {
   background-color: var(--bs-primary);
   border-color: var(--bs-primary);
   color: #ffffff;
+}
+
+.btn-primary:focus,
+.btn-primary:focus-visible {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: #ffffff;
+  box-shadow:
+    0 0.5rem 1.25rem rgba(var(--bs-primary-rgb), 0.25),
+    0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.35);
 }
 
 .btn-outline-primary {
