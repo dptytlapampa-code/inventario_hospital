@@ -52,6 +52,12 @@ def _combine_dicts(
     return combined
 
 
+def _endpoint_exists(endpoint: str) -> bool:
+    """Return ``True`` when the given endpoint is registered."""
+
+    return endpoint in current_app.view_functions
+
+
 def _get_alembic_heads() -> list[str]:
     """Return the list of revision heads known to Alembic."""
 
@@ -192,6 +198,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     app.jinja_env.globals.setdefault("normalize_enum_value", normalize_enum_value)
     app.jinja_env.globals.setdefault("humanize_bytes", humanize_bytes)
     app.jinja_env.globals.setdefault("has_role", has_role)
+    app.jinja_env.globals.setdefault("endpoint_exists", _endpoint_exists)
     app.jinja_env.filters.setdefault("enum_value", normalize_enum_value)
     app.jinja_env.filters.setdefault("humanize_bytes", humanize_bytes)
     app.jinja_env.filters.setdefault("combine", _combine_dicts)

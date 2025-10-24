@@ -43,6 +43,7 @@
         {% set insumos_open = current_bp == 'insumos' %}
         {% set ubicaciones_open = current_bp == 'ubicaciones' %}
         {% set usuarios_open = current_bp in ['usuarios', 'licencias', 'permisos'] %}
+        {% set reportes_open = current_bp == 'reportes' %}
         {% set vlans_open = current_bp == 'vlans' %}
         {% set vista_actual = request.args.get('vista', 'hospitales') %}
         {% set filtro_insumos = request.args.get('criticos') %}
@@ -188,6 +189,16 @@
               'active': current_endpoint == 'licencias.gestion'
             }
           ] %}
+          {% set reportes_links = [] %}
+          {% if endpoint_exists('reportes.exportar') %}
+          {% set reportes_links = [
+            {
+              'label': 'Exportar datos',
+              'url': url_for('reportes.exportar'),
+              'active': current_bp == 'reportes'
+            }
+          ] %}
+          {% endif %}
           {% set accordion_sections = [
             {
               'slug': 'equipos',
@@ -221,6 +232,13 @@
               'open': usuarios_open,
               'links': usuarios_links,
               'visible': has_role('admin', 'superadmin')
+            },
+            {
+              'slug': 'reportes',
+              'title': 'Reportes',
+              'open': reportes_open,
+              'links': reportes_links,
+              'visible': has_role('superadmin') and reportes_links|length > 0
             }
           ] %}
           {{ accordion(accordion_sections, 'sidebarAccordion') }}
