@@ -70,7 +70,8 @@
               'active': licencias_main_active
             }
           ] %}
-          {% if endpoint_exists('ayuda.index') %}
+          {% set ayuda_available = endpoint_exists('ayuda.index') %}
+          {% if ayuda_available %}
           {% set primary_links = primary_links + [
             {
               'label': 'Ayuda',
