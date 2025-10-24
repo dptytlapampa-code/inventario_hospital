@@ -16,6 +16,8 @@ Guía rápida de paleta y extensibilidad
   --bs-primary: #6f42c1;
   --bs-primary-rgb: 111, 66, 193;
   --bs-link-color: #6f42c1;
+  --bs-secondary-color: #64748b;
+  --bs-secondary-rgb: 100, 116, 139;
   --muted-color: rgba(15, 23, 42, 0.6);
   --form-control-bg: #ffffff;
   --form-control-color: #0f172a;
@@ -34,6 +36,7 @@ Guía rápida de paleta y extensibilidad
   --status-baja-color: #7b2525;
   --status-baja-border: #c94b4b;
   --sidebar-icon-invert: 0;
+  --bs-card-cap-bg: transparent;
 }
 
 [data-bs-theme='light'] {
@@ -78,6 +81,8 @@ Guía rápida de paleta y extensibilidad
   --bs-primary: #7a5cff;
   --bs-primary-rgb: 122, 92, 255;
   --bs-link-color: #b7a2ff;
+  --bs-secondary-color: #94a3b8;
+  --bs-secondary-rgb: 148, 163, 184;
   --muted-color: rgba(230, 238, 248, 0.65);
   --form-control-bg: #141f32;
   --form-control-color: #e6eef8;
@@ -102,6 +107,7 @@ Guía rápida de paleta y extensibilidad
   --status-baja-bg: #3d1f1f;
   --status-baja-color: #fee2e2;
   --status-baja-border: #c94b4b;
+  --bs-card-cap-bg: transparent;
 }
 
 /* Garantiza que el menú use esas variables */
