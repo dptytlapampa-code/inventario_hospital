@@ -42,6 +42,7 @@
         {% set insumos_open = current_bp == 'insumos' %}
         {% set ubicaciones_open = current_bp == 'ubicaciones' %}
         {% set usuarios_open = current_bp in ['usuarios', 'licencias', 'permisos'] %}
+        {% set reportes_open = current_bp == 'reportes' %}
         {% set vlans_open = current_bp == 'vlans' %}
         {% set vista_actual = request.args.get('vista', 'hospitales') %}
         {% set filtro_insumos = request.args.get('criticos') %}
@@ -159,6 +160,22 @@
                     <li><a class="sidebar-sublink{% if current_bp == 'auditoria' %} active{% endif %}" href="{{ url_for('auditoria.index') }}">Auditorías</a></li>
                     <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.asignacion' %} active{% endif %}" href="{{ url_for('usuarios.asignacion') }}">Asignación hospitales</a></li>
                     <li><a class="sidebar-sublink{% if current_endpoint == 'licencias.gestion' %} active{% endif %}" href="{{ url_for('licencias.gestion') }}">Licencias (gestión)</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            {% if has_role('superadmin') %}
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="accordionReportes">
+                <button class="accordion-button{% if not reportes_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReportes" aria-expanded="{{ 'true' if reportes_open else 'false' }}" aria-controls="collapseReportes">
+                  Reportes
+                </button>
+              </h2>
+              <div id="collapseReportes" class="accordion-collapse collapse{% if reportes_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
+                <div class="accordion-body p-0">
+                  <ul class="sidebar-subnav list-unstyled mb-0">
+                    <li><a class="sidebar-sublink{% if current_bp == 'reportes' %} active{% endif %}" href="{{ url_for('reportes.exportar') }}">Exportar datos</a></li>
                   </ul>
                 </div>
               </div>

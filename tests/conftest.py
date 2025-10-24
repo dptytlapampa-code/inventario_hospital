@@ -31,6 +31,8 @@ from app.models import (
     TipoEquipo,
     TipoLicencia,
     Usuario,
+    Vlan,
+    VlanDispositivo,
 )
 from app.services import insumo_service
 from app.services.licencia_service import crear_licencia, enviar_licencia
@@ -255,6 +257,48 @@ def _populate_database() -> dict[str, object]:
         oficina=secondary_office,
     )
     db.session.add(printer_regional)
+
+    vlan_central = Vlan(
+        nombre="Administración",
+        identificador="10",
+        hospital=hospital,
+        servicio=servicio,
+        oficina=oficina,
+    )
+    db.session.add(vlan_central)
+
+    vlan_regional = Vlan(
+        nombre="Soporte",
+        identificador="20",
+        hospital=second_hospital,
+        servicio=secondary_service,
+        oficina=secondary_office,
+    )
+    db.session.add(vlan_regional)
+
+    dispositivo_central = VlanDispositivo(
+        vlan=vlan_central,
+        nombre_equipo="Servidor Central",
+        host="srv-central",
+        direccion_ip="10.0.0.10",
+        direccion_mac="AA:BB:CC:DD:EE:FF",
+        hospital=hospital,
+        servicio=servicio,
+        oficina=oficina,
+    )
+    db.session.add(dispositivo_central)
+
+    dispositivo_regional = VlanDispositivo(
+        vlan=vlan_regional,
+        nombre_equipo="Servidor Regional",
+        host="srv-regional",
+        direccion_ip="10.1.0.10",
+        direccion_mac="11:22:33:44:55:66",
+        hospital=second_hospital,
+        servicio=secondary_service,
+        oficina=secondary_office,
+    )
+    db.session.add(dispositivo_regional)
 
     insumo = Insumo(nombre="Mouse óptico", stock=15, stock_minimo=5)
     db.session.add(insumo)
