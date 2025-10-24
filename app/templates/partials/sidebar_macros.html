@@ -1,0 +1,39 @@
+{% macro nav_links(links) %}
+  <ul class="sidebar-nav-list list-unstyled mb-0">
+    {% for link in links if link.visible | default(true) %}
+      <li>
+        <a class="sidebar-link{% if link.active %} active{% endif %}" href="{{ link.url }}">
+          <span class="sidebar-link-text">{{ link.label }}</span>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endmacro %}
+
+{% macro accordion(sections, accordion_id) %}
+  <div class="accordion accordion-flush sidebar-accordion" id="{{ accordion_id }}">
+    {% for section in sections if section.visible | default(true) %}
+      {% set slug = section['slug'] %}
+      {% set heading_id = 'accordion' ~ slug|capitalize %}
+      {% set collapse_id = 'collapse' ~ slug|capitalize %}
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="{{ heading_id }}">
+          <button class="accordion-button{% if not section.open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#{{ collapse_id }}" aria-expanded="{{ 'true' if section.open else 'false' }}" aria-controls="{{ collapse_id }}">
+            {{ section.title }}
+          </button>
+        </h2>
+        <div id="{{ collapse_id }}" class="accordion-collapse collapse{% if section.open %} show{% endif %}" data-bs-parent="#{{ accordion_id }}">
+          <div class="accordion-body p-0">
+            <ul class="sidebar-subnav list-unstyled mb-0">
+              {% for item in section['links'] if item.visible | default(true) %}
+                <li>
+                  <a class="sidebar-sublink{% if item.active %} active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endmacro %}

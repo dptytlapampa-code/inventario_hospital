@@ -224,6 +224,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
     from app.routes.insumos import insumos_bp
     from app.routes.files import files_bp
     from app.routes.licencias.routes import licencias_bp
+    from app.routes.ayuda import ayuda_bp
     from app.routes.main import main_bp
     from app.routes.permisos import permisos_bp
     from app.routes.search import search_bp
@@ -252,6 +253,7 @@ def create_app(config_class: type[Config] | Config = Config) -> Flask:
         ubicaciones_api_bp,
         usuarios_bp,
         vlans_bp,
+        ayuda_bp,
     ):
         app.register_blueprint(blueprint)
 

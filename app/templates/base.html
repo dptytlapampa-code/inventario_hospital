@@ -36,6 +36,7 @@
           </button>
         </div>
         {% if current_user.is_authenticated %}
+        {% from 'partials/sidebar_macros.html' import nav_links, accordion %}
         {% set current_bp = request.blueprint or '' %}
         {% set current_endpoint = request.endpoint or '' %}
         {% set equipos_open = current_bp in ['equipos', 'adjuntos', 'actas', 'docscan'] %}
@@ -56,115 +57,173 @@
         {% set licencias_main_active = current_bp == 'licencias' %}
         {% endif %}
         <nav class="sidebar-nav" aria-label="Menú principal">
-          <ul class="sidebar-nav-list list-unstyled mb-0">
-            <li>
-              <a class="sidebar-link{% if current_endpoint == 'main.index' %} active{% endif %}" href="{{ url_for('main.index') }}">
-                <span class="sidebar-link-text">Dashboard</span>
-              </a>
-            </li>
-            <li>
-              <a class="sidebar-link{% if licencias_main_active %} active{% endif %}" href="{{ licencias_url }}">
-                <span class="sidebar-link-text">Licencias</span>
-              </a>
-            </li>
-          </ul>
-          <div class="accordion accordion-flush sidebar-accordion" id="sidebarAccordion">
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="accordionEquipos">
-                <button class="accordion-button{% if not equipos_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEquipos" aria-expanded="{{ 'true' if equipos_open else 'false' }}" aria-controls="collapseEquipos">
-                  Equipos
-                </button>
-              </h2>
-              <div id="collapseEquipos" class="accordion-collapse collapse{% if equipos_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
-                <div class="accordion-body p-0">
-                  <ul class="sidebar-subnav list-unstyled mb-0">
-                    <li><a class="sidebar-sublink{% if current_bp == 'equipos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('equipos.listar') }}">Listado</a></li>
-                    <li><a class="sidebar-sublink{% if current_endpoint == 'equipos.crear' %} active{% endif %}" href="{{ url_for('equipos.crear') }}">Nuevo</a></li>
-                    {% if has_role('superadmin') %}
-                    <li><a class="sidebar-sublink{% if current_endpoint == 'equipos.gestionar_tipos' %} active{% endif %}" href="{{ url_for('equipos.gestionar_tipos') }}">Tipos de equipo</a></li>
-                    {% endif %}
-                    <li><a class="sidebar-sublink{% if current_bp == 'adjuntos' %} active{% endif %}" href="{{ url_for('adjuntos.listar') }}">Adjuntos</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'actas' %} active{% endif %}" href="{{ url_for('actas.listar') }}">Actas</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'docscan' %} active{% endif %}" href="{{ url_for('docscan.listar') }}">Docscan</a></li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="accordionInsumos">
-                <button class="accordion-button{% if not insumos_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumos" aria-expanded="{{ 'true' if insumos_open else 'false' }}" aria-controls="collapseInsumos">
-                  Insumos
-                </button>
-              </h2>
-              <div id="collapseInsumos" class="accordion-collapse collapse{% if insumos_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
-                <div class="accordion-body p-0">
-                  <ul class="sidebar-subnav list-unstyled mb-0">
-                    <li><a class="sidebar-sublink{% if current_bp == 'insumos' and not filtro_insumos %} active{% endif %}" href="{{ url_for('insumos.listar') }}">Listado</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'insumos' and filtro_insumos %} active{% endif %}" href="{{ url_for('insumos.listar', criticos=1) }}">Críticos</a></li>
-                    {% if current_user.has_permission('insumos:write') %}
-                    <li><a class="sidebar-sublink{% if current_endpoint == 'insumos.crear' %} active{% endif %}" href="{{ url_for('insumos.crear') }}">Nuevo</a></li>
-                    {% endif %}
-                  </ul>
-                </div>
-              </div>
-            </div>
-            {% if has_role('superadmin', 'admin', 'tecnico') %}
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="accordionVlans">
-                <button class="accordion-button{% if not vlans_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseVlans" aria-expanded="{{ 'true' if vlans_open else 'false' }}" aria-controls="collapseVlans">
-                  VLANs
-                </button>
-              </h2>
-              <div id="collapseVlans" class="accordion-collapse collapse{% if vlans_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
-                <div class="accordion-body p-0">
-                  <ul class="sidebar-subnav list-unstyled mb-0">
-                    <li><a class="sidebar-sublink{% if current_bp == 'vlans' and current_endpoint != 'vlans.crear_vlan' %} active{% endif %}" href="{{ url_for('vlans.listar') }}">Listado</a></li>
-                    {% if has_role('superadmin') %}
-                    <li><a class="sidebar-sublink{% if current_endpoint == 'vlans.crear_vlan' %} active{% endif %}" href="{{ url_for('vlans.crear_vlan') }}">Nueva VLAN</a></li>
-                    {% endif %}
-                  </ul>
-                </div>
-              </div>
-            </div>
-            {% endif %}
-            {% if has_role('admin', 'superadmin') %}
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="accordionUbicaciones">
-                <button class="accordion-button{% if not ubicaciones_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUbicaciones" aria-expanded="{{ 'true' if ubicaciones_open else 'false' }}" aria-controls="collapseUbicaciones">
-                  Ubicaciones
-                </button>
-              </h2>
-              <div id="collapseUbicaciones" class="accordion-collapse collapse{% if ubicaciones_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
-                <div class="accordion-body p-0">
-                  <ul class="sidebar-subnav list-unstyled mb-0">
-                    <li><a class="sidebar-sublink{% if current_bp == 'ubicaciones' and vista_actual == 'hospitales' %} active{% endif %}" href="{{ url_for('ubicaciones.listar', vista='hospitales') }}">Hospitales</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'ubicaciones' and vista_actual == 'servicios' %} active{% endif %}" href="{{ url_for('ubicaciones.listar', vista='servicios') }}">Servicios</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'ubicaciones' and vista_actual == 'oficinas' %} active{% endif %}" href="{{ url_for('ubicaciones.listar', vista='oficinas') }}">Oficinas</a></li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="accordionUsuarios">
-                <button class="accordion-button{% if not usuarios_open %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUsuarios" aria-expanded="{{ 'true' if usuarios_open else 'false' }}" aria-controls="collapseUsuarios">
-                  Usuarios
-                </button>
-              </h2>
-              <div id="collapseUsuarios" class="accordion-collapse collapse{% if usuarios_open %} show{% endif %}" data-bs-parent="#sidebarAccordion">
-                <div class="accordion-body p-0">
-                  <ul class="sidebar-subnav list-unstyled mb-0">
-                    <li><a class="sidebar-sublink{% if current_bp == 'usuarios' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('usuarios.listar') }}">Listado</a></li>
-                    <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.crear' %} active{% endif %}" href="{{ url_for('usuarios.crear') }}">Nuevo usuario</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'permisos' and 'listar' in current_endpoint %} active{% endif %}" href="{{ url_for('permisos.listar') }}">Permisos</a></li>
-                    <li><a class="sidebar-sublink{% if current_bp == 'auditoria' %} active{% endif %}" href="{{ url_for('auditoria.index') }}">Auditorías</a></li>
-                    <li><a class="sidebar-sublink{% if current_endpoint == 'usuarios.asignacion' %} active{% endif %}" href="{{ url_for('usuarios.asignacion') }}">Asignación hospitales</a></li>
-                    <li><a class="sidebar-sublink{% if current_endpoint == 'licencias.gestion' %} active{% endif %}" href="{{ url_for('licencias.gestion') }}">Licencias (gestión)</a></li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            {% endif %}
-          </div>
+          {% set primary_links = [
+            {
+              'label': 'Dashboard',
+              'url': url_for('main.index'),
+              'active': current_endpoint == 'main.index'
+            },
+            {
+              'label': 'Licencias',
+              'url': licencias_url,
+              'active': licencias_main_active
+            },
+            {
+              'label': 'Ayuda',
+              'url': url_for('ayuda.index'),
+              'active': current_bp == 'ayuda'
+            }
+          ] %}
+          {{ nav_links(primary_links) }}
+          {% set equipos_links = [
+            {
+              'label': 'Listado',
+              'url': url_for('equipos.listar'),
+              'active': current_bp == 'equipos' and 'listar' in current_endpoint
+            },
+            {
+              'label': 'Nuevo',
+              'url': url_for('equipos.crear'),
+              'active': current_endpoint == 'equipos.crear'
+            },
+            {
+              'label': 'Tipos de equipo',
+              'url': url_for('equipos.gestionar_tipos'),
+              'active': current_endpoint == 'equipos.gestionar_tipos',
+              'visible': has_role('superadmin')
+            },
+            {
+              'label': 'Adjuntos',
+              'url': url_for('adjuntos.listar'),
+              'active': current_bp == 'adjuntos'
+            },
+            {
+              'label': 'Actas',
+              'url': url_for('actas.listar'),
+              'active': current_bp == 'actas'
+            },
+            {
+              'label': 'Docscan',
+              'url': url_for('docscan.listar'),
+              'active': current_bp == 'docscan'
+            }
+          ] %}
+          {% set insumos_links = [
+            {
+              'label': 'Listado',
+              'url': url_for('insumos.listar'),
+              'active': current_bp == 'insumos' and not filtro_insumos
+            },
+            {
+              'label': 'Críticos',
+              'url': url_for('insumos.listar', criticos=1),
+              'active': current_bp == 'insumos' and filtro_insumos
+            },
+            {
+              'label': 'Nuevo',
+              'url': url_for('insumos.crear'),
+              'active': current_endpoint == 'insumos.crear',
+              'visible': current_user.has_permission('insumos:write')
+            }
+          ] %}
+          {% set vlans_links = [
+            {
+              'label': 'Listado',
+              'url': url_for('vlans.listar'),
+              'active': current_bp == 'vlans' and current_endpoint != 'vlans.crear_vlan'
+            },
+            {
+              'label': 'Nueva VLAN',
+              'url': url_for('vlans.crear_vlan'),
+              'active': current_endpoint == 'vlans.crear_vlan',
+              'visible': has_role('superadmin')
+            }
+          ] %}
+          {% set ubicaciones_links = [
+            {
+              'label': 'Hospitales',
+              'url': url_for('ubicaciones.listar', vista='hospitales'),
+              'active': current_bp == 'ubicaciones' and vista_actual == 'hospitales'
+            },
+            {
+              'label': 'Servicios',
+              'url': url_for('ubicaciones.listar', vista='servicios'),
+              'active': current_bp == 'ubicaciones' and vista_actual == 'servicios'
+            },
+            {
+              'label': 'Oficinas',
+              'url': url_for('ubicaciones.listar', vista='oficinas'),
+              'active': current_bp == 'ubicaciones' and vista_actual == 'oficinas'
+            }
+          ] %}
+          {% set usuarios_links = [
+            {
+              'label': 'Listado',
+              'url': url_for('usuarios.listar'),
+              'active': current_bp == 'usuarios' and 'listar' in current_endpoint
+            },
+            {
+              'label': 'Nuevo usuario',
+              'url': url_for('usuarios.crear'),
+              'active': current_endpoint == 'usuarios.crear'
+            },
+            {
+              'label': 'Permisos',
+              'url': url_for('permisos.listar'),
+              'active': current_bp == 'permisos' and 'listar' in current_endpoint
+            },
+            {
+              'label': 'Auditorías',
+              'url': url_for('auditoria.index'),
+              'active': current_bp == 'auditoria'
+            },
+            {
+              'label': 'Asignación hospitales',
+              'url': url_for('usuarios.asignacion'),
+              'active': current_endpoint == 'usuarios.asignacion'
+            },
+            {
+              'label': 'Licencias (gestión)',
+              'url': url_for('licencias.gestion'),
+              'active': current_endpoint == 'licencias.gestion'
+            }
+          ] %}
+          {% set accordion_sections = [
+            {
+              'slug': 'equipos',
+              'title': 'Equipos',
+              'open': equipos_open,
+              'links': equipos_links
+            },
+            {
+              'slug': 'insumos',
+              'title': 'Insumos',
+              'open': insumos_open,
+              'links': insumos_links
+            },
+            {
+              'slug': 'vlans',
+              'title': 'VLANs',
+              'open': vlans_open,
+              'links': vlans_links,
+              'visible': has_role('superadmin', 'admin', 'tecnico')
+            },
+            {
+              'slug': 'ubicaciones',
+              'title': 'Ubicaciones',
+              'open': ubicaciones_open,
+              'links': ubicaciones_links,
+              'visible': has_role('admin', 'superadmin')
+            },
+            {
+              'slug': 'usuarios',
+              'title': 'Usuarios',
+              'open': usuarios_open,
+              'links': usuarios_links,
+              'visible': has_role('admin', 'superadmin')
+            }
+          ] %}
+          {{ accordion(accordion_sections, 'sidebarAccordion') }}
           <ul class="sidebar-nav-list list-unstyled mt-auto">
             <li>
               <a class="sidebar-link" href="{{ url_for('auth.logout') }}">

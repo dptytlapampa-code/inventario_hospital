@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Ayuda{% endblock %}
+
+{% block header_title %}Centro de ayuda{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="row g-4">
+    <div class="col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-secondary mb-3">Roles disponibles</h2>
+          <ul class="nav flex-column gap-1">
+            {% for section in help_sections %}
+            {% set is_current = section.role == current_role %}
+            <li class="nav-item">
+              <a class="nav-link px-0{% if is_current %} fw-semibold text-primary{% else %} text-body{% endif %}" href="#rol-{{ section.role }}">
+                {{ section.title }}
+                {% if is_current %}
+                <span class="badge bg-primary-subtle text-primary-emphasis ms-1">Tu rol</span>
+                {% endif %}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+          <hr>
+          <p class="small text-body-secondary mb-0">
+            Cada resumen describe únicamente las herramientas que corresponden a ese perfil.
+            Si necesitás ampliar tus permisos contactá al área administrativa.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-9">
+      {% for section in help_sections %}
+      <section id="rol-{{ section.role }}" class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+          <h2 class="h5 mb-1">{{ section.title }}</h2>
+          <p class="mb-0 text-body-secondary">{{ section.summary }}</p>
+        </div>
+        <div class="card-body">
+          <div class="row g-4">
+            {% for area in section.areas %}
+            <div class="col-md-6">
+              <div class="border rounded-3 h-100 p-3">
+                <h3 class="h6 mb-2">{{ area.title }}</h3>
+                <p class="small text-body-secondary mb-2">{{ area.description }}</p>
+                {% if area.items %}
+                <ul class="small ps-3 mb-0">
+                  {% for item in area.items %}
+                  <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% if section.tips %}
+          <div class="alert alert-info mt-4" role="note">
+            <div class="d-flex flex-column gap-2">
+              <h3 class="h6 mb-0">Recomendaciones</h3>
+              <ul class="small ps-3 mb-0">
+                {% for tip in section.tips %}
+                <li>{{ tip }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
