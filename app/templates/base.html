@@ -72,7 +72,8 @@
             {
               'label': 'Ayuda',
               'url': url_for('ayuda.index'),
-              'active': current_bp == 'ayuda'
+              'active': current_bp == 'ayuda',
+              'visible': endpoint_exists('ayuda.index')
             }
           ] %}
           {{ nav_links(primary_links) }}
