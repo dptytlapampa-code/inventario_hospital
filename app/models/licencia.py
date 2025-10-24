@@ -45,7 +45,7 @@ class Licencia(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
-    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
+    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("instituciones.id"))
     tipo: Mapped[TipoLicencia] = mapped_column(
         SAEnum(TipoLicencia, name="tipo_licencia"), nullable=False
     )

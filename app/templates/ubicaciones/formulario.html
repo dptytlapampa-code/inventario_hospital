@@ -8,14 +8,14 @@
   {% for field in form if field.type != 'CSRFTokenField' and field.name != 'submit' %}
     {% if field.type in ['SelectField', 'SelectMultipleField'] %}
       {% if field.name == 'hospital_id' %}
-        {{ render_ajax_select(field, url_for('api.search_hospitales'), placeholder='Escriba para buscar un hospital') }}
+        {{ render_ajax_select(field, url_for('api.search_hospitales'), placeholder='Escriba para buscar una institución') }}
       {% elif field.name == 'servicio_id' %}
         {{ render_ajax_select(
           field,
           url_for('api.search_servicios'),
           placeholder='Escriba para buscar un servicio',
           depends_on='hospital_id',
-          depends_message='Seleccione un hospital para continuar',
+          depends_message='Seleccione una institución para continuar',
           dependency_param='hospital_id'
         ) }}
       {% else %}

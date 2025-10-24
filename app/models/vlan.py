@@ -30,7 +30,7 @@ class Vlan(Base):
     identificador: Mapped[str] = mapped_column(String(50), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String(255))
     hospital_id: Mapped[int] = mapped_column(
-        ForeignKey("hospitales.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("instituciones.id", ondelete="CASCADE"), nullable=False
     )
     servicio_id: Mapped[int | None] = mapped_column(
         ForeignKey("servicios.id", ondelete="SET NULL")
@@ -83,7 +83,7 @@ class VlanDispositivo(Base):
     direccion_ip: Mapped[str] = mapped_column(String(45), nullable=False)
     direccion_mac: Mapped[str | None] = mapped_column(String(32))
     hospital_id: Mapped[int] = mapped_column(
-        ForeignKey("hospitales.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("instituciones.id", ondelete="CASCADE"), nullable=False
     )
     servicio_id: Mapped[int | None] = mapped_column(
         ForeignKey("servicios.id", ondelete="SET NULL")

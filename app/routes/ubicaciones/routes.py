@@ -1,4 +1,4 @@
-"""Routes to manage hospitals, services and offices."""
+"""Routes to manage institutions, services and offices."""
 from __future__ import annotations
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
@@ -29,10 +29,9 @@ def listar():
     if buscar:
         like = f"%{buscar}%"
         criterios = [Hospital.nombre.ilike(like)]
-        if hasattr(Hospital, "localidad"):
-            criterios.append(Hospital.localidad.ilike(like))
-        if hasattr(Hospital, "direccion"):
-            criterios.append(Hospital.direccion.ilike(like))
+        for attr in ("localidad", "direccion", "zona_sanitaria"):
+            if hasattr(Hospital, attr):
+                criterios.append(getattr(Hospital, attr).ilike(like))
         query = query.filter(or_(*criterios))
 
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -52,18 +51,28 @@ def crear_hospital():
     if form.validate_on_submit():
         hospital = Hospital(
             nombre=form.nombre.data,
+            tipo_institucion=form.tipo_institucion.data,
             codigo=form.codigo.data or None,
-            localidad=form.localidad.data or None,
+            localidad=form.localidad.data,
+            provincia=form.provincia.data,
+            zona_sanitaria=form.zona_sanitaria.data or None,
             direccion=form.direccion.data or None,
-            telefono=form.telefono.data or None,
-            nivel_complejidad=form.nivel_complejidad.data,
+            estado=form.estado.data,
         )
         db.session.add(hospital)
         db.session.commit()
-        log_action(usuario_id=None, accion="crear", modulo="ubicaciones", tabla="hospitales", registro_id=hospital.id)
-        flash("Hospital creado", "success")
+        log_action(
+            usuario_id=None,
+            accion="crear",
+            modulo="ubicaciones",
+            tabla="instituciones",
+            registro_id=hospital.id,
+        )
+        flash("Institución creada", "success")
         return redirect(url_for("ubicaciones.listar"))
-    return render_template("ubicaciones/formulario.html", form=form, titulo="Nuevo hospital")
+    return render_template(
+        "ubicaciones/formulario.html", form=form, titulo="Nueva institución"
+    )
 
 
 @ubicaciones_bp.route("/hospital/<int:hospital_id>/editar", methods=["GET", "POST"])
@@ -74,15 +83,22 @@ def editar_hospital(hospital_id: int):
     form = HospitalForm(obj=hospital)
     if form.validate_on_submit():
         hospital.nombre = form.nombre.data
+        hospital.tipo_institucion = form.tipo_institucion.data
         hospital.codigo = form.codigo.data or None
-        hospital.localidad = form.localidad.data or None
+        hospital.localidad = form.localidad.data
+        hospital.provincia = form.provincia.data
+        hospital.zona_sanitaria = form.zona_sanitaria.data or None
         hospital.direccion = form.direccion.data or None
-        hospital.telefono = form.telefono.data or None
-        hospital.nivel_complejidad = form.nivel_complejidad.data
+        hospital.estado = form.estado.data
         db.session.commit()
-        flash("Hospital actualizado", "success")
+        flash("Institución actualizada", "success")
         return redirect(url_for("ubicaciones.listar"))
-    return render_template("ubicaciones/formulario.html", form=form, titulo="Editar hospital", hospital=hospital)
+    return render_template(
+        "ubicaciones/formulario.html",
+        form=form,
+        titulo="Editar institución",
+        hospital=hospital,
+    )
 
 
 @ubicaciones_bp.route("/servicio/crear", methods=["GET", "POST"])
@@ -94,7 +110,7 @@ def crear_servicio():
         servicio = Servicio(
             nombre=form.nombre.data,
             descripcion=form.descripcion.data or None,
-            hospital_id=form.hospital_id.data,
+            institucion_id=form.hospital_id.data,
         )
         db.session.add(servicio)
         db.session.commit()
@@ -112,11 +128,13 @@ def editar_servicio(servicio_id: int):
     if form.validate_on_submit():
         servicio.nombre = form.nombre.data
         servicio.descripcion = form.descripcion.data or None
-        servicio.hospital_id = form.hospital_id.data
+        servicio.institucion_id = form.hospital_id.data
         db.session.commit()
         flash("Servicio actualizado", "success")
         return redirect(url_for("ubicaciones.listar"))
-    return render_template("ubicaciones/formulario.html", form=form, titulo="Editar servicio", servicio=servicio)
+    return render_template(
+        "ubicaciones/formulario.html", form=form, titulo="Editar servicio", servicio=servicio
+    )
 
 
 @ubicaciones_bp.route("/oficina/crear", methods=["GET", "POST"])
@@ -129,7 +147,7 @@ def crear_oficina():
             nombre=form.nombre.data,
             piso=form.piso.data or None,
             servicio_id=form.servicio_id.data,
-            hospital_id=form.hospital_id.data,
+            institucion_id=form.hospital_id.data,
         )
         db.session.add(oficina)
         db.session.commit()
@@ -148,8 +166,10 @@ def editar_oficina(oficina_id: int):
         oficina.nombre = form.nombre.data
         oficina.piso = form.piso.data or None
         oficina.servicio_id = form.servicio_id.data
-        oficina.hospital_id = form.hospital_id.data
+        oficina.institucion_id = form.hospital_id.data
         db.session.commit()
         flash("Oficina actualizada", "success")
         return redirect(url_for("ubicaciones.listar"))
-    return render_template("ubicaciones/formulario.html", form=form, titulo="Editar oficina", oficina=oficina)
+    return render_template(
+        "ubicaciones/formulario.html", form=form, titulo="Editar oficina", oficina=oficina
+    )

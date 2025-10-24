@@ -55,18 +55,30 @@ def generar_reporte_excel(hospital_id: int | None = None) -> tuple[BytesIO, str]
     libro = SimpleXLSX()
 
     libro.add_sheet(
-        "Hospitales",
+        "Instituciones",
         [
-            ["ID", "Nombre", "Código", "Localidad", "Dirección", "Teléfono", "Nivel"],
+            [
+                "ID",
+                "Nombre",
+                "Tipo",
+                "Código",
+                "Localidad",
+                "Provincia",
+                "Zona sanitaria",
+                "Dirección",
+                "Estado",
+            ],
             *[
                 [
                     hospital.id,
                     hospital.nombre,
+                    hospital.tipo_institucion,
                     hospital.codigo or "",
                     hospital.localidad or "",
+                    hospital.provincia or "",
+                    hospital.zona_sanitaria or "",
                     hospital.direccion or "",
-                    hospital.telefono or "",
-                    hospital.nivel_complejidad or "",
+                    hospital.estado,
                 ]
                 for hospital in hospitales
             ],

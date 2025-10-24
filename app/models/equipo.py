@@ -103,7 +103,7 @@ class Equipo(Base):
     modelo: Mapped[str | None] = mapped_column(String(100), index=True)
     numero_serie: Mapped[str | None] = mapped_column(String(120), index=True)
     sin_numero_serie: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitales.id"), nullable=False)
+    hospital_id: Mapped[int] = mapped_column(ForeignKey("instituciones.id"), nullable=False)
     servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
     oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
     responsable: Mapped[str | None] = mapped_column(String(120))

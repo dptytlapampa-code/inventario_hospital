@@ -25,7 +25,7 @@ def test_superadmin_can_download_report(client, superadmin_credentials):
     )
     sheet_names = _extract_sheet_names(resp.data)
     expected_sheets = {
-        "Hospitales",
+        "Instituciones",
         "Equipos",
         "Insumos",
         "Usuarios",

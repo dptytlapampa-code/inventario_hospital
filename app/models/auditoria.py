@@ -21,7 +21,7 @@ class Auditoria(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
-    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
+    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("instituciones.id"))
     modulo: Mapped[str | None] = mapped_column(String(50))
     accion: Mapped[str] = mapped_column(String(50), nullable=False)
     entidad: Mapped[str | None] = mapped_column(String(50))

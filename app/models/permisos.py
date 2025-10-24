@@ -35,7 +35,7 @@ class Permiso(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     rol_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False)
     modulo: Mapped[Modulo] = mapped_column(SAEnum(Modulo, name="modulo_permiso"), nullable=False)
-    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
+    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("instituciones.id"))
     can_read: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     can_write: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     allow_export: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

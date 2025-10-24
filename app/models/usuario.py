@@ -50,7 +50,7 @@ class Usuario(Base, UserMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     rol_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False)
-    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("hospitales.id"))
+    hospital_id: Mapped[int | None] = mapped_column(ForeignKey("instituciones.id"))
     servicio_id: Mapped[int | None] = mapped_column(ForeignKey("servicios.id"))
     oficina_id: Mapped[int | None] = mapped_column(ForeignKey("oficinas.id"))
     theme_pref: Mapped[ThemePreference] = mapped_column(
