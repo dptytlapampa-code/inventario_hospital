@@ -35,10 +35,10 @@
       <div class="card-body p-0">
         {% if tipos %}
         <div class="list-group list-group-flush">
-          {% for tipo, form in update_forms %}
-          <form method="post" action="{{ url_for('equipos.actualizar_tipo', tipo_id=tipo.id) }}" class="list-group-item list-group-item-action py-3" novalidate>
-            {{ form.hidden_tag() }}
-            <div class="d-flex flex-column flex-lg-row gap-3 align-items-start">
+          {% for tipo, form, delete_form, has_equipos in update_forms %}
+          <div class="list-group-item list-group-item-action py-3">
+            <form method="post" action="{{ url_for('equipos.actualizar_tipo', tipo_id=tipo.id) }}" class="d-flex flex-column flex-lg-row gap-3 align-items-start" novalidate>
+              {{ form.hidden_tag() }}
               <div class="flex-fill">
                 <label class="form-label small text-muted mb-1" for="{{ form.nombre.id }}">Nombre</label>
                 {{ render_field(form.nombre, form_group_class='mb-2', label_class='visually-hidden', input_class='form-control form-control-sm', extra_attrs={'aria-describedby': 'tipo-ayuda-' ~ tipo.id}) }}
@@ -46,16 +46,20 @@
                 {{ render_textarea(form.descripcion, form_group_class='mb-2', label_class='form-label small text-muted', rows=3, placeholder='Descripción (opcional)') }}
               </div>
               {{ render_checkbox(form.activo, form_group_class='form-check form-switch mb-0 mt-1 align-self-stretch', input_class='form-check-input', label_class='form-check-label fw-semibold') }}
-              <div class="text-lg-end ms-lg-auto">
+              <div class="text-lg-end ms-lg-auto d-flex flex-column gap-2 w-100 w-lg-auto">
                 {% if not tipo.activo %}
-                <span class="badge bg-secondary mb-2">Inactivo</span>
+                <span class="badge bg-secondary">Inactivo</span>
                 {% else %}
-                <span class="badge bg-success mb-2">Activo</span>
+                <span class="badge bg-success">Activo</span>
                 {% endif %}
                 {{ form.submit(class='btn btn-outline-primary btn-sm w-100 w-lg-auto') }}
               </div>
-            </div>
-          </form>
+            </form>
+            <form method="post" action="{{ url_for('equipos.eliminar_tipo', tipo_id=tipo.id) }}" class="mt-3 text-end" onsubmit="return confirm('¿Eliminar el tipo de equipo? Esta acción no se puede deshacer.');">
+              {{ delete_form.hidden_tag() }}
+              <button type="submit" class="btn btn-outline-danger btn-sm" {% if has_equipos %}disabled data-bs-toggle="tooltip" data-bs-placement="top" title="No se puede eliminar porque hay equipos asociados"{% endif %}>Eliminar</button>
+            </form>
+          </div>
           {% endfor %}
         </div>
         {% else %}

@@ -316,30 +316,13 @@ class EquipoActaFiltroForm(FlaskForm):
         return True
 
 
-class TipoEquipoCreateForm(FlaskForm):
-    """Form used by administrators to create new equipment types."""
-
-    nombre = StringField("Nombre", validators=[DataRequired(), Length(max=160)])
-    descripcion = TextAreaField("Descripción", validators=[Optional(), Length(max=500)])
-    activo = BooleanField("Activo", default=True)
-    submit = SubmitField("Agregar tipo")
+class _TipoEquipoBaseForm(FlaskForm):
+    """Base helpers shared by equipment type forms."""
 
     def validate(self, extra_validators=None):  # type: ignore[override]
         is_valid = super().validate(extra_validators=extra_validators)
         self._deduplicate_errors()
         return is_valid
-
-    @staticmethod
-    def _normalized(value: str | None) -> str:
-        return (value or "").strip().lower()
-
-    def validate_nombre(self, field: StringField) -> None:  # type: ignore[override]
-        existing = (
-            TipoEquipo.query.filter(func.lower(TipoEquipo.nombre) == self._normalized(field.data))
-            .first()
-        )
-        if existing:
-            raise ValidationError("Ya existe un tipo con ese nombre")
 
     def _deduplicate_errors(self) -> None:
         for field in self._fields.values():
@@ -353,7 +336,28 @@ class TipoEquipoCreateForm(FlaskForm):
                 field.errors[:] = deduped
 
 
-class TipoEquipoUpdateForm(FlaskForm):
+class TipoEquipoCreateForm(_TipoEquipoBaseForm):
+    """Form used by administrators to create new equipment types."""
+
+    nombre = StringField("Nombre", validators=[DataRequired(), Length(max=160)])
+    descripcion = TextAreaField("Descripción", validators=[Optional(), Length(max=500)])
+    activo = BooleanField("Activo", default=True)
+    submit = SubmitField("Agregar tipo")
+
+    @staticmethod
+    def _normalized(value: str | None) -> str:
+        return (value or "").strip().lower()
+
+    def validate_nombre(self, field: StringField) -> None:  # type: ignore[override]
+        existing = (
+            TipoEquipo.query.filter(func.lower(TipoEquipo.nombre) == self._normalized(field.data))
+            .first()
+        )
+        if existing:
+            raise ValidationError("Ya existe un tipo con ese nombre")
+
+
+class TipoEquipoUpdateForm(_TipoEquipoBaseForm):
     """Form to rename or toggle availability of existing types."""
 
     tipo_id = HiddenField(validators=[DataRequired()])
@@ -361,11 +365,6 @@ class TipoEquipoUpdateForm(FlaskForm):
     descripcion = TextAreaField("Descripción", validators=[Optional(), Length(max=500)])
     activo = BooleanField("Activo")
     submit = SubmitField("Guardar cambios")
-
-    def validate(self, extra_validators=None):  # type: ignore[override]
-        is_valid = super().validate(extra_validators=extra_validators)
-        self._deduplicate_errors()
-        return is_valid
 
     @staticmethod
     def _normalized(value: str | None) -> str:
@@ -384,16 +383,12 @@ class TipoEquipoUpdateForm(FlaskForm):
         if existing:
             raise ValidationError("Ya existe un tipo con ese nombre")
 
-    def _deduplicate_errors(self) -> None:
-        for field in self._fields.values():
-            if getattr(field, "errors", None):
-                seen: set[str] = set()
-                deduped: list[str] = []
-                for error in field.errors:
-                    if error not in seen:
-                        seen.add(error)
-                        deduped.append(error)
-                field.errors[:] = deduped
+
+class TipoEquipoDeleteForm(_TipoEquipoBaseForm):
+    """Form to confirm deletion of an equipment type."""
+
+    tipo_id = HiddenField(validators=[DataRequired()])
+    submit = SubmitField("Eliminar tipo")
 
 __all__ = [
     "EquipoForm",
@@ -404,4 +399,5 @@ __all__ = [
     "EquipoActaFiltroForm",
     "TipoEquipoCreateForm",
     "TipoEquipoUpdateForm",
+    "TipoEquipoDeleteForm",
 ]
