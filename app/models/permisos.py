@@ -25,6 +25,21 @@ class Modulo(str, Enum):
     REPORTES = "reportes"
     AUDITORIA = "auditoria"
     LICENCIAS = "licencias"
+    EQUIPOS = "equipos"
+    PERMISOS = "permisos"
+    USUARIOS = "usuarios"
+    VLANS = "vlans"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "Modulo | None":
+        """Allow case-insensitive lookups when hydrating from the database."""
+
+        if isinstance(value, str):
+            normalized = value.lower()
+            for member in cls:
+                if member.value == normalized:
+                    return member
+        return None
 
 
 class Permiso(Base):

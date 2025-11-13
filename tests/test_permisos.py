@@ -4,6 +4,12 @@ from __future__ import annotations
 from app.models import Modulo, Permiso, Usuario
 
 
+def test_modulo_enum_accepts_case_insensitive_values() -> None:
+    assert Modulo("INVENTARIO") is Modulo.INVENTARIO
+    assert Modulo("equipos") is Modulo.EQUIPOS
+    assert Modulo("VLANS") is Modulo.VLANS
+
+
 def login(client, username: str, password: str) -> None:
     client.post(
         "/auth/login",
